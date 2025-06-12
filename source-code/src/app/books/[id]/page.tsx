@@ -2,13 +2,9 @@
 import { notFound } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
 
-export default async function BookDetailPage({ params }: Props) {
+
+export default async function BookDetailPage({ params }: any) {
   const { data: book } = await supabase
     .from('books')
     .select('*')
