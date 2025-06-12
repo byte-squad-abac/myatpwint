@@ -2,6 +2,17 @@
 import supabase from '@/lib/supabaseClient';
 import { notFound } from 'next/navigation';
 
+type Book = {
+  id: string;
+  name: string;
+  author: string;
+  price: number;
+  description: string;
+  category: string;
+  edition: string;
+  image_url: string;
+};
+
 export default async function BookDetailPage({ params }: { params: { id: string } }) {
   const { data: book } = await supabase
     .from('books')
@@ -28,8 +39,11 @@ export default async function BookDetailPage({ params }: { params: { id: string 
   );
 }
 
-// ✅ Required for static export
+// ✅ Required for static site export
 export async function generateStaticParams() {
   const { data: books } = await supabase.from('books').select('id');
   return (books || []).map((book) => ({ id: book.id }));
 }
+
+// ✅ Required for Netlify static build
+export const dynamicParams = false;
