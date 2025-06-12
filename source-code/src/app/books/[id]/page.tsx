@@ -2,7 +2,13 @@
 import { notFound } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
 
-export default async function BookDetailPage({ params }: { params: { id: string } }) {
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
+export default async function BookDetailPage({ params }: Props) {
   const { data: book } = await supabase
     .from('books')
     .select('*')
@@ -19,12 +25,16 @@ export default async function BookDetailPage({ params }: { params: { id: string 
       <p><strong>Description:</strong> {book.description}</p>
       <p><strong>Category:</strong> {book.category}</p>
       <p><strong>Edition:</strong> {book.edition}</p>
-      <img src={book.image_url} alt={book.name} style={{ width: '300px', marginTop: '1rem' }} />
+      <img
+        src={book.image_url}
+        alt={book.name}
+        style={{ width: '300px', marginTop: '1rem' }}
+      />
     </div>
   );
 }
 
-// Required for static export to work with [id]
+// Required for output: 'export'
 export async function generateStaticParams() {
   const { data: books } = await supabase.from('books').select('id');
   return (books || []).map((book) => ({
