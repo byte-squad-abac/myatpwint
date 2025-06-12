@@ -2,7 +2,7 @@
 import supabase from '@/lib/supabaseClient';
 import { notFound } from 'next/navigation';
 
-type Book = {
+interface Book {
   id: string;
   name: string;
   author: string;
@@ -11,22 +11,22 @@ type Book = {
   category: string;
   edition: string;
   image_url: string;
-};
+}
 
-type Props = {
+interface PageProps {
   params: {
     id: string;
   };
-};
+}
 
-export default async function BookDetailPage({ params }: Props) {
-  const { data: book } = await supabase
+export default async function BookDetailPage({ params }: PageProps) {
+  const { data: book, error } = await supabase
     .from('books')
     .select('*')
     .eq('id', params.id)
     .single();
 
-  if (!book) return notFound();
+  if (!book || error) return notFound();
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -45,13 +45,12 @@ export default async function BookDetailPage({ params }: Props) {
   );
 }
 
-// ✅ Generate static pages for all book IDs
+// ✅ Required for static generation in App Router + `output: 'export'`
 export async function generateStaticParams() {
   const { data: books } = await supabase.from('books').select('id');
-  return (books || []).map((book) => ({
+  return books?.map((book) => ({
     id: book.id,
-  }));
+  })) ?? [];
 }
 
-// ✅ Needed when using static export (Netlify)
 export const dynamicParams = false;
