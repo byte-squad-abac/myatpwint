@@ -13,7 +13,13 @@ type Book = {
   image_url: string;
 };
 
-export default async function BookDetailPage({ params }: { params: { id: string } }) {
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
+export default async function BookDetailPage({ params }: Props) {
   const { data: book } = await supabase
     .from('books')
     .select('*')
@@ -39,11 +45,13 @@ export default async function BookDetailPage({ params }: { params: { id: string 
   );
 }
 
-// ✅ Required for static site export
+// ✅ Generate static pages for all book IDs
 export async function generateStaticParams() {
   const { data: books } = await supabase.from('books').select('id');
-  return (books || []).map((book) => ({ id: book.id }));
+  return (books || []).map((book) => ({
+    id: book.id,
+  }));
 }
 
-// ✅ Required for Netlify static build
+// ✅ Needed when using static export (Netlify)
 export const dynamicParams = false;
