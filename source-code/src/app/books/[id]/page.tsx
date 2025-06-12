@@ -13,12 +13,6 @@ type Book = {
   image_url: string;
 };
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
 export async function generateStaticParams() {
   const { data } = await supabase.from('books').select('id');
   return (data ?? []).map((book) => ({
@@ -28,7 +22,7 @@ export async function generateStaticParams() {
 
 export const dynamicParams = false;
 
-export default async function BookDetailPage({ params }: Props) {
+export default async function BookDetailPage({ params }: { params: { id: string } }) {
   const { data: book, error } = await supabase
     .from('books')
     .select('*')
