@@ -2,7 +2,7 @@
 import supabase from '@/lib/supabaseClient';
 import { notFound } from 'next/navigation';
 
-interface Book {
+type Book = {
   id: string;
   name: string;
   author: string;
@@ -11,15 +11,24 @@ interface Book {
   category: string;
   edition: string;
   image_url: string;
-}
+};
 
-interface PageProps {
+type Props = {
   params: {
     id: string;
   };
+};
+
+export async function generateStaticParams() {
+  const { data } = await supabase.from('books').select('id');
+  return (data ?? []).map((book) => ({
+    id: book.id,
+  }));
 }
 
-export default async function BookDetailPage({ params }: PageProps) {
+export const dynamicParams = false;
+
+export default async function BookDetailPage({ params }: Props) {
   const { data: book, error } = await supabase
     .from('books')
     .select('*')
@@ -44,13 +53,3 @@ export default async function BookDetailPage({ params }: PageProps) {
     </div>
   );
 }
-
-// ✅ Required for static generation in App Router + `output: 'export'`
-export async function generateStaticParams() {
-  const { data: books } = await supabase.from('books').select('id');
-  return books?.map((book) => ({
-    id: book.id,
-  })) ?? [];
-}
-
-export const dynamicParams = false;
