@@ -1,10 +1,17 @@
 // src/app/books/[id]/page.tsx
 import { notFound } from 'next/navigation';
+import { Metadata, ResolvingMetadata } from 'next';
 import supabase from '@/lib/supabaseClient';
+import type { InferGetStaticPropsType } from 'next';
 
+// 👇 Fix: Use correct App Router typing
+type PageProps = {
+  params: {
+    id: string;
+  };
+};
 
-
-export default async function BookDetailPage({ params }: any) {
+export default async function BookDetailPage({ params }: PageProps) {
   const { data: book } = await supabase
     .from('books')
     .select('*')
@@ -30,7 +37,6 @@ export default async function BookDetailPage({ params }: any) {
   );
 }
 
-// Required for output: 'export'
 export async function generateStaticParams() {
   const { data: books } = await supabase.from('books').select('id');
   return (books || []).map((book) => ({
