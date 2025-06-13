@@ -61,23 +61,33 @@ export default function BooksPage() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '28px' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+        gap: '20px',
+        padding: '20px'
+      }}>
         {filteredBooks.length > 0 ? (
           filteredBooks.map((book) => (
             <Link key={book.id} href={`/books/${book.id}`} passHref style={{ textDecoration: 'none' }}>
-            <div
-              key={book.id}
-              className="book-card"
-            >
-              <img src={book.image_url} alt={book.name} style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '6px', marginBottom: 16, background: '#f0f0f0' }} />
-              <h2 style={{ fontSize: '1.13rem', margin: '0 0 6px', fontWeight: 600, textAlign: 'center' }}>{book.name}</h2>
-              <p style={{ color: '#888', margin: 0, fontSize: '0.98rem', textAlign: 'center' }}>by {book.author}</p>
-              <p style={{ color: '#007b55', fontWeight: 700, margin: '12px 0 0', fontSize: '1.05rem' }}>{book.price}</p>
-            </div>
+              <div className="book-card">
+                <img 
+                  src={book.image_url} 
+                  alt={book.name} 
+                  className="book-cover"
+                />
+                <div className="book-info">
+                  <h2 className="book-title">{book.name}</h2>
+                  <p className="book-author">by {book.author}</p>
+                  <p className="book-price">{book.price} MMK</p>
+                </div>
+              </div>
             </Link>
           ))
         ) : (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#999', fontSize: '1.1rem' }}>No books found.</div>
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#666', fontSize: '1.1rem', padding: '40px' }}>
+            No books found.
+          </div>
         )}
       </div>
     </main>
