@@ -16,16 +16,30 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    // TODO: Implement Supabase auth logic here
     if (isSignup) {
       // Signup logic
-      alert(`Signup: ${email}`);
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      // Optionally, show a message or redirect
+      router.push('/books');
     } else {
       // Login logic
-      alert(`Login: ${email}`);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      router.push('/books');
     }
-    // Redirect after successful login/signup
-    // router.push(...)
   };
 
   const handleGoogleLogin = async () => {
