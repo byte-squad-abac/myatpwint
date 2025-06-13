@@ -1,0 +1,36 @@
+.book-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 18px 14px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 370px;
+}
+
+.book-card:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+}
+
+.book-search-bar {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px 18px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  transition: border 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+
+.book-search-bar:focus {
+  border: 1.5px solid #007b55;
+  box-shadow: 0 2px 8px rgba(0,123,85,0.08);
+} 
