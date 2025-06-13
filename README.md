@@ -20,7 +20,7 @@ This project enables users to explore and purchase books online, and allows them
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/byte-squad/myat-pwint-chat.git
+git clone https://github.com/byte-squad/myatpwint.git
 cd source-code
 
 ```

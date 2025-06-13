@@ -310,8 +310,8 @@ export default function PublisherPage() {
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {books.map((book) => (
-          <li key={book.id} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid #ccc', paddingBottom: '16px' }}>
-            <img src={book.image_url} alt={book.name} style={{ width: '80px', height: 'auto', objectFit: 'cover', borderRadius: '6px' }} />
+          <li key={book.id} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', borderBottom: '5px solid #ccc', paddingBottom: '16px' }}>
+            <img src={book.image_url} alt={book.name} style={{ width: '200px', height: 'auto', objectFit: 'cover', borderRadius: '6px' }} />
             <div>
               <h3>{book.name}</h3>
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
@@ -319,6 +319,7 @@ export default function PublisherPage() {
               <p><strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}</p>
               <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
+              <strong>Description:</strong>
               <p>{book.description}</p>
               <button onClick={() => openEdit(book)}>✏️ Edit</button>
               <button onClick={() => handleDelete(book.id)} style={{ marginLeft: '8px', color: 'red' }}>🗑 Delete</button>
