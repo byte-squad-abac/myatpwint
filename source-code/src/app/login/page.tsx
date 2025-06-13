@@ -26,8 +26,8 @@ export default function LoginPage() {
         setError(error.message);
         return;
       }
-      // Optionally, show a message or redirect
-      router.push('/books');
+    
+      router.push('/profile');
     } else {
       // Login logic
       const { error } = await supabase.auth.signInWithPassword({
@@ -38,12 +38,17 @@ export default function LoginPage() {
         setError(error.message);
         return;
       }
-      router.push('/books');
+      router.push('/profile');
     }
   };
 
   const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/profile` : undefined
+      }
+    });
     if (error) alert(error.message);
   };
 
