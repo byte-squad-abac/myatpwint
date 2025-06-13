@@ -219,31 +219,31 @@ export default function PublisherPage() {
             border: '1px solid #ccc',
             borderRadius: '16px',
             position: 'fixed',
-            top: '45%',
+            top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
             padding: '20px',
-            margin: '40px auto',
-            width: '70%',
+            margin: 'auto',
+            width: '50%',
             maxHeight: '90vh',
             overflowY: 'auto',
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
           }}>
 
-          <Container sx={{ py: 4 }}>
+          <Container sx={{ px: 2 }}>
             <Typography variant="h5" align="center" gutterBottom>
               {isEditOpen ? '✏️ Edit Book' : '📦 Upload New Book'}
             </Typography>
 
             <form onSubmit={(e) => handleSubmit(e, isEditOpen)}>
-              <Grid container spacing={3} justifyContent="center" sx={{ mt: 3 }}>
-                  <TextField label="Book Name" name="name" sx={{ width: '20%' }} fullWidth value={form.name} onChange={handleChange} required />
-                  <TextField label="Author" name="author" sx={{ width: '20%' }} fullWidth value={form.author} onChange={handleChange} required />
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                  <TextField label="Book Name" name="name" sx={{ width: '100%' }} fullWidth value={form.name} onChange={handleChange} required />
+                  <TextField label="Author" name="author" sx={{ width: '32%' }} fullWidth value={form.author} onChange={handleChange} required />
                 
-                  <TextField label="Price" name="price" sx={{ width: '20%' }} type="number" fullWidth value={form.price} onChange={handleChange} required />
+                  <TextField label="Price" name="price" sx={{ width: '31%' }} type="number" fullWidth value={form.price} onChange={handleChange} required />
                 
                 
-                  <FormControl sx={{ width: '20%' }} fullWidth>
+                  <FormControl sx={{ width: '31%' }} fullWidth>
                     <InputLabel>Category</InputLabel>
                     <Select name="category" value={form.category} onChange={handleChange} required>
                       {categories.map((cat) => (
@@ -252,8 +252,8 @@ export default function PublisherPage() {
                     </Select>
                   </FormControl>
               </Grid>
-              <Grid container spacing={3}  sx={{ mt: 3, ml:8 }}>
-                  <TextField name="published_date" sx={{ width: '21%' }} label="Published Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={form.published_date} onChange={handleChange} />
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3}}>
+                  <TextField name="published_date" sx={{ width: '65%' }} label="Published Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={form.published_date} onChange={handleChange} />
                   
                 
                   <FormControl sx={{ width: '21.5%' }} fullWidth>
@@ -264,8 +264,10 @@ export default function PublisherPage() {
                       ))}
                     </Select>
                   </FormControl>
-                  
-                  <TextField name="description" label="Description" sx={{ width: '93%' }} fullWidth multiline rows={2} value={form.description} onChange={handleChange} />
+              
+              </Grid>
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3}}>
+                  <TextField name="description" label="Description" sx={{ width: '100%' }} fullWidth multiline rows={2} value={form.description} onChange={handleChange} />
                 
                   <Box display="flex" flexWrap="wrap" gap={1}>tags: 
                     {suggestedTags.map((tag) => (
@@ -278,16 +280,17 @@ export default function PublisherPage() {
                       />
                     ))}
                   </Box>
-                  <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ width: '30%' }} fullWidth />
+                  <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ width: '40%'}} fullWidth />
                   <Button onClick={addCustomTag} sx={{ mt: 2 }} variant="outlined">➕ Add Tag</Button>
                 </Grid>
-                <Grid container spacing={3}  sx={{ mt: 3, ml:8 }}>
+
+                <Grid container spacing={2} justifyContent="left"  sx={{ mt: 3 }}>
                   <Typography variant="subtitle1">Upload Cover Image:</Typography>
                   <input type="file" accept="image/*" onChange={handleFileChange} />
-                  {preview && <Box mt={2}><img src={preview} alt="preview" style={{ width: '50%', maxHeight: '250px', objectFit: 'contain' }} /></Box>}
+                  {preview && <Box mt={2}><img src={preview} alt="preview" style={{ width: '90%', maxHeight: '250px', objectFit: 'contain' }} /></Box>}
                 </Grid>
-                <Grid container spacing={3}  sx={{ mt: 3, ml:8 }}>
-                  <Button type="submit" variant="contained">💾 Save</Button>
+                <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                  <Button type="submit" variant="contained">Save</Button>
                   <Button variant="outlined" color="error" onClick={() => {
                     setUploadOpen(false);
                     setEditOpen(false);
@@ -307,15 +310,16 @@ export default function PublisherPage() {
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {books.map((book) => (
-          <li key={book.id} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid #ccc', paddingBottom: '16px' }}>
-            <img src={book.image_url} alt={book.name} style={{ width: '80px', height: 'auto', objectFit: 'cover', borderRadius: '6px' }} />
+          <li key={book.id} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', borderBottom: '5px solid #ccc', paddingBottom: '16px' }}>
+            <img src={book.image_url} alt={book.name} style={{ width: '200px', height: 'auto', objectFit: 'cover', borderRadius: '6px' }} />
             <div>
               <h3>{book.name}</h3>
-              <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> ${book.price}</p>
+              <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
               <p><strong>Category:</strong> {book.category}</p>
               <p><strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}</p>
               <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
+              <strong>Description:</strong>
               <p>{book.description}</p>
               <button onClick={() => openEdit(book)}>✏️ Edit</button>
               <button onClick={() => handleDelete(book.id)} style={{ marginLeft: '8px', color: 'red' }}>🗑 Delete</button>
