@@ -1,71 +1,66 @@
 'use client';
 
-import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const supabase = useSupabaseClient();
-  const session = useSession();
-  const router = useRouter();
-
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      alert('Login failed: ' + error.message);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    // TODO: Implement Supabase auth logic here
+    if (isSignup) {
+      // Signup logic
+      alert(`Signup: ${email}`);
     } else {
-      router.push('/publisher');
+      // Login logic
+      alert(`Login: ${email}`);
     }
+    // Redirect after successful login/signup
+    // router.push(...)
   };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.refresh();
-  };
-
-  useEffect(() => {
-  const checkAccess = async () => {
-    if (!session) return;
-
-    const email = session.user.email;
-    const { data, error } = await supabase
-      .from('publishers')
-      .select('email')
-      .eq('email', email)
-      .single();
-
-    if (error || !data) {
-      alert('❌ You are not authorized to access the publisher interface.');
-      await supabase.auth.signOut();
-    } else {
-      router.push('/publisher');
-    }
-  };
-
-    checkAccess();
-  }, [session]);
-
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto' }}>
-      <h2>🔐 Publisher Login</h2>
-      <input
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-        style={{ width: '100%', padding: '8px', margin: '8px 0' }}
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        style={{ width: '100%', padding: '8px', margin: '8px 0' }}
-      />
-      <button onClick={handleLogin} style={{ width: '100%' }}>Login</button>
+    <div style={{ maxWidth: 340, margin: '48px auto', padding: 20, background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: 18, fontWeight: 700, fontSize: '1.7rem' }}>{isSignup ? 'Sign Up' : 'Login'}</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 7, border: '1.5px solid #ccc', fontSize: '1.05rem', boxSizing: 'border-box', background: '#e9f0fc' }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 7, border: '1.5px solid #ccc', fontSize: '1.05rem', boxSizing: 'border-box', background: '#e9f0fc' }}
+        />
+        {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+        <button type="submit" style={{ width: '100%', padding: 12, borderRadius: 7, background: '#1a237e', color: '#fff', fontWeight: 700, border: 'none', marginBottom: 12, fontSize: '1.05rem', cursor: 'pointer' }}>
+          {isSignup ? 'Sign Up' : 'Login'}
+        </button>
+      </form>
+      <div style={{ textAlign: 'center', marginTop: 6, fontSize: '1.05rem' }}>
+        {isSignup ? (
+          <span>Already have an account?{' '}
+            <button onClick={() => setIsSignup(false)} style={{ color: '#1a237e', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: '1rem' }}>Login</button>
+          </span>
+        ) : (
+          <span>Don&apos;t have an account?{' '}
+            <button onClick={() => setIsSignup(true)} style={{ color: '#1a237e', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: '1rem' }}>Sign Up</button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
