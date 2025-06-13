@@ -1,6 +1,9 @@
 // src/app/books/[id]/page.tsx
+
 import supabase from '@/lib/supabaseClient';
 import { notFound } from 'next/navigation';
+import BookDetailPage from './BookDetailPage';
+
 
 export async function generateStaticParams() {
   const { data } = await supabase.from('books').select('id');
@@ -22,5 +25,6 @@ export default async function BookPage({
 
   if (!book) return notFound();
 
-  return <h1>{book.name}</h1>;
+  // Pass the data as a prop or re-fetch on client if needed
+  return <BookDetailPage />;
 }
