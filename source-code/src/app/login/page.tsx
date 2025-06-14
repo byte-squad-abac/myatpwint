@@ -12,6 +12,8 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = useSupabaseClient();
   const session = useSession();
+  const site =
+  process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +48,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/profile` : undefined
+        redirectTo: `${site}/profile`,
       }
     });
     if (error) alert(error.message);
