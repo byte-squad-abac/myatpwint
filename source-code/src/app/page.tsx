@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
 import Link from 'next/link';
-import './page.css'; // we'll create this file
+import './page.css';
 
 export default function Home() {
   return (
@@ -15,10 +15,14 @@ export default function Home() {
 
         <div className="button-group">
           <Link href="/books" className="button primary">Explore Books</Link>
-          <Link href="/author" className="button secondary">Author Portal</Link>
-          <Link href="/publisher" className="button secondary">Publisher Dashboard</Link>
+          <Link href="/login" className="button secondary">Login / Signup</Link>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <Link href="/publisher" style={{ fontSize: '0.98rem', color: '#888', textDecoration: 'underline' }}>
+            Publisher Login
+          </Link>
         </div>
       </section>
     </main>
   );
-}
+} 
