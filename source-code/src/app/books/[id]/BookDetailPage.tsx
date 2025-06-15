@@ -3,10 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Container from '@mui/material/Container';
-import { Grid } from '@mui/material';
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
@@ -85,9 +84,9 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 3 }}>
-        <Grid container spacing={4}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 4 }}>
           {/* Book Cover */}
-          <Grid item xs={12} md={4}>
+          <Box>
             <Box
               component="img"
               src={book.image_url}
@@ -104,10 +103,10 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 display: 'block',
               }}
             />
-          </Grid>
+          </Box>
 
           {/* Book Details */}
-          <Grid item xs={12} md={8}>
+          <Box>
             <Typography variant="h4" component="h1" gutterBottom>
               {book.name}
             </Typography>
@@ -256,8 +255,8 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 ))}
               </Box>
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
     </Container>
   );
