@@ -11,7 +11,6 @@ import {
   StepLabel,
   Box,
   Button,
-  Grid,
   TextField,
   Divider,
   Alert,
@@ -154,8 +153,8 @@ export default function CheckoutPage() {
         )}
 
         {activeStep === 1 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
+          <Box sx={{ display: 'grid', gap: 3 }}>
+            <Box>
               <TextField
                 required
                 fullWidth
@@ -163,8 +162,8 @@ export default function CheckoutPage() {
                 value={shippingInfo.fullName}
                 onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box>
               <TextField
                 required
                 fullWidth
@@ -173,10 +172,10 @@ export default function CheckoutPage() {
                 value={shippingInfo.email}
                 onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
               />
-            </Grid>
+            </Box>
             {deliveryType === 'physical' && (
               <>
-                <Grid item xs={12}>
+                <Box>
                   <TextField
                     required
                     fullWidth
@@ -184,8 +183,8 @@ export default function CheckoutPage() {
                     value={shippingInfo.address}
                     onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
                   <TextField
                     required
                     fullWidth
@@ -193,8 +192,6 @@ export default function CheckoutPage() {
                     value={shippingInfo.city}
                     onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
                   <TextField
                     required
                     fullWidth
@@ -202,8 +199,6 @@ export default function CheckoutPage() {
                     value={shippingInfo.state}
                     onChange={(e) => setShippingInfo({ ...shippingInfo, state: e.target.value })}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
                   <TextField
                     required
                     fullWidth
@@ -211,8 +206,6 @@ export default function CheckoutPage() {
                     value={shippingInfo.postalCode}
                     onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
                   <TextField
                     required
                     fullWidth
@@ -220,15 +213,15 @@ export default function CheckoutPage() {
                     value={shippingInfo.phone}
                     onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
                   />
-                </Grid>
+                </Box>
               </>
             )}
-          </Grid>
+          </Box>
         )}
 
         {activeStep === 2 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
+          <Box sx={{ display: 'grid', gap: 3 }}>
+            <Box>
               <TextField
                 required
                 fullWidth
@@ -236,8 +229,8 @@ export default function CheckoutPage() {
                 value={paymentInfo.cardNumber}
                 onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Box>
+            <Box>
               <TextField
                 required
                 fullWidth
@@ -245,8 +238,8 @@ export default function CheckoutPage() {
                 value={paymentInfo.cardName}
                 onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
               />
-            </Grid>
-            <Grid item xs={12} sm={6}>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
               <TextField
                 required
                 fullWidth
@@ -255,8 +248,6 @@ export default function CheckoutPage() {
                 value={paymentInfo.expiryDate}
                 onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
               />
-            </Grid>
-            <Grid item xs={12} sm={6}>
               <TextField
                 required
                 fullWidth
@@ -264,8 +255,8 @@ export default function CheckoutPage() {
                 value={paymentInfo.cvv}
                 onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         )}
 
         {activeStep === 3 && (
