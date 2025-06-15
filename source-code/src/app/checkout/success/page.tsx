@@ -7,8 +7,7 @@ import {
   Paper,
   Typography,
   Button,
-  Box,
-  CheckCircleIcon,
+  Box
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
