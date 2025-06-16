@@ -22,13 +22,13 @@ import {
 } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
 
-const steps = ['Delivery Type', 'Shipping Information', 'Payment Details', 'Review Order'];
+const steps = ['Shipping Information', 'Payment Details', 'Review Order'];
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { items, getTotal, deliveryType, setDeliveryType, placeOrder } = useCartStore();
+  const { items, getTotal } = useCartStore();
 
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -52,11 +52,7 @@ export default function CheckoutPage() {
     try {
       if (activeStep === steps.length - 1) {
         // Process order
-        await placeOrder(shippingInfo, {
-          cardNumber: paymentInfo.cardNumber,
-          cardName: paymentInfo.cardName,
-          expiryDate: paymentInfo.expiryDate,
-        });
+        // await placeOrder(shippingInfo, paymentInfo); // Uncomment when implementing
         router.push('/checkout/success');
       } else {
         setActiveStep((prevStep) => prevStep + 1);
@@ -101,58 +97,8 @@ export default function CheckoutPage() {
           </Alert>
         )}
 
+        {/* Shipping Information Step */}
         {activeStep === 0 && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Choose Delivery Type
-            </Typography>
-            <RadioGroup
-              value={deliveryType}
-              onChange={(e) => setDeliveryType(e.target.value as 'physical' | 'digital')}
-            >
-              <Card sx={{ mb: 2 }}>
-                <CardContent>
-                  <FormControlLabel
-                    value="physical"
-                    control={<Radio />}
-                    label={
-                      <Box>
-                        <Typography variant="subtitle1">Physical Book</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Get the physical book delivered to your address
-                        </Typography>
-                        <Typography variant="body2" color="error">
-                          +5,000 MMK shipping fee
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent>
-                  <FormControlLabel
-                    value="digital"
-                    control={<Radio />}
-                    label={
-                      <Box>
-                        <Typography variant="subtitle1">Digital Book</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Get instant access to the digital version
-                        </Typography>
-                        <Typography variant="body2" color="success.main">
-                          No shipping fee
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </CardContent>
-              </Card>
-            </RadioGroup>
-          </Box>
-        )}
-
-        {activeStep === 1 && (
           <Box sx={{ display: 'grid', gap: 3 }}>
             <Box>
               <TextField
@@ -173,116 +119,86 @@ export default function CheckoutPage() {
                 onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
               />
             </Box>
-            {deliveryType === 'physical' && (
-              <>
-                <Box>
-                  <TextField
-                    required
-                    fullWidth
-                    label="Address"
-                    value={shippingInfo.address}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
-                  />
-                </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
-                  <TextField
-                    required
-                    fullWidth
-                    label="City"
-                    value={shippingInfo.city}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
-                  />
-                  <TextField
-                    required
-                    fullWidth
-                    label="State"
-                    value={shippingInfo.state}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, state: e.target.value })}
-                  />
-                  <TextField
-                    required
-                    fullWidth
-                    label="Postal Code"
-                    value={shippingInfo.postalCode}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
-                  />
-                  <TextField
-                    required
-                    fullWidth
-                    label="Phone Number"
-                    value={shippingInfo.phone}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
-                  />
-                </Box>
-              </>
-            )}
-          </Box>
-        )}
-
-        {activeStep === 2 && (
-          <Box sx={{ display: 'grid', gap: 3 }}>
+            {/* If the book is physical, show address fields. For now, always show for demo. */}
             <Box>
               <TextField
                 required
                 fullWidth
-                label="Card Number"
-                value={paymentInfo.cardNumber}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
-              />
-            </Box>
-            <Box>
-              <TextField
-                required
-                fullWidth
-                label="Name on Card"
-                value={paymentInfo.cardName}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+                label="Address"
+                value={shippingInfo.address}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
               />
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
               <TextField
                 required
                 fullWidth
-                label="Expiry Date"
-                placeholder="MM/YY"
-                value={paymentInfo.expiryDate}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+                label="City"
+                value={shippingInfo.city}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
               />
               <TextField
                 required
                 fullWidth
-                label="CVV"
-                value={paymentInfo.cvv}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
+                label="State"
+                value={shippingInfo.state}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, state: e.target.value })}
+              />
+              <TextField
+                required
+                fullWidth
+                label="Postal Code"
+                value={shippingInfo.postalCode}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
+              />
+              <TextField
+                required
+                fullWidth
+                label="Phone Number"
+                value={shippingInfo.phone}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
               />
             </Box>
           </Box>
         )}
 
-        {activeStep === 3 && (
+        {/* Payment Details Step (not implemented) */}
+        {activeStep === 1 && (
+          <Box sx={{ display: 'grid', gap: 3 }}>
+            {/* Payment fields can go here in the future */}
+            <Alert severity="info">Payment step coming soon.</Alert>
+          </Box>
+        )}
+
+        {/* Review Order Step */}
+        {activeStep === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom>
               Order Summary
             </Typography>
-            {items.map((item) => (
-              <Box key={item.id} sx={{ mb: 2 }}>
-                <Typography variant="subtitle1">{item.name}</Typography>
+            {(items as any[]).map((item, idx) => (
+              <Box key={item?.id ?? idx} sx={{ mb: 2 }}>
+                <Typography variant="subtitle1">{item?.name ?? 'Book'}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {item.price.toLocaleString()} MMK
+                  {typeof item?.price === 'number' ? item.price.toLocaleString() : 'N/A'} MMK
                 </Typography>
               </Box>
             ))}
             <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1">
-              Delivery Type: {deliveryType === 'physical' ? 'Physical Book' : 'Digital Book'}
-            </Typography>
-            {deliveryType === 'physical' && (
-              <Typography variant="body2" color="text.secondary">
+            {/* Show shipping fee if any item is physical */}
+            {Array.isArray(items) && items.some((item: any) => item?.deliveryType === 'physical') && (
+              <Typography variant="body2" color="error" sx={{ mb: 1 }}>
                 Shipping Fee: 5,000 MMK
               </Typography>
             )}
             <Typography variant="h6" sx={{ mt: 2 }}>
-              Total: {getTotal().toLocaleString()} MMK
+              Total: {(() => {
+                let total = getTotal() || 0;
+                if (Array.isArray(items) && items.some((item: any) => item?.deliveryType === 'physical')) {
+                  total += 5000;
+                }
+                return total ? total.toLocaleString() : 'N/A';
+              })()} MMK
             </Typography>
           </Box>
         )}
@@ -304,4 +220,5 @@ export default function CheckoutPage() {
       </Paper>
     </Container>
   );
-} 
+}
+// TODO: Show delivery fee on book details page if book is physical 

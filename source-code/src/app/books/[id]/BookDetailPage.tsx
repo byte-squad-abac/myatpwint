@@ -115,23 +115,31 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               {book.author}
             </Typography>
 
-            <Box sx={{ my: 2 }}>
-              <Typography variant="h5" color="primary" component="span" sx={{ mr: 2 }}>
-                {book.price.toLocaleString()} MMK
-              </Typography>
-              <Chip 
-                label={book.category} 
-                color="primary" 
-                variant="outlined" 
-                size="small" 
-                sx={{ mr: 1 }} 
-              />
-              <Chip 
-                label={`Edition ${book.edition}`} 
-                color="secondary" 
-                variant="outlined" 
-                size="small" 
-              />
+            <Box sx={{ my: 2, display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h5" color="primary" component="span">
+                  {book.price.toLocaleString()} MMK
+                </Typography>
+                {deliveryType === 'physical' && (
+                  <Typography variant="body2" color="error" component="span">
+                    +5,000 MMK shipping fee
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 3 }}>
+                <Chip 
+                  label={book.category} 
+                  color="primary" 
+                  variant="outlined" 
+                  size="small" 
+                />
+                <Chip 
+                  label={`Edition ${book.edition}`} 
+                  color="secondary" 
+                  variant="outlined" 
+                  size="small" 
+                />
+              </Box>
             </Box>
 
             <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
