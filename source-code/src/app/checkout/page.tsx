@@ -20,7 +20,7 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { useCartStore } from '@/lib/store/cartStore';
+import { useCartStore, CartItem } from '@/lib/store/cartStore';
 
 const steps = ['Shipping Information', 'Payment Details', 'Review Order'];
 
@@ -176,17 +176,17 @@ export default function CheckoutPage() {
             <Typography variant="h6" gutterBottom>
               Order Summary
             </Typography>
-            {(items as any[]).map((item, idx) => (
-              <Box key={item?.id ?? idx} sx={{ mb: 2 }}>
-                <Typography variant="subtitle1">{item?.name ?? 'Book'}</Typography>
+            {items.map((item: CartItem, idx: number) => (
+              <Box key={item.book.id ?? idx} sx={{ mb: 2 }}>
+                <Typography variant="subtitle1">{item.book.name}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {typeof item?.price === 'number' ? item.price.toLocaleString() : 'N/A'} MMK
+                  {typeof item.book.price === 'number' ? item.book.price.toLocaleString() : 'N/A'} MMK
                 </Typography>
               </Box>
             ))}
             <Divider sx={{ my: 2 }} />
             {/* Show shipping fee if any item is physical */}
-            {Array.isArray(items) && items.some((item: any) => item?.deliveryType === 'physical') && (
+            {items.some((item: CartItem) => item.deliveryType === 'physical') && (
               <Typography variant="body2" color="error" sx={{ mb: 1 }}>
                 Shipping Fee: 5,000 MMK
               </Typography>
@@ -194,9 +194,6 @@ export default function CheckoutPage() {
             <Typography variant="h6" sx={{ mt: 2 }}>
               Total: {(() => {
                 let total = getTotal() || 0;
-                if (Array.isArray(items) && items.some((item: any) => item?.deliveryType === 'physical')) {
-                  total += 5000;
-                }
                 return total ? total.toLocaleString() : 'N/A';
               })()} MMK
             </Typography>

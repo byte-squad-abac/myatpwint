@@ -17,7 +17,7 @@ interface Book {
 
 type DeliveryType = 'physical' | 'digital';
 
-interface CartItem {
+export interface CartItem {
   book: Book;
   quantity: number;
   deliveryType: DeliveryType;
@@ -111,10 +111,11 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => set({ items: [] }),
       
       getTotal: () => {
-        const { items, deliveryType } = get();
+        const { items } = get();
         const subtotal = items.reduce((total, item) => total + (item.book.price * item.quantity), 0);
-        // Add shipping cost for physical delivery
-        const shippingCost = deliveryType === 'physical' ? 5000 : 0; // 5000 MMK for physical delivery
+        // Add shipping cost if any item is physical
+        const hasPhysical = items.some(item => item.deliveryType === 'physical');
+        const shippingCost = hasPhysical ? 5000 : 0;
         return subtotal + shippingCost;
       },
       
