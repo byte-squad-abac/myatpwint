@@ -195,7 +195,7 @@ export default function PublisherPage() {
   if (!session) return null;
 
   return (
-    <div>
+    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>📚 Publisher Dashboard</h1>
 
       <div style={{ marginBottom: '20px' }}>
