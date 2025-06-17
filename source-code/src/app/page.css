@@ -11,8 +11,8 @@
 
 .hero {
   text-align: center;
-  width: 100%;
-  /* max-width: 900px; */
+  /* width: 100%; */
+  max-width: 800px;
 }
 
 /*  #FBDB93     #BE5B50     #8A2D3B     #641B2E */

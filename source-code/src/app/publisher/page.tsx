@@ -8,6 +8,7 @@ import {
   Container, Typography, Grid, TextField, Select, MenuItem,
   Button, Box, InputLabel, FormControl, Chip,
 } from '@mui/material';
+import './publisher.css';
 
 
 interface Book {
@@ -195,21 +196,21 @@ export default function PublisherPage() {
   if (!session) return null;
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div className='publisher-container'>
       <h1>📚 Publisher Dashboard</h1>
 
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '20px', color: 'white' }}>
         <input
           type="text"
           placeholder="Search books by name"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyUp={fetchBooks}
-          style={{ padding: '8px', width: '100%', maxWidth: '300px' }}
+          className='search-bar'
         />
       </div>
 
-      <button onClick={() => setUploadOpen(true)} style={{ marginBottom: '20px' }}>
+      <button onClick={() => setUploadOpen(true)} className='upload-button'>
         ➕ Upload New Book
       </button>
 
@@ -225,7 +226,7 @@ export default function PublisherPage() {
             padding: '20px',
             margin: 'auto',
             width: '50%',
-            maxHeight: '90vh',
+            maxHeight: '70vh',
             overflowY: 'auto',
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
           }}>
