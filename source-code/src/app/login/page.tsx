@@ -13,7 +13,7 @@ export default function LoginPage() {
   const supabase = useSupabaseClient();
   const session = useSession();
   const site =
-  process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+  process.env.NEXT_PUBLIC_SITE_URL;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
