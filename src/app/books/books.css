@@ -1,0 +1,84 @@
+.book-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.book-card:hover {
+  transform: translateY(-8px);
+}
+
+.book-card:hover .book-info {
+  opacity: 1;
+}
+
+.book-cover {
+  width: 200px;
+  height: 280px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.2s ease;
+}
+
+.book-card:hover .book-cover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.book-info {
+  margin-top: 12px;
+  text-align: center;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.book-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.book-author {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.book-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #007b55;
+}
+
+.book-search-bar {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px 18px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  transition: border 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+
+.book-search-bar:focus {
+  border: 1.5px solid #007b55;
+  box-shadow: 0 2px 8px rgba(0,123,85,0.08);
+}
