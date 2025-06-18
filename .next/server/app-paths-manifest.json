@@ -1,8 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/checkout/success/page": "app/checkout/success/page.js",
-  "/books/page": "app/books/page.js",
-  "/books/[id]/page": "app/books/[id]/page.js",
-  "/checkout/page": "app/checkout/page.js"
-}
