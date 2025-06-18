@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export',          // static export for Netlify
+  // output: 'export',          // static export for Netlify
   typescript: {
     ignoreBuildErrors: true, // ← allow build to finish even with TS errors
   },
