@@ -1,8 +1,0 @@
-# netlify.toml  ─ in repo root
-[build]
-  # where Netlify should CD into before it runs `npm run build`
-  publish = ".next"          # leave exactly this; the plugin rewrites it
-  command = "npm run build"  # your existing build script
-
-[[plugins]]
-  package = "@netlify/next"  # forces the Next.js plugin to run
