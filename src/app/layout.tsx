@@ -17,37 +17,107 @@ import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
 import { useCartStore } from '@/lib/store/cartStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Typography from '@mui/material/Typography';
+import type { CSSProperties } from 'react';
+
+// Header and navbar styles
+const HEADER_HEIGHT = 64;
+const HEADER_BG = '#641B2E';
+const HEADER_COLOR = '#FBDB93';
+const HEADER_RADIUS = 16;
+const NAV_MAX_WIDTH = 1400;
+
+const headerStyle: CSSProperties = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: '100vw',
+  height: `${HEADER_HEIGHT}px`,
+  background: HEADER_BG,
+  color: HEADER_COLOR,
+  borderTopLeftRadius: 0,
+  borderTopRightRadius: 0,
+  borderBottomLeftRadius: HEADER_RADIUS,
+  borderBottomRightRadius: HEADER_RADIUS,
+  zIndex: 1000,
+  padding: '0 16px',
+  boxSizing: 'border-box' as const,
+};
+
+const navContainerStyle: CSSProperties = {
+  maxWidth: `${NAV_MAX_WIDTH}px`,
+  margin: '0 auto',
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  height: `${HEADER_HEIGHT}px`,
+};
+
+const leftLinksStyle: CSSProperties = {
+  display: 'flex',
+  gap: '20px',
+  alignItems: 'center',
+  flex: 1,
+};
+
+const rightLinksStyle: CSSProperties = {
+  display: 'flex',
+  gap: '24px',
+  alignItems: 'center',
+  flexShrink: 0,
+  minWidth: 0,
+};
+
+const mainStyle: CSSProperties = {
+  left: '0px',
+  top: '0px',
+  position: 'absolute',
+  width: '100%',
+  paddingTop: `${HEADER_HEIGHT}px`,
+  minHeight: '100vh',
+  marginTop: `-${HEADER_RADIUS}px`,
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [supabaseClient] = useState(() => createBrowserSupabaseClient());
   const session = useSession();
+  const pathname = usePathname();
 
   return (
     <html lang="en">
       <body>
         <SessionContextProvider supabaseClient={supabaseClient}>
-          <header style={{ padding: '20px', background: '#1a237e', color: 'white', position: 'relative' }}>
-            <nav style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <Link href="/" style={{ color: 'white', textDecoration: 'none' }}>Home</Link>
-              <Link href="/books" style={{ color: 'white', textDecoration: 'none' }}>Books</Link>
-              <Link href="/author" style={{ color: 'white', textDecoration: 'none' }}>Author</Link>
-              <Link href="/publisher" style={{ color: 'white', textDecoration: 'none' }}>Publisher</Link>
-              <div style={{ flex: 1 }} />
-              <Link href="/login" style={{ color: 'white', textDecoration: 'none' }}>Login</Link>
-              {session && session.user && (
-                <Link href="/profile" style={{ marginLeft: 18, color: 'white', textDecoration: 'none', fontSize: 22, display: 'flex', alignItems: 'center' }}>
-                  <span style={{ display: 'inline-block', width: 28, height: 28, borderRadius: '50%', background: '#fff', color: '#1a237e', textAlign: 'center', fontWeight: 700, lineHeight: '28px', marginRight: 6 }}>
-                    {session.user.email ? session.user.email[0].toUpperCase() : '?'}
-                  </span>
-                  Profile
-                </Link>
-              )}
-              <CartPopover />
-            </nav>
+          <header style={headerStyle}>
+            <div style={navContainerStyle}>
+              <nav style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                {/* Left side links */}
+                <div style={leftLinksStyle}>
+                  <Link href="/" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Home</Link>
+                  <Link href="/books" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Books</Link>
+                  <Link href="/author" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Author</Link>
+                  <Link href="/publisher" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Publisher</Link>
+                </div>
+                {/* Right side links */}
+                <div style={rightLinksStyle}>
+                  {pathname.startsWith('/books') && (
+                    <div style={{ marginRight: '12px' }}><CartPopover /></div>
+                  )}
+                  <Link href="/login" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Login</Link>
+                  {session && session.user && (
+                    <Link href="/profile" style={{ marginLeft: 8, color: 'white', textDecoration: 'none', fontSize: 22, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ display: 'inline-block', width: 28, height: 28, borderRadius: '50%', background: '#fff', color: '#1a237e', textAlign: 'center', fontWeight: 700, lineHeight: '28px', marginRight: 6 }}>
+                        {session.user.email ? session.user.email[0].toUpperCase() : '?'}
+                      </span>
+                      Profile
+                    </Link>
+                  )}
+                </div>
+              </nav>
+            </div>
           </header>
-          <main style={{ padding: '40px' }}>
+          <main style={mainStyle}>
             {children}
           </main>
         </SessionContextProvider>
@@ -70,7 +140,7 @@ function CartPopover() {
   const open = Boolean(anchorEl);
   return (
     <>
-      <IconButton onClick={handleOpen} sx={{ color: 'white', ml: 2 }}>
+      <IconButton onClick={handleOpen} sx={{ color: '#FBDB93', ml: 2 }}>
         <Badge badgeContent={totalCount} color="error" overlap="circular">
           <ShoppingCartIcon style={{ fontSize: 28 }} />
         </Badge>
