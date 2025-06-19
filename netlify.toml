@@ -1,8 +1,11 @@
+
 # netlify.toml — root of the repo
 [build]
   base    = ""   # folder that has package.json & next.config.js
+
   command = "npm run build"
   publish = ".next"         # Netlify plugin will take care of functions
 
 [[plugins]]
   package = "@netlify/plugin-nextjs" 
+
