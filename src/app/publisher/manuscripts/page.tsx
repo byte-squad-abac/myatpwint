@@ -9,6 +9,7 @@ type Manuscript = {
   author_id: string|null;
   file_url: string;
   status: string;
+  description: string;
   created_at: string;
 };
 
@@ -36,15 +37,19 @@ export default function ReviewDashboard() {
       <ul style={{listStyle:'none',padding:0}}>
         {rows.map(m=>(
           <li key={m.id} style={{border:'1px solid #ccc',padding:16,marginBottom:12}}>
-            <strong>{m.title}</strong> — {m.status}
-            <a href={m.file_url} style={{marginLeft:8}} target="_blank">view</a>
+            Name : <strong>{m.title}</strong> 
+            <div>Status : {m.status}</div>
+            <div>Description : {m.description}</div>
+            <a href={m.file_url} style={{marginLeft:8}} target="_blank">click to download & view manuscript</a>
             {m.status==='need_review' && (
               <button onClick={()=>approve(m.id)} style={{marginLeft:12}}>Approve</button>
             )}
             {m.status==='waiting_upload' && (
-              <span style={{marginLeft:12,color:'#ff9800'}}>waiting for book upload…</span>
+              <div>
+                <span style={{marginLeft:12,color:'#ff9800'}}>waiting for book upload / do it in upload form</span>
+              </div>
             )}
-            {m.status==='published' && <span style={{marginLeft:12,color:'#4caf50'}}>published ✔</span>}
+            {m.status==='published' && <span style={{marginLeft:12,color:'#4caf50'}}>The book is published ✔ Congratulation</span>}
           </li>
         ))}
       </ul>
