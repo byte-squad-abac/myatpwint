@@ -201,12 +201,16 @@ export default function PublisherPage() {
       const { error: insertError } = await supabase.from('books').insert([bookData]);
       if (!insertError && form.manuscript_id) {
         const { error: mErr } = await supabase
-          .from('manuscripts')
-          .update({ status: 'published' })
-          .eq('id', form.manuscript_id);
+    .from('manuscripts')
+    .update({ status: 'published' })
+    .eq('id', form.manuscript_id);
 
-        if (mErr) console.error('[Supabase] manuscript update failed:', mErr);
-      }
+  if (mErr) {
+    console.error('[Supabase] manuscript update error:', mErr);
+  } else {
+    console.log('✅ Manuscript status updated to published');
+  }
+}
       setUploadOpen(false);
     }
 
@@ -225,7 +229,7 @@ export default function PublisherPage() {
 
       <a href="/publisher/manuscripts">click to view manuscript</a>
 
-      <div style={{ marginBottom: 20, color: 'white' }}>
+      <div style={{ marginBottom: 20, marginTop: 20, color: 'white' }}>
         <input
           type="text"
           placeholder="Search books by name"
@@ -268,7 +272,7 @@ export default function PublisherPage() {
               {/* ---------- Manuscript dropdown ---------- */}
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <FormControl sx={{ width: '100%' }} fullWidth>
-                  <InputLabel>Manuscript (waiting_upload)</InputLabel>
+                  <InputLabel>Manuscript (select only if ready to publish)</InputLabel>
                   <Select
                     name="manuscript_id"
                     value={form.manuscript_id}
@@ -277,7 +281,9 @@ export default function PublisherPage() {
                   >
                     {manuscripts.map((m) => (
                       <MenuItem key={m.id} value={m.id}>
-                        {m.title} — {m.author}
+                        {m.title} 
+                        {/* — {m.author}  */}
+                        {/* add author later */}
                       </MenuItem>
                     ))}
                   </Select>
