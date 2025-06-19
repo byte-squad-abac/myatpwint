@@ -40,7 +40,7 @@ const categories = [
 const editions = ['1st', '2nd', '3rd', '4th', '5th'];
 
 export default function PublisherPage() {
-  const session = useSessi
+  const session = useSession();
   const router   = useRouter();
 
   const [books,         setBooks]        = useState<Book[]>([]);
