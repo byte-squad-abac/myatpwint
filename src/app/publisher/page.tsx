@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
-import { useRouter }  from 'next/navigation';
-import supabase       from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import supabase from '@/lib/supabaseClient';
 import {
   Container, Typography, Grid, TextField, Select, MenuItem,
   Button, Box, InputLabel, FormControl, Chip,
@@ -170,7 +170,6 @@ export default function PublisherPage() {
   const handleSubmit = async (e: React.FormEvent, isEdit = false) => {
     e.preventDefault();
     setStatus('Uploading...');
-
     let imageUrl = preview ?? '';
 
     if (form.image) {
@@ -347,13 +346,16 @@ export default function PublisherPage() {
         {books.map((book) => (
           <li key={book.id} style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, borderBottom: '5px solid #ccc', paddingBottom: 16 }}>
             <img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
+
             <div>
               <h3>{book.name}</h3>
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
               <p><strong>Category:</strong> {book.category}</p>
+
               <p>
                 <strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}
               </p>
+
               <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
               <strong>Description:</strong>

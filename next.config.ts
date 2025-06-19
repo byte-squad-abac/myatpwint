@@ -1,13 +1,15 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // output: 'export',          // static export for Netlify
+  reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true, // ← allow build to finish even with TS errors
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true // optional – skip lint errors in CI
-  }
+    ignoreDuringBuilds: true,
+  },
+  // output: 'export', // Uncomment if you want static export
 };
 
 export default nextConfig;
+
