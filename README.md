@@ -9,7 +9,7 @@ Include Download icon using lucide-react
 Match design: status pills, buttons, layout
 
  lucide-react installed:
-
+```bash
 npm install lucide-react
 
 
