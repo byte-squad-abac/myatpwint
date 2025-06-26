@@ -1,3 +1,20 @@
+ manuscripts.css updated and committed
+
+ page.tsx updated to:
+
+Use class names (no inline styles)
+
+Include Download icon using lucide-react
+
+Match design: status pills, buttons, layout
+
+ lucide-react installed:
+
+npm install lucide-react
+
+
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
