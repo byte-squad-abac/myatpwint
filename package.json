@@ -16,14 +16,15 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/supabase-js": "^2.50.0",
+    "lucide-react": "^0.525.0",
     "next": "^15.3.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.11.3",
     "@netlify/next": "^1.4.9",
+    "@netlify/plugin-nextjs": "^5.11.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
