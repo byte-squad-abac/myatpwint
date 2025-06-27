@@ -23,8 +23,13 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "@netlify/next": "^1.4.9",
     "@netlify/plugin-nextjs": "^5.11.3",
+=======
+    "@netlify/plugin-nextjs": "^5.11.3",
+    "@netlify/next": "^1.4.9",
+>>>>>>> 5ccb0962b492673a5464985bbfc5762053e76bb4
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

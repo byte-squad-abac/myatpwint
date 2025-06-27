@@ -41,17 +41,17 @@ const editions = ['1st', '2nd', '3rd', '4th', '5th'];
 
 export default function PublisherPage() {
   const session = useSession();
-  const router = useRouter();
+  const router   = useRouter();
 
-  const [books, setBooks] = useState<Book[]>([]);
-  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
-  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
-  const [status, setStatus] = useState('');
-  const [isUploadOpen, setUploadOpen] = useState(false);
-  const [isEditOpen, setEditOpen] = useState(false);
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [books,         setBooks]        = useState<Book[]>([]);
+  const [manuscripts,   setManuscripts]  = useState<Manuscript[]>([]);
+  const [suggestedTags, setSuggestedTags]= useState<string[]>([]);
+  const [status,        setStatus]       = useState('');
+  const [isUploadOpen,  setUploadOpen]   = useState(false);
+  const [isEditOpen,    setEditOpen]     = useState(false);
+  const [editingBook,   setEditingBook]  = useState<Book | null>(null);
+  const [preview,       setPreview]      = useState<string | null>(null);
+  const [search,        setSearch]       = useState('');
 
   const [form, setForm] = useState<any>(getEmptyForm());
 
@@ -93,6 +93,7 @@ export default function PublisherPage() {
       .eq('status', 'waiting_upload');
 
     if (!error) setManuscripts(data ?? []);
+    else console.error('[Supabase] manuscripts waiting_upload', error);
   };
 
   useEffect(() => {
@@ -148,10 +149,10 @@ export default function PublisherPage() {
     if (!tag || form.tags.includes(tag)) return;
 
     const { error } = await supabase.from('tags').insert({ name: tag });
-    if (!error) {
-      setForm((prev: any) => ({ ...prev, tags: [...prev.tags, tag], customTag: '' }));
-      fetchTags();
-    }
+    if (error) console.warn('Tag insert failed (likely duplicate):', error.message);
+
+    setForm((prev: any) => ({ ...prev, tags: [...prev.tags, tag], customTag: '' }));
+    fetchTags();
   };
 
   const openEdit = (book: Book) => {
@@ -172,40 +173,50 @@ export default function PublisherPage() {
     let imageUrl = preview ?? '';
 
     if (form.image) {
-      const fileName = `${Date.now()}-${form.image.name}`;
-      const { error: uploadError } = await supabase.storage.from('book-covers').upload(fileName, form.image);
-      if (uploadError) { setStatus('❌ Failed to upload image'); return; }
-
+      const file     = form.image;
+      const fileName = `${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from('book-covers').upload(fileName, file);
+      if (upErr) { setStatus('❌ Failed to upload image'); return; }
       const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(fileName);
       imageUrl = urlData.publicUrl;
     }
 
     const bookData = {
-      manuscript_id: form.manuscript_id || null,
-      name: form.name,
-      author: form.author,
-      price: parseFloat(form.price),
-      category: form.category,
-      description: form.description,
+      manuscript_id : form.manuscript_id || null,
+      name          : form.name,
+      author        : form.author,
+      price         : parseFloat(form.price),
+      category      : form.category,
+      description   : form.description,
       published_date: form.published_date,
-      edition: form.edition,
-      tags: form.tags,
-      image_url: imageUrl,
+      edition       : form.edition,
+      tags          : form.tags,
+      image_url     : imageUrl,
     };
 
     if (isEdit && editingBook) {
-      const { error } = await supabase.from('books').update(bookData).eq('id', editingBook.id);
+      await supabase.from('books').update(bookData).eq('id', editingBook.id);
       setEditOpen(false);
     } else {
-      const { error } = await supabase.from('books').insert([bookData]);
-      if (!error && form.manuscript_id) {
-        await supabase.from('manuscripts').update({ status: 'published' }).eq('id', form.manuscript_id);
-      }
+      const { error: insertError } = await supabase.from('books').insert([bookData]);
+      if (!insertError && form.manuscript_id) {
+        const { error: mErr } = await supabase
+    .from('manuscripts')
+    .update({ status: 'published' })
+    .eq('id', form.manuscript_id);
+
+  if (mErr) {
+    console.error('[Supabase] manuscript update error:', mErr);
+  } else {
+    console.log('✅ Manuscript status updated to published');
+  }
+}
       setUploadOpen(false);
     }
 
     setForm(getEmptyForm());
     setPreview(null);
+    setStatus('✅ Book saved');
     fetchBooks();
     fetchManuscripts();
   };
@@ -224,6 +235,7 @@ export default function PublisherPage() {
           placeholder="Search books by name"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyUp={fetchBooks}
           className="search-bar"
         />
       </div>
