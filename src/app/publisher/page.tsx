@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
 import {
   Container, Typography, Grid, TextField, Select, MenuItem,
-  Button, Box, InputLabel, FormControl, Chip
+  Button, Box, InputLabel, FormControl, Chip,
 } from '@mui/material';
 import './publisher.css';
 
@@ -120,7 +120,7 @@ export default function PublisherPage() {
     };
 
     verifyPublisher();
-  }, [session, search]);
+  }, [session]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -240,105 +240,114 @@ export default function PublisherPage() {
         />
       </div>
 
+      {/* --------------------- Modal (upload / edit) --------------------- */}
       {(isUploadOpen || isEditOpen) && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <Container sx={{ px: 2 }}>
-              <Typography variant="h5" align="center" gutterBottom>
-                {isEditOpen ? '✏️ Edit Book' : '📦 Upload New Book'}
-              </Typography>
+        <div
+          style={{
+            background: '#FFF',
+            border: '1px solid #ccc',
+            borderRadius: 16,
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: 20,
+            margin: 'auto',
+            width: '50%',
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          }}
+        >
+          <Container sx={{ px: 2 }}>
+            <Typography variant="h5" align="center" gutterBottom>
+              {isEditOpen ? '✏️ Edit Book' : '📦 Upload New Book'}
+            </Typography>
 
-              <form onSubmit={(e) => handleSubmit(e, isEditOpen)}>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Manuscript</InputLabel>
-                    <Select
-                      name="manuscript_id"
-                      value={form.manuscript_id}
-                      onChange={handleChange}
-                    >
-                      {manuscripts.map((m) => (
-                        <MenuItem key={m.id} value={m.id}>{m.title}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid container spacing={2} sx={{ mt: 2 }}>
-                  <TextField fullWidth label="Book Name" name="name" value={form.name} onChange={handleChange} required />
-                  <TextField label="Author" name="author" value={form.author} onChange={handleChange} required sx={{ width: '32%' }} />
-                  <TextField label="Price" name="price" value={form.price} onChange={handleChange} type="number" sx={{ width: '32%' }} />
-                  <FormControl sx={{ width: '32%' }}>
-                    <InputLabel>Category</InputLabel>
-                    <Select name="category" value={form.category} onChange={handleChange}>
-                      {categories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid container spacing={2} sx={{ mt: 2 }}>
-                  <TextField
-                    fullWidth multiline rows={2}
-                    name="description"
-                    label="Description"
-                    value={form.description}
+            <form onSubmit={(e) => handleSubmit(e, isEditOpen)}>
+              {/* ---------- Manuscript dropdown ---------- */}
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <FormControl sx={{ width: '100%' }} fullWidth>
+                  <InputLabel>Manuscript (select only if ready to publish)</InputLabel>
+                  <Select
+                    name="manuscript_id"
+                    value={form.manuscript_id}
                     onChange={handleChange}
-                  />
-                  <Box className="tag-container">
-                    tags:
-                    {suggestedTags.map((tag) => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        color={form.tags.includes(tag) ? 'primary' : 'default'}
-                        onClick={() => handleTagToggle(tag)}
-                        variant="outlined"
-                      />
+                    label="Manuscript (waiting_upload)"
+                  >
+                    {manuscripts.map((m) => (
+                      <MenuItem key={m.id} value={m.id}>
+                        {m.title} 
+                        {/* — {m.author}  */}
+                        {/* add author later */}
+                      </MenuItem>
                     ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* ---------- existing fields ---------- */}
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                <TextField label="Book Name" name="name" sx={{ width: '100%' }} fullWidth value={form.name} onChange={handleChange} required />
+                <TextField label="Author"    name="author" sx={{ width: '32%' }} fullWidth value={form.author} onChange={handleChange} required />
+                <TextField label="Price"     name="price"  sx={{ width: '31%' }} type="number" fullWidth value={form.price} onChange={handleChange} required />
+                <FormControl sx={{ width: '31%' }} fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select name="category" value={form.category} onChange={handleChange} required>
+                    {categories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                <TextField name="published_date" sx={{ width: '65%' }} label="Published Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={form.published_date} onChange={handleChange} />
+                <FormControl sx={{ width: '21.5%' }} fullWidth>
+                  <InputLabel>Edition</InputLabel>
+                  <Select name="edition" value={form.edition} onChange={handleChange}>
+                    {editions.map((ed) => <MenuItem key={ed} value={ed}>{ed}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                <TextField name="description" label="Description" sx={{ width: '100%' }} fullWidth multiline rows={2} value={form.description} onChange={handleChange} />
+                <Box display="flex" flexWrap="wrap" gap={1}>tags:
+                  {suggestedTags.map((tag) => (
+                    <Chip key={tag} label={tag} color={form.tags.includes(tag) ? 'primary' : 'default'} onClick={() => handleTagToggle(tag)} variant="outlined" />
+                  ))}
+                </Box>
+                <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ width: '40%' }} fullWidth />
+                <Button onClick={addCustomTag} sx={{ mt: 2 }} variant="outlined">➕ Add Tag</Button>
+              </Grid>
+
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                <Typography variant="subtitle1">Upload Cover Image:</Typography>
+                <input type="file" accept="image/*" onChange={handleFileChange} />
+                {preview && (
+                  <Box mt={2}>
+                    <img src={preview} alt="preview" style={{ width: '90%', maxHeight: 250, objectFit: 'contain' }} />
                   </Box>
+                )}
+              </Grid>
 
-                  <Box className="tag-upload-row">
-                    <TextField
-                      name="customTag"
-                      label="Custom Tag"
-                      value={form.customTag}
-                      onChange={handleChange}
-                      sx={{ flex: 1 }}
-                    />
-                    <Button onClick={addCustomTag} variant="outlined" className="add-tag-button">
-                      ➕ Add Tag
-                    </Button>
-                    <label className="custom-file-upload">
-                      📁 Choose Cover Image
-                      <input type="file" accept="image/*" onChange={handleFileChange} hidden />
-                    </label>
-                  </Box>
+              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
+                <Button type="submit" variant="contained">Save</Button>
+                <Button variant="outlined" color="error" onClick={() => { setUploadOpen(false); setEditOpen(false); setForm(getEmptyForm()); setPreview(null); }}>
+                  Cancel
+                </Button>
+              </Grid>
 
-                  {preview && (
-                    <Box mt={2}>
-                      <img src={preview} alt="Preview" style={{ width: '150px', borderRadius: '8px' }} />
-                    </Box>
-                  )}
-                </Grid>
-
-                <Grid container spacing={2} sx={{ mt: 3 }}>
-                  <Button type="submit" variant="contained">Save</Button>
-                  <Button variant="outlined" color="error" onClick={() => { setUploadOpen(false); setEditOpen(false); setForm(getEmptyForm()); setPreview(null); }}>
-                    Cancel
-                  </Button>
-                </Grid>
-
-                <Typography color="text.secondary" sx={{ mt: 2 }}>{status}</Typography>
-              </form>
-            </Container>
-          </div>
+              <Typography color="text.secondary" sx={{ mt: 2 }}>{status}</Typography>
+            </form>
+          </Container>
         </div>
       )}
 
+      {/* --------------------- book list ------------------ */}
       <ul className="book-list">
         {books.map((book) => (
           <li key={book.id}>
-            <img src={book.image_url} alt={book.name} />
+            <div style={{ display: 'flex', justifyContent: 'center' }}><img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} /></div>
             <div className="book-info">
               <h3>{book.name}</h3>
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
