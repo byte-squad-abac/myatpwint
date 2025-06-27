@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabaseClient';
 import {
   Container, Typography, Grid, TextField, Select, MenuItem,
-  Button, Box, InputLabel, FormControl, Chip,
+  Button, Box, InputLabel, FormControl, Chip
 } from '@mui/material';
 import './publisher.css';
 
@@ -41,17 +41,17 @@ const editions = ['1st', '2nd', '3rd', '4th', '5th'];
 
 export default function PublisherPage() {
   const session = useSession();
-  const router   = useRouter();
+  const router = useRouter();
 
-  const [books,         setBooks]        = useState<Book[]>([]);
-  const [manuscripts,   setManuscripts]  = useState<Manuscript[]>([]);
-  const [suggestedTags, setSuggestedTags]= useState<string[]>([]);
-  const [status,        setStatus]       = useState('');
-  const [isUploadOpen,  setUploadOpen]   = useState(false);
-  const [isEditOpen,    setEditOpen]     = useState(false);
-  const [editingBook,   setEditingBook]  = useState<Book | null>(null);
-  const [preview,       setPreview]      = useState<string | null>(null);
-  const [search,        setSearch]       = useState('');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [status, setStatus] = useState('');
+  const [isUploadOpen, setUploadOpen] = useState(false);
+  const [isEditOpen, setEditOpen] = useState(false);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const [form, setForm] = useState<any>(getEmptyForm());
 
@@ -93,7 +93,6 @@ export default function PublisherPage() {
       .eq('status', 'waiting_upload');
 
     if (!error) setManuscripts(data ?? []);
-    else console.error('[Supabase] manuscripts waiting_upload', error);
   };
 
   useEffect(() => {
@@ -120,7 +119,7 @@ export default function PublisherPage() {
     };
 
     verifyPublisher();
-  }, [session]);
+  }, [session, search]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -149,10 +148,10 @@ export default function PublisherPage() {
     if (!tag || form.tags.includes(tag)) return;
 
     const { error } = await supabase.from('tags').insert({ name: tag });
-    if (error) console.warn('Tag insert failed (likely duplicate):', error.message);
-
-    setForm((prev: any) => ({ ...prev, tags: [...prev.tags, tag], customTag: '' }));
-    fetchTags();
+    if (!error) {
+      setForm((prev: any) => ({ ...prev, tags: [...prev.tags, tag], customTag: '' }));
+      fetchTags();
+    }
   };
 
   const openEdit = (book: Book) => {
@@ -173,50 +172,40 @@ export default function PublisherPage() {
     let imageUrl = preview ?? '';
 
     if (form.image) {
-      const file     = form.image;
-      const fileName = `${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from('book-covers').upload(fileName, file);
-      if (upErr) { setStatus('❌ Failed to upload image'); return; }
+      const fileName = `${Date.now()}-${form.image.name}`;
+      const { error: uploadError } = await supabase.storage.from('book-covers').upload(fileName, form.image);
+      if (uploadError) { setStatus('❌ Failed to upload image'); return; }
+
       const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(fileName);
       imageUrl = urlData.publicUrl;
     }
 
     const bookData = {
-      manuscript_id : form.manuscript_id || null,
-      name          : form.name,
-      author        : form.author,
-      price         : parseFloat(form.price),
-      category      : form.category,
-      description   : form.description,
+      manuscript_id: form.manuscript_id || null,
+      name: form.name,
+      author: form.author,
+      price: parseFloat(form.price),
+      category: form.category,
+      description: form.description,
       published_date: form.published_date,
-      edition       : form.edition,
-      tags          : form.tags,
-      image_url     : imageUrl,
+      edition: form.edition,
+      tags: form.tags,
+      image_url: imageUrl,
     };
 
     if (isEdit && editingBook) {
-      await supabase.from('books').update(bookData).eq('id', editingBook.id);
+      const { error } = await supabase.from('books').update(bookData).eq('id', editingBook.id);
       setEditOpen(false);
     } else {
-      const { error: insertError } = await supabase.from('books').insert([bookData]);
-      if (!insertError && form.manuscript_id) {
-        const { error: mErr } = await supabase
-    .from('manuscripts')
-    .update({ status: 'published' })
-    .eq('id', form.manuscript_id);
-
-  if (mErr) {
-    console.error('[Supabase] manuscript update error:', mErr);
-  } else {
-    console.log('✅ Manuscript status updated to published');
-  }
-}
+      const { error } = await supabase.from('books').insert([bookData]);
+      if (!error && form.manuscript_id) {
+        await supabase.from('manuscripts').update({ status: 'published' }).eq('id', form.manuscript_id);
+      }
       setUploadOpen(false);
     }
 
     setForm(getEmptyForm());
     setPreview(null);
-    setStatus('✅ Book saved');
     fetchBooks();
     fetchManuscripts();
   };
@@ -227,150 +216,131 @@ export default function PublisherPage() {
     <div className="publisher-container">
       <h1>📚 Publisher Dashboard</h1>
 
-      <a href="/publisher/manuscripts">click to view manuscript</a>
-
-      <div style={{ marginBottom: 20, marginTop: 20, color: 'white' }}>
+      <div className="toolbar">
+        <button onClick={() => setUploadOpen(true)} className="upload-button">➕ Upload New Book</button>
+        <a className="upload-button" href="/publisher/manuscripts">View Manuscript</a>
         <input
           type="text"
           placeholder="Search books by name"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyUp={fetchBooks}
           className="search-bar"
         />
       </div>
 
-      <button onClick={() => setUploadOpen(true)} className="upload-button">
-        ➕ Upload New Book
-      </button>
-
-      {/* --------------------- Modal (upload / edit) --------------------- */}
       {(isUploadOpen || isEditOpen) && (
-        <div
-          style={{
-            background: '#FFF',
-            border: '1px solid #ccc',
-            borderRadius: 16,
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            padding: 20,
-            margin: 'auto',
-            width: '50%',
-            maxHeight: '70vh',
-            overflowY: 'auto',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          }}
-        >
-          <Container sx={{ px: 2 }}>
-            <Typography variant="h5" align="center" gutterBottom>
-              {isEditOpen ? '✏️ Edit Book' : '📦 Upload New Book'}
-            </Typography>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <Container sx={{ px: 2 }}>
+              <Typography variant="h5" align="center" gutterBottom>
+                {isEditOpen ? '✏️ Edit Book' : '📦 Upload New Book'}
+              </Typography>
 
-            <form onSubmit={(e) => handleSubmit(e, isEditOpen)}>
-              {/* ---------- Manuscript dropdown ---------- */}
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <FormControl sx={{ width: '100%' }} fullWidth>
-                  <InputLabel>Manuscript (select only if ready to publish)</InputLabel>
-                  <Select
-                    name="manuscript_id"
-                    value={form.manuscript_id}
+              <form onSubmit={(e) => handleSubmit(e, isEditOpen)}>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Manuscript</InputLabel>
+                    <Select
+                      name="manuscript_id"
+                      value={form.manuscript_id}
+                      onChange={handleChange}
+                    >
+                      {manuscripts.map((m) => (
+                        <MenuItem key={m.id} value={m.id}>{m.title}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid container spacing={2} sx={{ mt: 2 }}>
+                  <TextField fullWidth label="Book Name" name="name" value={form.name} onChange={handleChange} required />
+                  <TextField label="Author" name="author" value={form.author} onChange={handleChange} required sx={{ width: '32%' }} />
+                  <TextField label="Price" name="price" value={form.price} onChange={handleChange} type="number" sx={{ width: '32%' }} />
+                  <FormControl sx={{ width: '32%' }}>
+                    <InputLabel>Category</InputLabel>
+                    <Select name="category" value={form.category} onChange={handleChange}>
+                      {categories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid container spacing={2} sx={{ mt: 2 }}>
+                  <TextField
+                    fullWidth multiline rows={2}
+                    name="description"
+                    label="Description"
+                    value={form.description}
                     onChange={handleChange}
-                    label="Manuscript (waiting_upload)"
-                  >
-                    {manuscripts.map((m) => (
-                      <MenuItem key={m.id} value={m.id}>
-                        {m.title} 
-                        {/* — {m.author}  */}
-                        {/* add author later */}
-                      </MenuItem>
+                  />
+                  <Box className="tag-container">
+                    tags:
+                    {suggestedTags.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        color={form.tags.includes(tag) ? 'primary' : 'default'}
+                        onClick={() => handleTagToggle(tag)}
+                        variant="outlined"
+                      />
                     ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              {/* ---------- existing fields ---------- */}
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <TextField label="Book Name" name="name" sx={{ width: '100%' }} fullWidth value={form.name} onChange={handleChange} required />
-                <TextField label="Author"    name="author" sx={{ width: '32%' }} fullWidth value={form.author} onChange={handleChange} required />
-                <TextField label="Price"     name="price"  sx={{ width: '31%' }} type="number" fullWidth value={form.price} onChange={handleChange} required />
-                <FormControl sx={{ width: '31%' }} fullWidth>
-                  <InputLabel>Category</InputLabel>
-                  <Select name="category" value={form.category} onChange={handleChange} required>
-                    {categories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <TextField name="published_date" sx={{ width: '65%' }} label="Published Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={form.published_date} onChange={handleChange} />
-                <FormControl sx={{ width: '21.5%' }} fullWidth>
-                  <InputLabel>Edition</InputLabel>
-                  <Select name="edition" value={form.edition} onChange={handleChange}>
-                    {editions.map((ed) => <MenuItem key={ed} value={ed}>{ed}</MenuItem>)}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <TextField name="description" label="Description" sx={{ width: '100%' }} fullWidth multiline rows={2} value={form.description} onChange={handleChange} />
-                <Box display="flex" flexWrap="wrap" gap={1}>tags:
-                  {suggestedTags.map((tag) => (
-                    <Chip key={tag} label={tag} color={form.tags.includes(tag) ? 'primary' : 'default'} onClick={() => handleTagToggle(tag)} variant="outlined" />
-                  ))}
-                </Box>
-                <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ width: '40%' }} fullWidth />
-                <Button onClick={addCustomTag} sx={{ mt: 2 }} variant="outlined">➕ Add Tag</Button>
-              </Grid>
-
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <Typography variant="subtitle1">Upload Cover Image:</Typography>
-                <input type="file" accept="image/*" onChange={handleFileChange} />
-                {preview && (
-                  <Box mt={2}>
-                    <img src={preview} alt="preview" style={{ width: '90%', maxHeight: 250, objectFit: 'contain' }} />
                   </Box>
-                )}
-              </Grid>
 
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <Button type="submit" variant="contained">Save</Button>
-                <Button variant="outlined" color="error" onClick={() => { setUploadOpen(false); setEditOpen(false); setForm(getEmptyForm()); setPreview(null); }}>
-                  Cancel
-                </Button>
-              </Grid>
+                  <Box className="tag-upload-row">
+                    <TextField
+                      name="customTag"
+                      label="Custom Tag"
+                      value={form.customTag}
+                      onChange={handleChange}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button onClick={addCustomTag} variant="outlined" className="add-tag-button">
+                      ➕ Add Tag
+                    </Button>
+                    <label className="custom-file-upload">
+                      📁 Choose Cover Image
+                      <input type="file" accept="image/*" onChange={handleFileChange} hidden />
+                    </label>
+                  </Box>
 
-              <Typography color="text.secondary" sx={{ mt: 2 }}>{status}</Typography>
-            </form>
-          </Container>
+                  {preview && (
+                    <Box mt={2}>
+                      <img src={preview} alt="Preview" style={{ width: '150px', borderRadius: '8px' }} />
+                    </Box>
+                  )}
+                </Grid>
+
+                <Grid container spacing={2} sx={{ mt: 3 }}>
+                  <Button type="submit" variant="contained">Save</Button>
+                  <Button variant="outlined" color="error" onClick={() => { setUploadOpen(false); setEditOpen(false); setForm(getEmptyForm()); setPreview(null); }}>
+                    Cancel
+                  </Button>
+                </Grid>
+
+                <Typography color="text.secondary" sx={{ mt: 2 }}>{status}</Typography>
+              </form>
+            </Container>
+          </div>
         </div>
       )}
 
-      {/* --------------------- book list ------------------ */}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      <ul className="book-list">
         {books.map((book) => (
-          <li key={book.id} style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, borderBottom: '5px solid #ccc', paddingBottom: 16 }}>
-            <img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
-
-            <div>
+          <li key={book.id}>
+            <img src={book.image_url} alt={book.name} />
+            <div className="book-info">
               <h3>{book.name}</h3>
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
               <p><strong>Category:</strong> {book.category}</p>
-
-              <p>
-                <strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}
-              </p>
-
+              <p><strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}</p>
               <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
-              <strong>Description:</strong>
-              <p>{book.description}</p>
-              <button onClick={() => openEdit(book)}>✏️ Edit</button>
-              <button onClick={() => handleDelete(book.id)} style={{ marginLeft: 8, color: 'red' }}>🗑 Delete</button>
-              {/* ---------- VIEW button ---------- */}
+              <p><strong>Description:</strong> {book.description}</p>
+            </div>
+            <div className="card-buttons">
+              <button onClick={() => openEdit(book)} className="edit-button">✏️ Edit</button>
+              <button onClick={() => handleDelete(book.id)} className="delete-button">🗑 Delete</button>
               {book.manuscript_id && (
-                <button onClick={() => router.push(`/books/${book.id}`)} style={{ marginLeft: 8, color: 'green' }}>
+                <button onClick={() => router.push(`/books/${book.id}`)} className="view-button">
                   🔍 View
                 </button>
               )}

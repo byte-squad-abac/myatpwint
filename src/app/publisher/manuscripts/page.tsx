@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
+import { Download } from 'lucide-react';
+import './manuscripts.css';
 
 type Manuscript = {
   id: string;
   title: string;
-  author_id: string|null;
+  author_id: string | null;
   file_url: string;
   status: string;
   description: string;
@@ -15,41 +17,76 @@ type Manuscript = {
 
 export default function ReviewDashboard() {
   const supabase = useSupabaseClient();
-  const session  = useSession();
-  const [rows,setRows] = useState<Manuscript[]>([]);
+  const session = useSession();
+  const [rows, setRows] = useState<Manuscript[]>([]);
 
-  // only publishers should get here – you already verify that elsewhere
   const fetchRows = async () => {
-    const { data } = await supabase.from('manuscripts').select('*').order('created_at',{ascending:false});
+    const { data } = await supabase
+      .from('manuscripts')
+      .select('*')
+      .order('created_at', { ascending: false });
     setRows(data ?? []);
   };
 
-  useEffect(()=>{fetchRows();},[]);
+  useEffect(() => {
+    fetchRows();
+  }, []);
 
-  const approve = async (id:string) => {
-    await supabase.from('manuscripts').update({status:'waiting_upload', reviewed_at:new Date()}).eq('id',id);
+  const approve = async (id: string) => {
+    await supabase
+      .from('manuscripts')
+      .update({ status: 'waiting_upload', reviewed_at: new Date() })
+      .eq('id', id);
     fetchRows();
   };
 
   return (
-    <div style={{padding:40}}>
+    <div className="container">
       <h1>Manuscripts</h1>
-      <ul style={{listStyle:'none',padding:0}}>
-        {rows.map(m=>(
-          <li key={m.id} style={{border:'1px solid #ccc',padding:16,marginBottom:12}}>
-            Name : <strong>{m.title}</strong> 
-            <div>Status : {m.status}</div>
-            <div>Description : {m.description}</div>
-            <a href={m.file_url} style={{marginLeft:8}} target="_blank">click to download & view manuscript</a>
-            {m.status==='need_review' && (
-              <button onClick={()=>approve(m.id)} style={{marginLeft:12}}>Approve</button>
+      <p>Manage and track your manuscript submissions</p>
+      <ul className="manuscript-list">
+        {rows.map((m) => (
+          <li key={m.id} className="manuscript-item">
+            {m.status === 'need_review' && (
+              <div className="status-pill status-need-review">⚠ Needs Review</div>
             )}
-            {m.status==='waiting_upload' && (
-              <div>
-                <span style={{marginLeft:12,color:'#ff9800'}}>waiting for book upload / do it in upload form</span>
+            {m.status === 'waiting_upload' && (
+              <div className="status-pill status-waiting-upload">⏳ Waiting Upload</div>
+            )}
+            {m.status === 'published' && (
+              <div className="status-pill status-published">✅ Published</div>
+            )}
+
+            <div className="manuscript-title">Name: {m.title}</div>
+            <div className="manuscript-status">Status: {m.status}</div>
+            <div className="manuscript-description">Description: {m.description}</div>
+
+            <a
+              href={m.file_url}
+              className="download-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download size={16} /> Download & View
+            </a>
+
+            {m.status === 'need_review' && (
+              <button onClick={() => approve(m.id)} className="approve-button">
+                ✅ Approve
+              </button>
+            )}
+
+            {m.status === 'waiting_upload' && (
+              <div className="message message-waiting">
+                ⏱ Waiting for book upload
               </div>
             )}
-            {m.status==='published' && <span style={{marginLeft:12,color:'#4caf50'}}>The book is published ✔ Congratulation</span>}
+
+            {m.status === 'published' && (
+              <div className="message message-published">
+                ✨ Published 🎉 Congratulations!
+              </div>
+            )}
           </li>
         ))}
       </ul>
