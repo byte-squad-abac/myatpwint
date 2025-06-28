@@ -1,3 +1,4 @@
+// src/app/publisher/manuscripts/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -20,23 +21,24 @@ export default function ReviewDashboard() {
   const session = useSession();
   const [rows, setRows] = useState<Manuscript[]>([]);
 
+  // only publishers should get here (just to safe-guard)
   const fetchRows = async () => {
     const { data } = await supabase
-      .from('manuscripts')
-      .select('*')
-      .order('created_at', { ascending: false });
+    .from('manuscripts')
+    .select('*')
+    .order('created_at',{ascending:false});
     setRows(data ?? []);
   };
 
-  useEffect(() => {
+  useEffect(()=>{
     fetchRows();
-  }, []);
+  },[]);
 
-  const approve = async (id: string) => {
+  const approve = async (id:string) => {
     await supabase
-      .from('manuscripts')
-      .update({ status: 'waiting_upload', reviewed_at: new Date() })
-      .eq('id', id);
+    .from('manuscripts')
+    .update({status:'waiting_upload', reviewed_at:new Date()})
+    .eq('id',id);
     fetchRows();
   };
 

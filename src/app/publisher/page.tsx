@@ -42,6 +42,10 @@ const editions = ['1st', '2nd', '3rd', '4th', '5th'];
 export default function PublisherPage() {
   const session = useSession();
   const router   = useRouter();
+  
+  const [isPublisher, setIsPublisher] = useState<boolean | null>(null);
+  const [isEditor, setIsEditor] = useState<boolean | null>(null);
+
 
   const [books,         setBooks]        = useState<Book[]>([]);
   const [manuscripts,   setManuscripts]  = useState<Manuscript[]>([]);
@@ -97,30 +101,66 @@ export default function PublisherPage() {
   };
 
   useEffect(() => {
+    console.log('Session:', session);  // Log session before checking it
+    console.log("Router:", router);  // log router to see if it is properly initialized
+
     const verifyPublisher = async () => {
-      if (!session) { router.push('/login'); return; }
-
-      const email = session.user.email;
-      const { data, error } = await supabase
-        .from('publishers')
-        .select('email')
-        .eq('email', email)
-        .single();
-
-      if (error || !data) {
-        alert('❌ Access denied.');
-        await supabase.auth.signOut();
+      if (!session) {
+        console.log('No session, redirecting...');
         router.push('/login');
         return;
       }
 
+      
+    console.log("Session Data:", session); // Log session data
+
+      const email = session.user.email;
+      const { data, error } = await supabase
+        .from('publishers')
+        .select('email, role')
+        .eq('email', email)
+        .single();
+
+      if (error || !data) {
+      console.error("Error fetching publisher role:", error);
+      alert('❌ Access denied. You do not have publisher permissions.');
+      await supabase.auth.signOut();
+      router.push('/login');
+      return;
+      // setIsPublisher(false); 
+      // ❌ Not a publisher
+    } 
+
+    
+    // Log role to verify
+    console.log("User Role:", data.role);
+
+
+    // Set role based on the user data
+    if (data.role === 'publisher') {
+      setIsPublisher(true);
+      setIsEditor(false); // Ensure editor is false for publisher
       fetchBooks();
       fetchTags();
       fetchManuscripts();
-    };
+    } else if (data.role === 'editor') {
+      setIsEditor(true); // Add editor role
+      setIsPublisher(false); // Ensure publisher is false for editor
+      fetchManuscripts(); // Load manuscripts for editing
+    } else {
+      setIsPublisher(false);
+    }
 
+    if (session && session.user) {
+  console.log("Session is initialized and user is logged in");
+} else {
+  console.log("Session not initialized or user not logged in");
+}
+
+  
+  };
     verifyPublisher();
-  }, [session]);
+  }, [session, router]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -221,15 +261,43 @@ export default function PublisherPage() {
     fetchManuscripts();
   };
 
-  if (!session) return null;
+  if (!session) return(<div>Loading...</div>);
+
+  if (isPublisher === false) {
+  return (
+    <div style={{ color: 'black', textAlign: 'center', marginTop: '50px' }}>
+      <h2>❌ Access Denied</h2>
+      <p>You are not a publisher.</p>
+      <Button
+        variant="contained"
+        color="error"
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push('/login');
+        }}
+        sx={{ mt: 2 }}
+      >
+        Logout
+      </Button>
+    </div>
+  );
+}
+
+// Still verifying publisher role
+if (isPublisher === null) {
+  return (<div style={{ color: 'white', textAlign: 'center' }}>Verifying publisher access...</div>);
+}
 
   return (
     <div className="publisher-container">
       <h1>📚 Publisher Dashboard</h1>
-
       <div className="toolbar">
-        <button onClick={() => setUploadOpen(true)} className="upload-button">➕ Upload New Book</button>
-        <a className="upload-button" href="/publisher/manuscripts">View Manuscript</a>
+      <button onClick={() => setUploadOpen(true)} className="upload-button">
+        ➕ Upload New Book
+      </button>
+      <a className="upload-button" href="/publisher/manuscripts">View Manuscript</a>
+      </div>
+      <div style={{ marginBottom: 20, marginTop: 20, color: 'white' }}>
         <input
           type="text"
           placeholder="Search books by name"
@@ -239,6 +307,10 @@ export default function PublisherPage() {
           className="search-bar"
         />
       </div>
+
+      <button onClick={() => setUploadOpen(true)} className="upload-button">
+        ➕ Upload New Book
+      </button>
 
       {/* --------------------- Modal (upload / edit) --------------------- */}
       {(isUploadOpen || isEditOpen) && (
@@ -347,19 +419,25 @@ export default function PublisherPage() {
       <ul className="book-list">
         {books.map((book) => (
           <li key={book.id}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}><img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} /></div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
+            </div>
+
             <div className="book-info">
+
               <h3>{book.name}</h3>
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
               <p><strong>Category:</strong> {book.category}</p>
               <p><strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}</p>
               <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
-              <p><strong>Description:</strong> {book.description}</p>
-            </div>
+              <strong>Description:</strong>
+              <p>{book.description}</p>
+              </div>
             <div className="card-buttons">
               <button onClick={() => openEdit(book)} className="edit-button">✏️ Edit</button>
               <button onClick={() => handleDelete(book.id)} className="delete-button">🗑 Delete</button>
+              {/* ---------- VIEW button ---------- */}
               {book.manuscript_id && (
                 <button onClick={() => router.push(`/books/${book.id}`)} className="view-button">
                   🔍 View
