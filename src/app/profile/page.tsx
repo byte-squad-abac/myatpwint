@@ -10,7 +10,8 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.refresh();
+    localStorage.clear();
+    router.push('/login');
   };
 
   return (
@@ -25,7 +26,10 @@ export default function ProfilePage() {
           </button>
         </>
       ) : (
-        <div style={{ color: '#888', fontSize: '1.1rem' }}>You are not signed in.</div>
+        <div style={{ color: '#888', fontSize: '1.1rem' }}><a>You are not signed in.</a><br></br> <button onClick={() => router.push('/login')} style={{ padding: '8px 24px', borderRadius: 8, border: '1.5px solid #1a237e', background: '#fff', color: '#1a237e', fontWeight: 700, marginTop:12, fontSize: '1.05rem', cursor: 'pointer' }}>
+            Go to log in
+          </button></div>
+
       )}
     </div>
   );
