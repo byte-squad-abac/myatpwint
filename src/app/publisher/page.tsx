@@ -308,10 +308,6 @@ if (isPublisher === null) {
         />
       </div>
 
-      <button onClick={() => setUploadOpen(true)} className="upload-button">
-        ➕ Upload New Book
-      </button>
-
       {/* --------------------- Modal (upload / edit) --------------------- */}
       {(isUploadOpen || isEditOpen) && (
         <div
@@ -381,26 +377,30 @@ if (isPublisher === null) {
                 </FormControl>
               </Grid>
 
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <TextField name="description" label="Description" sx={{ width: '100%' }} fullWidth multiline rows={2} value={form.description} onChange={handleChange} />
-                <Box display="flex" flexWrap="wrap" gap={1}>tags:
-                  {suggestedTags.map((tag) => (
-                    <Chip key={tag} label={tag} color={form.tags.includes(tag) ? 'primary' : 'default'} onClick={() => handleTagToggle(tag)} variant="outlined" />
-                  ))}
-                </Box>
-                <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ width: '40%' }} fullWidth />
-                <Button onClick={addCustomTag} sx={{ mt: 2 }} variant="outlined">➕ Add Tag</Button>
-              </Grid>
-
-              <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
-                <Typography variant="subtitle1">Upload Cover Image:</Typography>
-                <input type="file" accept="image/*" onChange={handleFileChange} />
-                {preview && (
-                  <Box mt={2}>
-                    <img src={preview} alt="preview" style={{ width: '90%', maxHeight: 250, objectFit: 'contain' }} />
+              <Grid container spacing={2} sx={{ mt: 2 }}>
+                  <TextField fullWidth multiline rows={2} label="Description" name="description" value={form.description} onChange={handleChange} />
+                  <Box className="tag-container">
+                    tags:
+                    {suggestedTags.map(tag => (
+                      <Chip key={tag} label={tag} color={form.tags.includes(tag) ? 'primary' : 'default'} onClick={() => handleTagToggle(tag)} variant="outlined" />
+                    ))}
                   </Box>
-                )}
-              </Grid>
+
+                  <Box className="tag-upload-row">
+                    <TextField name="customTag" label="Custom Tag" value={form.customTag} onChange={handleChange} sx={{ flex: 1 }} />
+                    <Button onClick={addCustomTag} className="add-tag-button" variant="outlined">➕ Add Tag</Button>
+                    <label className="custom-file-upload">
+                      📁 Choose Cover Image
+                      <input type="file" accept="image/*" hidden onChange={handleFileChange} />
+                    </label>
+                  </Box>
+
+                  {preview && (
+                    <Box mt={2}>
+                      <img src={preview} alt="Preview" style={{ width: '150px', borderRadius: 8 }} />
+                    </Box>
+                  )}
+                </Grid>
 
               <Grid container spacing={2} justifyContent="left" sx={{ mt: 3 }}>
                 <Button type="submit" variant="contained">Save</Button>
