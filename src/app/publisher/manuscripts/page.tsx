@@ -9,7 +9,7 @@ import './manuscripts.css';
 type Manuscript = {
   id: string;
   title: string;
-  author_id: string|null;
+  author_id: string | null;
   file_url: string;
   status: string;
   description: string;
@@ -18,8 +18,8 @@ type Manuscript = {
 
 export default function ReviewDashboard() {
   const supabase = useSupabaseClient();
-  const session  = useSession();
-  const [rows,setRows] = useState<Manuscript[]>([]);
+  const session = useSession();
+  const [rows, setRows] = useState<Manuscript[]>([]);
 
   // only publishers should get here (just to safe-guard)
   const fetchRows = async () => {
