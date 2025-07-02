@@ -8,28 +8,17 @@ import {
 } from '@supabase/auth-helpers-react';
 
 export default function LoginPage() {
-  /* ----------------------------------------------------------- */
-  /*  Local state                                                */
-  /* ----------------------------------------------------------- */
   const [isSignup, setIsSignup] = useState(false);
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
 
-  /* ----------------------------------------------------------- */
-  /*  Supabase / routing hooks                                   */
-  /* ----------------------------------------------------------- */
   const supabase = useSupabaseClient();
   const session  = useSession();
   const router   = useRouter();
 
-  /* ----------------------------------------------------------- */
-  /*  Figure-out where we should return **after** OAuth login    */
-  /*  – During the build `window` is undefined, so we rely on    */
-  /*    NEXT_PUBLIC_SITE_URL. At runtime we patch it.            */
-  /* ----------------------------------------------------------- */
   const [siteURL, setSiteURL] = useState<string | undefined>(
-    process.env.NEXT_PUBLIC_SITE_URL // may be undefined locally
+    process.env.NEXT_PUBLIC_SITE_URL
   );
 
   useEffect(() => {
@@ -38,16 +27,19 @@ export default function LoginPage() {
     }
   }, [siteURL]);
 
-  /* ----------------------------------------------------------- */
-  /*  Handlers                                                   */
-  /* ----------------------------------------------------------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (isSignup) {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return setError(error.message);
+
+      const userId = data.user?.id;
+      if (userId) {
+        await supabase.from('profiles').insert({ id: userId, role: 'user' });
+      }
+
       router.push('/profile');
       return;
     }
@@ -73,9 +65,6 @@ export default function LoginPage() {
     router.refresh();
   };
 
-  /* ----------------------------------------------------------- */
-  /*  Render                                                     */
-  /* ----------------------------------------------------------- */
   return (
     <div
       style={{
@@ -98,7 +87,6 @@ export default function LoginPage() {
         {isSignup ? 'Sign Up' : 'Login'}
       </h2>
 
-      {/* Already signed-in banner */}
       {session?.user && (
         <div
           style={{
@@ -127,7 +115,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Auth form */}
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -153,12 +140,10 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* Google OAuth */}
       <button type="button" onClick={handleGoogleLogin} style={secondaryButton}>
         Continue&nbsp;with&nbsp;Google
       </button>
 
-      {/* Toggle sign-in vs sign-up */}
       <div style={{ textAlign: 'center', marginTop: 6, fontSize: '1.05rem' }}>
         {isSignup ? (
           <>
@@ -186,7 +171,6 @@ export default function LoginPage() {
   );
 }
 
-/* ---------- tiny style helpers ---------- */
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: 10,

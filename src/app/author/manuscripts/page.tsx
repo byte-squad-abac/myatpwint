@@ -29,6 +29,9 @@ export default function AuthorManuscripts() {
   const [statusMsg, setStatusMsg] = useState('');
   const [editTarget, setEditTarget] = useState<Manuscript | null>(null);
   const [editFile, setEditFile] = useState<File>();
+  const [editorId, setEditorId] = useState<string | null>(null);
+
+  const EDITOR_ID = '512f12f6-2c19-486c-9dcf-0d46720950b0'; // editor's user.id (myatpwint.editor@gmail.com)
 
   const loadManuscripts = async () => {
     if (!session) return;
@@ -41,11 +44,36 @@ export default function AuthorManuscripts() {
     setManuscripts(data ?? []);
   };
 
-  useEffect(() => { loadManuscripts(); }, [session]);
+  // const fetchEditorId = async () => {
+  //   const { data, error } = await supabase.from('editors').select('id').limit(1).single();
+  //   if (!error && data?.id) setEditorId(data.id);
+  // };
+
+  
+useEffect(() => {
+  const fetchEditorId = async () => {
+    const { data } = await supabase
+      .from('publishers')
+      .select('id')
+      .eq('role', 'editor')
+      .single();
+    setEditorId(data?.id ?? null);
+  };
+
+  fetchEditorId();
+}, []);
+
+  useEffect(() => {
+    loadManuscripts();
+    // fetchEditorId();
+  }, [session]);
 
   if (session === null) return <p style={{ padding: 40 }}>Loading session…</p>;
   if (!session) return <p style={{ padding: 40 }}>Please sign in.</p>;
   const uid = session.user.id;
+
+
+
 
   const handleNew = async (e: FormEvent) => {
     e.preventDefault();
@@ -119,6 +147,18 @@ export default function AuthorManuscripts() {
       </form>
       <p style={{ marginTop: 6, color: '#1a237e' }}>{statusMsg}</p>
 
+      {editorId && (
+        <div style={{ marginTop: 24 }}>
+          <h2>Message Editor</h2>
+          <ConversationBox
+            myId={uid}
+            myRole="author"
+            authorId={uid}
+            editorId={EDITOR_ID}
+          />
+        </div>
+      )}
+
       <h2 style={{ margin: '32px 0 12px' }}>Your manuscripts</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {manuscripts.map(m => (
@@ -127,18 +167,6 @@ export default function AuthorManuscripts() {
             <small>status: <em>{m.status}</em></small>
             {m.description && <p style={{ marginTop: 6 }}>{m.description}</p>}
             <a href={m.file_url} target="_blank" style={{ color: '#1976d2' }}>download / view</a>
-
-            {m.editor_id && (
-              <div style={{ marginTop: 12 }}>
-                <ConversationBox
-                  myId={uid}
-                  myRole="author"
-                  authorId={uid}
-                  editorId={m.editor_id}
-                  roomId={m.id}
-                />
-              </div>
-            )}
 
             {m.status === 'returned' && (
               <>
