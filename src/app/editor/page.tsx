@@ -1,4 +1,3 @@
-// src/app/editor/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,36 +7,32 @@ import ConversationBox from '@/components/ConversationBox';
 
 /* ---------- Types ---------- */
 type Manuscript = {
-  id         : string;
-  title      : string;
-  author_id  : string | null;
-  file_url   : string;
-  status     : 'need_review' | 'waiting_upload' | 'published' | 'returned';
+  id: string;
+  title: string;
+  author_id: string | null;
+  file_url: string;
+  status: 'need_review' | 'waiting_upload' | 'published' | 'returned';
   description: string;
-  created_at : string;
-  feedback?  : string | null;
+  created_at: string;
+  feedback?: string | null;
 };
 
 export default function EditorPage() {
   const supabase = useSupabaseClient();
-  const session  = useSession();
-  const router   = useRouter();
+  const session = useSession();
+  const router = useRouter();
 
-  /* your own user-id will be needed by ConversationBox */
-  const myId = session?.user.id ?? '';
+  const myId = session?.user.id ?? ''; // editor's user ID
 
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
-  const [selected   , setSelected   ] = useState<Manuscript | null>(null);
-  const [feedback   , setFeedback   ] = useState('');
+  const [selected, setSelected] = useState<Manuscript | null>(null);
+  const [feedback, setFeedback] = useState('');
 
-  /* -------------------------------------------------- */
-  /* Fetch manuscripts that still need review           */
-  /* -------------------------------------------------- */
+  /* ---------- Fetch all manuscripts ---------- */
   const load = async () => {
     const { data, error } = await supabase
       .from('manuscripts')
       .select('*')
-      // .eq('status', 'need_review') // fix this later. Leave it like this for now
       .order('created_at', { ascending: false });
 
     if (error) console.error('[Editor] fetch manuscripts', error);
@@ -45,15 +40,17 @@ export default function EditorPage() {
   };
   useEffect(() => { if (session) load(); }, [session]);
 
-  /* -------------------------------------------------- */
-  /* Approve / Return helpers                           */
-  /* -------------------------------------------------- */
+  /* ---------- Approve or Return Manuscript ---------- */
   const updateStatus = async (status: 'waiting_upload' | 'returned') => {
     if (!selected || !session) return;
 
     const { error } = await supabase
       .from('manuscripts')
-      .update({ status, feedback, editor_id: session.user.id  })
+      .update({
+        status,
+        feedback,
+        editor_id: myId,
+      })
       .eq('id', selected.id);
 
     if (error) {
@@ -66,25 +63,26 @@ export default function EditorPage() {
       );
       setFeedback('');
       setSelected(null);
-      load();                       // refresh list
+      load();
     }
   };
 
-  /* -------------------------------------------------- */
-  /* UI                                                 */
-  /* -------------------------------------------------- */
-  if (!session) return null;         // wait for auth
+  if (!session) return null;
 
   return (
     <div style={{ padding: 40 }}>
       <h1>Editor Dashboard</h1>
 
-      {/* ---------- list ---------- */}
+      {/* ---------- Manuscript List ---------- */}
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {manuscripts.map((m) => (
           <li
             key={m.id}
-            style={{ border: '1px solid #ccc', padding: 16, marginBottom: 12 }}
+            style={{
+              border: '1px solid #ccc',
+              padding: 16,
+              marginBottom: 12
+            }}
           >
             <strong>{m.title}</strong>
             <div>Status : {m.status}</div>
@@ -92,26 +90,33 @@ export default function EditorPage() {
             <a href={m.file_url} target="_blank" style={{ marginRight: 12 }}>
               📄 View/Download
             </a>
-            {m.status==='need_review' && (
-            <button
-              onClick={() => {
-                setSelected(m);
-                setFeedback(m.feedback ?? '');
-              }}
-            >
-              Review
-            </button>)}
-            {m.status==='waiting_upload' && (
+            {m.status === 'need_review' && (
+              <button
+                onClick={() => {
+                  setSelected(m);
+                  setFeedback(m.feedback ?? '');
+                }}
+              >
+                Review
+              </button>
+            )}
+            {m.status === 'waiting_upload' && (
               <div>
-                <span style={{marginLeft:12,color:'#ff9800'}}>waiting for book upload / do it in upload form</span>
+                <span style={{ marginLeft: 12, color: '#ff9800' }}>
+                  waiting for book upload / do it in upload form
+                </span>
               </div>
             )}
-            {m.status==='published' && <span style={{marginLeft:12,color:'#4caf50'}}>The book is published ✔ Congratulation</span>}
+            {m.status === 'published' && (
+              <span style={{ marginLeft: 12, color: '#4caf50' }}>
+                The book is published ✔ Congratulation
+              </span>
+            )}
           </li>
         ))}
       </ul>
 
-      {/* ---------- modal ---------- */}
+      {/* ---------- Review Modal ---------- */}
       {selected && (
         <div
           style={{
@@ -127,22 +132,20 @@ export default function EditorPage() {
             width: 'min(520px,90%)',
           }}
         >
-          <h2>Review : {selected.title}</h2>
+          <h2>Review: {selected.title}</h2>
 
-          {/* ───── built-in chat ───── */}
+          {/* 💬 Shared Chat with Author */}
           {selected.author_id && (
             <div style={{ marginBottom: 16 }}>
               <ConversationBox
-                authorId={selected.author_id}
-                editorId={myId}
                 myId={myId}
                 myRole="editor"
-                roomId={selected.id}
+                authorId={selected.author_id}
+                editorId={myId}
               />
             </div>
           )}
 
-          {/* feedback text-area */}
           <textarea
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
@@ -150,7 +153,6 @@ export default function EditorPage() {
             style={{ width: '100%', minHeight: 120, marginBottom: 16 }}
           />
 
-          {/* action buttons */}
           <button
             onClick={() => updateStatus('waiting_upload')}
             style={{ marginRight: 12 }}

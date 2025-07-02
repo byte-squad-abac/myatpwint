@@ -1,6 +1,4 @@
-// ──────────────────────────────────────────────────────────────
-// useConversation – real-time chat between one author & editor
-// ──────────────────────────────────────────────────────────────
+// useConversation.ts
 import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { PostgrestError } from '@supabase/supabase-js';
@@ -29,21 +27,19 @@ export function useConversation ({
   myRole,
 }: Options) {
   const supabase = createClientComponentClient();
-  const roomId   = [authorId, editorId].sort().join('-');
+  const roomId   = [authorId, editorId].sort().join('-'); // Shared room ID
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<PostgrestError|null>(null);
 
-  /* ───────────────────── initial fetch ───────────────────── */
+  /* ───── initial fetch ───── */
   useEffect(() => {
     const fetch = async () => {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('room_id', roomId)
-        .eq('author_id', authorId)
-        .eq('editor_id', editorId)
         .order('created_at', { ascending: true });
 
       if (error) setError(error);
@@ -54,7 +50,7 @@ export function useConversation ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorId, editorId]);
 
-  /* ───────────────────── realtime subscription ────────────── */
+  /* ───── realtime subscription ───── */
   useEffect(() => {
     const channel = supabase
       .channel(`room_${roomId}`)
@@ -79,15 +75,15 @@ export function useConversation ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  /* ───────────────────── send helper ─────────────────────── */
+  /* ───── send helper ───── */
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
 
     const { error } = await supabase.from('messages').insert({
-      room_id : roomId,
-      author_id: authorId,
-      editor_id: editorId,
-      sender_role: myRole,
+      room_id     : roomId,
+      author_id   : authorId,
+      editor_id   : editorId,
+      sender_role : myRole,
       content,
     });
 
