@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -40,9 +40,17 @@ export default function MyLibraryPage() {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Load books from localStorage on component mount
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!isClient) return;
+    
     const savedBooks = localStorage.getItem('myLibraryBooks');
     if (savedBooks) {
       try {
@@ -57,12 +65,26 @@ export default function MyLibraryPage() {
         console.error('Error loading books from localStorage:', error);
       }
     }
-  }, []);
+  }, [isClient]);
 
   // Redirect if not logged in
   if (!session) {
     router.push('/login');
     return null;
+  }
+
+  // Don't render until we're on the client
+  if (!isClient) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
+          📚 My Library
+        </Typography>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

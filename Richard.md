@@ -1,7 +1,19 @@
 # Myat Pwint Publishing Platform — Project Documentation
 
-**Date:** 2024-06-09
-**Author:** Richard
+**Date:** 2024-06-10
+**Update:** Netlify SSR Build Fixes & Deployment Readiness
+
+---
+
+## 2024-06-10 — Netlify SSR Build Fixes & Deployment Readiness
+
+- **Fixed Netlify build errors** caused by SSR (server-side rendering) issues with browser-only APIs (`location`, `DOMMatrix`, etc.) and usage of `useSearchParams` outside a Suspense boundary.
+- **Updated `/my-library/read` page** to use a `<Suspense>` boundary and dynamic imports for PDF/EPUB readers, ensuring all browser APIs only run on the client.
+- **Upgraded Supabase client usage** to the new `createPagesBrowserClient` API (replacing deprecated `createBrowserSupabaseClient`).
+- **Removed unused/incompatible packages** (e.g., `react-epub-viewer`) and updated the Netlify Next.js plugin to the latest version.
+- **Added guards for `localStorage` usage** to avoid SSR errors in all relevant files.
+- **Tested local build:** All routes, including `/my-library/read`, now build and render without errors or SSR warnings.
+- **Deployment:** Project is now ready for Netlify preview deployment. All SSR issues are resolved, and the codebase is clean and up-to-date.
 
 ---
 
