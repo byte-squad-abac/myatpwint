@@ -6,6 +6,8 @@ import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import supabase from '@/lib/supabaseClient';               // ← server-side singleton
 import Link     from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import {
@@ -142,6 +144,11 @@ function HeaderWithRoleAwareNav() {
         {/* -------- RIGHT LINKS -------- */}
         <div style={{ ...linkBarStyle, marginRight: '50px' }}>
           {pathname.startsWith('/books') && <CartPopover />}
+          {session && (
+            <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
+              📚 My Library
+            </Link>
+          )}
           {!session && (
             <Link href="/login" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Login</Link>
           )}
