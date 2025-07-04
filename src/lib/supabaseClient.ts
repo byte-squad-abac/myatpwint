@@ -1,10 +1,9 @@
 // src/lib/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js';
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-  { auth: { persistSession: false } }   // no localStorage on server
-);
+const supabase = createPagesBrowserClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+});
 
 export default supabase;
