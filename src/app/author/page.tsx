@@ -31,7 +31,7 @@ export default function AuthorPage() {
   const applyAsAuthor = async () => {
     const { error } = await supabase
       .from('profiles')
-      .update({ role: 'author' })
+      .update({ role: 'author', name: session?.user.user_metadata.full_name || session?.user.email || 'Unnamed' })
       .eq('id', session?.user.id);
 
     if (!error) {
@@ -40,7 +40,13 @@ export default function AuthorPage() {
     }
   };
 
-  if (loading || !session) return null;
+  if (loading || !session) return (
+  <div style={{marginTop: '40px'}}>
+    You are not logged in. Please Log in or Sign up to access the Author Portal.<br />
+  <button onClick={() => router.push('/login')}>Login</button>
+  </div>
+  
+);
 
   if (role !== 'author') {
     return (
@@ -55,6 +61,7 @@ export default function AuthorPage() {
   return (
     <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
       <h1>✍️ Author Portal</h1>
+      <p>You have Author role. Your email is {session?.user.email}</p>
       <p>Authors can submit manuscripts, track sales, and message publishers.</p>
       <a href="/author/manuscripts">click to upload manuscript</a>
     </main>

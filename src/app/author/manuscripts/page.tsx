@@ -24,6 +24,7 @@ export default function AuthorManuscripts() {
 
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [title, setTitle] = useState('');
+  const [authorname, setAuthorname] = useState('');
   const [description, setDescription] = useState('');
   const [newFile, setNewFile] = useState<File>();
   const [statusMsg, setStatusMsg] = useState('');
@@ -95,6 +96,7 @@ useEffect(() => {
     const { error: dbErr } = await supabase.from('manuscripts').insert({
       author_id: uid,
       title,
+      author_name: session?.user.user_metadata.full_name || session?.user.email || 'Unnamed',
       description,
       file_url: publicUrl,
       status: 'need_review'
@@ -102,7 +104,10 @@ useEffect(() => {
     if (dbErr) return setStatusMsg(`DB error: ${dbErr.message}`);
 
     setStatusMsg('✅ Submitted!');
-    setTitle(''); setDescription(''); setNewFile(undefined);
+    setAuthorname('');
+    setTitle('');
+    setDescription(''); 
+    setNewFile(undefined);
     await loadManuscripts();
     router.refresh();
   };
@@ -143,13 +148,13 @@ useEffect(() => {
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" required />
         <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" />
         <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setNewFile(e.target.files?.[0])} required />
-        <button type="submit">Upload</button>
+        <button type="submit" >Upload</button>
       </form>
       <p style={{ marginTop: 6, color: '#1a237e' }}>{statusMsg}</p>
 
       {editorId && (
         <div style={{ marginTop: 24 }}>
-          <h2>Message Editor</h2>
+          <h2>Message with Editor</h2>
           <ConversationBox
             myId={uid}
             myRole="author"
