@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import supabase from '@/lib/supabaseClient';               // ← server-side singleton
 import Link     from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import {
@@ -64,7 +66,10 @@ const mainStyle: CSSProperties = {
    ========================================================================== */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   /* A client-side Supabase instance for auth-helpers */
-  const [browserSupabaseClient] = useState(() => createBrowserSupabaseClient());
+  const [browserSupabaseClient] = useState(() => createPagesBrowserClient({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+  }));
 
   return (
     <html lang="en">
@@ -142,6 +147,11 @@ function HeaderWithRoleAwareNav() {
         {/* -------- RIGHT LINKS -------- */}
         <div style={{ ...linkBarStyle, marginRight: '50px' }}>
           {pathname.startsWith('/books') && <CartPopover />}
+          {session && (
+            <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
+              📚 My Library
+            </Link>
+          )}
           {!session && (
             <Link href="/login" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Login</Link>
           )}

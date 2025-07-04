@@ -218,7 +218,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 variant="contained"
                 color={cartButtonColor}
                 onClick={handleAddToCart}
-                fullWidth
                 sx={{ 
                   py: 1.5,
                   cursor: 'pointer',
@@ -234,7 +233,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 variant="contained"
                 color="secondary"
                 onClick={handleCheckout}
-                fullWidth
                 sx={{ 
                   py: 1.5,
                   cursor: 'pointer',
