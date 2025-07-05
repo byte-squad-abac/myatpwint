@@ -42,6 +42,11 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     direction: 0, // -1 for up, 1 for down, 0 for none
     pageAtScrollStart: 1,
     hasChangedPage: false,
+    // New fields for better touchpad handling
+    consecutiveScrolls: 0,
+    velocityHistory: [] as number[],
+    isTouchpad: false,
+    scrollIntention: 'idle' as 'idle' | 'scrolling' | 'page-change',
   });
 
   // Timer for hiding scroll indicator
@@ -71,7 +76,18 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     }
   }, [numPages, pageNumber]);
 
-  // Handle mouse wheel scrolling with improved smooth debouncing
+  /**
+   * Enhanced wheel handler that provides smooth, controlled scrolling for both mouse wheels
+   * and touchpads. Uses delta value patterns to differentiate between input types and
+   * applies appropriate thresholds and debouncing for each.
+   * 
+   * Key features:
+   * - Touchpad detection via deltaY magnitude
+   * - Accumulator-based scrolling with visual feedback
+   * - Prevents accidental multi-page jumps
+   * - Adaptive thresholds for different input devices
+   * - Clear visual progress indicator
+   */
   const handleWheel = useCallback((event: WheelEvent) => {
     // Prevent default scrolling behavior
     event.preventDefault();
@@ -81,70 +97,109 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     const timeSinceLastEvent = now - state.lastEventTime;
     const timeSinceLastPageChange = now - state.lastPageChangeTime;
     
+    // Detect if this is likely a touchpad based on delta values
+    // Touchpads typically have smaller, more frequent delta values
+    const absDeltaY = Math.abs(event.deltaY);
+    const isTouchpadLikely = absDeltaY < 4 || (event.deltaMode === 0 && absDeltaY < 50);
+    
     // Determine scroll direction
     const currentDirection = event.deltaY > 0 ? 1 : -1;
     
-    // Reset everything if:
+    // Reset state if:
     // 1. Direction changed
-    // 2. Too much time passed since last scroll (user stopped scrolling)
-    // 3. We already changed page in this scroll session
-    if (currentDirection !== state.direction || 
-        timeSinceLastEvent > 300 || 
-        (state.hasChangedPage && timeSinceLastPageChange < 600)) {
+    // 2. User paused scrolling (>200ms gap)
+    // 3. Just changed page and cooldown hasn't expired
+    const shouldReset = (
+      currentDirection !== state.direction || 
+      timeSinceLastEvent > 200 ||
+      (state.hasChangedPage && timeSinceLastPageChange < 1200)
+    );
+    
+    if (shouldReset) {
       state.accumulator = 0;
       state.direction = currentDirection;
-      state.pageAtScrollStart = pageNumber;
       state.hasChangedPage = false;
+      state.isTouchpad = isTouchpadLikely;
       setScrollProgress(0);
     }
     
-    // Only accumulate if we haven't changed page yet in this scroll session
-    if (!state.hasChangedPage) {
-      // Add to accumulator with consistent scaling
-      const scrollAmount = Math.abs(event.deltaY);
-      state.accumulator += scrollAmount * 0.5; // Reduced multiplier for more control
-      state.lastEventTime = now;
+    // Update last event time
+    state.lastEventTime = now;
+    
+    // Only accumulate if we haven't just changed page
+    if (!state.hasChangedPage && !state.isChangingPage) {
+      // Apply different multipliers based on input type
+      let multiplier = 1.0;
+      if (state.isTouchpad) {
+        // Touchpads need larger multiplier due to smaller deltas
+        multiplier = 2.5;
+      } else {
+        // Mouse wheels have larger deltas, need smaller multiplier
+        multiplier = 0.8;
+      }
       
-      // Calculate and show progress
-      const threshold = 150; // Fixed threshold for consistency
+      // Cap the delta to prevent huge jumps from fast scrolling
+      const cappedDelta = Math.min(absDeltaY, state.isTouchpad ? 10 : 50);
+      
+      // Accumulate scroll amount with capped delta
+      state.accumulator += cappedDelta * multiplier;
+      
+      // Set threshold based on input type
+      const threshold = state.isTouchpad ? 250 : 150;
+      
+      // Calculate progress
       const progress = Math.min(100, (state.accumulator / threshold) * 100);
       setScrollProgress(progress);
-      setShowScrollIndicator(true);
+      
+      // Show indicator when progress is meaningful
+      if (progress > 5) {
+        setShowScrollIndicator(true);
+      }
       
       // Clear previous hide timer
       if (hideIndicatorTimer.current) {
         clearTimeout(hideIndicatorTimer.current);
       }
       
-      // Hide indicator after stopping
+      // Set timer to hide indicator
       hideIndicatorTimer.current = setTimeout(() => {
         setShowScrollIndicator(false);
         setScrollProgress(0);
+        state.accumulator = 0;
       }, 500);
       
-      // Change page only once per scroll session
-      if (state.accumulator >= threshold && !state.isChangingPage) {
+      // Change page when threshold is reached
+      if (state.accumulator >= threshold && timeSinceLastPageChange > 500) {
         state.isChangingPage = true;
         
-        // Change page based on direction
+        // Visual feedback for page change
+        setScrollProgress(100);
+        
+        // Execute page change
         if (currentDirection > 0) {
           goToNextPage();
         } else {
           goToPreviousPage();
         }
         
-        // Mark that we've changed page in this scroll session
+        // Mark that we've changed page
         state.hasChangedPage = true;
+        state.lastPageChangeTime = now;
         
-        // Reset after a delay
+        // Force a hard reset to prevent any queued events
+        state.accumulator = 0;
+        state.consecutiveScrolls = 0;
+        
+        // Reset state after a longer delay
         setTimeout(() => {
           state.isChangingPage = false;
           state.accumulator = 0;
           setScrollProgress(0);
-        }, 300);
+          setShowScrollIndicator(false);
+        }, 500);
       }
     }
-  }, [goToNextPage, goToPreviousPage, pageNumber]);
+  }, [goToNextPage, goToPreviousPage]);
 
   // Handle click/tap navigation on left/right sides
   const handleContainerClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -224,6 +279,10 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
       direction: 0,
       pageAtScrollStart: 1,
       hasChangedPage: false,
+      consecutiveScrolls: 0,
+      velocityHistory: [],
+      isTouchpad: false,
+      scrollIntention: 'idle',
     };
   }, [fileUrl]);
 
@@ -236,9 +295,14 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
 
   // Handle PDF load error
   const handleLoadError = useCallback((err: Error) => {
-    console.error('PDF load error:', err);
-    setError('Failed to load PDF. The file might be corrupted or inaccessible.');
-  }, []);
+    // Check if it's a blob URL error (happens on page reload)
+    if (fileUrl.startsWith('blob:') && err.message.includes('Unexpected server response')) {
+      setError('PDF session expired. Please re-upload the file to continue reading.');
+    } else {
+      console.error('PDF load error:', err);
+      setError('Failed to load PDF. The file might be corrupted or inaccessible.');
+    }
+  }, [fileUrl]);
 
   // Handle page render error to suppress TextLayer warnings
   const handlePageRenderError = useCallback((error: Error) => {
@@ -341,7 +405,7 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
       {/* Instructions */}
       <div style={{ textAlign: 'center', marginBottom: 16, fontSize: '14px', color: '#666' }}>
         <div>📱 <strong>Mobile:</strong> Swipe left/right to navigate</div>
-        <div>🖱️ <strong>Desktop:</strong> Use mouse wheel to scroll through pages smoothly</div>
+        <div>🖱️ <strong>Desktop:</strong> Smooth scroll with mouse wheel or touchpad - watch the progress indicator</div>
         {clickNavigationEnabled && (
           <div>👆 <strong>Click Navigation:</strong> Click left half for previous, right half for next page</div>
         )}
@@ -362,7 +426,7 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Scroll progress indicator */}
+        {/* Scroll progress indicator with enhanced visual feedback */}
         {showScrollIndicator && (
           <div 
             style={{
@@ -370,35 +434,49 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
               bottom: '20px',
               left: '50%',
               transform: 'translateX(-50%)',
-              background: 'rgba(0, 0, 0, 0.7)',
-              borderRadius: '20px',
-              padding: '8px 16px',
+              background: scrollProgress === 100 ? 'rgba(0, 123, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+              borderRadius: '24px',
+              padding: '10px 20px',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '12px',
               zIndex: 10,
-              transition: 'opacity 0.2s ease',
+              transition: 'all 0.2s ease',
               opacity: showScrollIndicator ? 1 : 0,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             }}
           >
-            <span style={{ color: '#fff', fontSize: '12px' }}>
-              {scrollState.current.direction > 0 ? 'Next' : 'Previous'}
+            <span style={{ 
+              color: '#fff', 
+              fontSize: '13px',
+              fontWeight: '500',
+              minWidth: '60px'
+            }}>
+              {scrollState.current.direction > 0 ? '↓ Next' : '↑ Previous'}
             </span>
             <div style={{
-              width: '100px',
-              height: '4px',
-              background: 'rgba(255, 255, 255, 0.3)',
-              borderRadius: '2px',
+              width: '120px',
+              height: '6px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '3px',
               overflow: 'hidden',
+              position: 'relative',
             }}>
               <div style={{
                 width: `${scrollProgress}%`,
                 height: '100%',
-                background: '#007bff',
-                transition: 'width 0.1s ease',
+                background: scrollProgress === 100 ? '#fff' : '#007bff',
+                transition: 'width 0.15s ease',
+                borderRadius: '3px',
               }} />
             </div>
-            <span style={{ color: '#fff', fontSize: '12px' }}>
+            <span style={{ 
+              color: '#fff', 
+              fontSize: '13px',
+              fontWeight: '500',
+              minWidth: '35px',
+              textAlign: 'right'
+            }}>
               {Math.round(scrollProgress)}%
             </span>
           </div>
@@ -427,27 +505,35 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
               <div style={{ 
                 padding: '40px', 
                 textAlign: 'center', 
-                color: 'red',
+                color: '#d32f2f',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '16px'
               }}>
-                <div style={{ fontSize: '18px' }}>Failed to load PDF</div>
-                <div style={{ fontSize: '14px', color: '#666' }}>
-                  The file might be corrupted or inaccessible.
+                <div style={{ fontSize: '18px', fontWeight: '500' }}>
+                  {error || 'Failed to load PDF'}
                 </div>
+                {fileUrl.startsWith('blob:') && (
+                  <div style={{ fontSize: '14px', color: '#666', maxWidth: '400px' }}>
+                    This is expected in testing when you reload the page. 
+                    Please go back and re-upload the PDF file.
+                  </div>
+                )}
                 <button 
-                  onClick={() => window.location.reload()}
+                  onClick={() => window.history.back()}
                   style={{
-                    padding: '8px 16px',
+                    padding: '10px 20px',
                     borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    background: '#fff',
-                    cursor: 'pointer'
+                    border: 'none',
+                    background: '#1976d2',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
                   }}
                 >
-                  Try Again
+                  Go Back
                 </button>
               </div>
             }
