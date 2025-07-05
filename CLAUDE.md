@@ -55,11 +55,18 @@ npm run lint         # Run Next.js linting
 5. **Real-time**: Supabase subscriptions for chat features
 
 ### PDF Viewer Implementation
-- Scroll-based navigation with smooth transitions
-- Touch/swipe support for mobile devices
-- Click zones for page navigation
-- Progress tracking with visual indicators
-- Error recovery mechanisms
+- **Scroll-based navigation** with smooth transitions and intelligent input detection
+  - Differentiates between touchpad (smaller deltas) and mouse wheel (larger deltas)
+  - Uses accumulator pattern with adaptive thresholds (250 for touchpad, 150 for mouse)
+  - Implements cooldown period (1200ms) after page changes to prevent accidental jumps
+  - Delta value capping to handle fast scrolling gracefully
+- **Visual progress indicator** showing scroll accumulation in real-time
+  - Displays direction (↑ Previous / ↓ Next) and percentage
+  - Changes color when page change is imminent (blue to white at 100%)
+  - Auto-hides after 500ms of inactivity
+- **Touch/swipe support** for mobile devices with 50px threshold
+- **Click zones** for page navigation (left half = previous, right half = next)
+- **Error recovery mechanisms** with helpful messages for blob URL expiration
 
 ## Development Guidelines
 
