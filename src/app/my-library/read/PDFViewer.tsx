@@ -314,118 +314,359 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
   }, []);
 
   return (
-    <div style={{ padding: '40px', maxWidth: 900, margin: '0 auto', background: '#fff', borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-      {/* Header with book title */}
-      <h2 style={{ textAlign: 'center', marginBottom: 24 }}>{bookName}</h2>
-      
-      {/* Navigation controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16, gap: '16px', flexWrap: 'wrap' }}>
-        {/* Page navigation buttons */}
-        <button 
-          onClick={goToPreviousPage} 
-          disabled={pageNumber <= 1}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            background: pageNumber <= 1 ? '#f5f5f5' : '#fff',
-            color: pageNumber <= 1 ? '#999' : '#333',
-            cursor: pageNumber <= 1 ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          ← Previous
-        </button>
-        
-        <span style={{ margin: '0 16px', fontWeight: 'bold' }}>
-          Page {pageNumber} of {numPages || '?'}
-        </span>
-        
-        <button 
-          onClick={goToNextPage} 
-          disabled={numPages > 0 && pageNumber >= numPages}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            background: (numPages > 0 && pageNumber >= numPages) ? '#f5f5f5' : '#fff',
-            color: (numPages > 0 && pageNumber >= numPages) ? '#999' : '#333',
-            cursor: (numPages > 0 && pageNumber >= numPages) ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          Next →
-        </button>
-        
-        {/* Zoom controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button 
-            onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))}
-            style={{ 
-              padding: '4px 8px', 
-              borderRadius: '4px', 
-              border: '1px solid #ccc',
-              background: '#fff',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            -
-          </button>
-          <span style={{ fontSize: '14px' }}>Zoom</span>
-          <button 
-            onClick={() => setPdfScale(s => Math.min(3, s + 0.2))}
-            style={{ 
-              padding: '4px 8px', 
-              borderRadius: '4px', 
-              border: '1px solid #ccc',
-              background: '#fff',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            +
-          </button>
-        </div>
-        
-        {/* Click navigation toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <input
-              type="checkbox"
-              checked={clickNavigationEnabled}
-              onChange={(e) => setClickNavigationEnabled(e.target.checked)}
-              style={{ margin: 0 }}
-            />
-            Click Navigation
-          </label>
-        </div>
-      </div>
-
-      {/* Instructions */}
-      <div style={{ textAlign: 'center', marginBottom: 16, fontSize: '14px', color: '#666' }}>
-        <div>📱 <strong>Mobile:</strong> Swipe left/right to navigate</div>
-        <div>🖱️ <strong>Desktop:</strong> Smooth scroll with mouse wheel or touchpad - watch the progress indicator</div>
-        {clickNavigationEnabled && (
-          <div>👆 <strong>Click Navigation:</strong> Click left half for previous, right half for next page</div>
-        )}
-      </div>
-
-      {/* PDF viewer container with all navigation features */}
-      <div 
-        ref={containerRef}
-        style={{ 
-          display: 'flex', 
-          justifyContent: 'center',
+    <div style={{ 
+      minHeight: '100vh',
+      background: '#f8f9fa',
+      padding: '20px 0'
+    }}>
+      <div style={{ 
+        maxWidth: 1000, 
+        margin: '0 auto',
+        background: '#ffffff',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+        overflow: 'hidden'
+      }}>
+        {/* Professional Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '32px',
+          textAlign: 'center',
           position: 'relative',
-          cursor: clickNavigationEnabled ? 'pointer' : 'default',
-          minHeight: '400px' // Prevent layout shift during loading
-        }}
-        onClick={handleContainerClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+          overflow: 'hidden'
+        }}>
+          {/* Background decoration */}
+          <div style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-10%',
+            width: '300px',
+            height: '300px',
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '50%',
+            pointerEvents: 'none'
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '-30%',
+            left: '-5%',
+            width: '200px',
+            height: '200px',
+            background: 'rgba(255,255,255,0.08)',
+            borderRadius: '50%',
+            pointerEvents: 'none'
+          }} />
+          
+          <h1 style={{ 
+            color: '#ffffff',
+            fontSize: '28px',
+            fontWeight: '600',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            {bookName}
+          </h1>
+        </div>
+      
+      {/* Modern Navigation Controls */}
+      <div style={{ 
+        padding: '24px 32px',
+        borderBottom: '1px solid #e9ecef',
+        background: 'linear-gradient(to right, #fafbfc, #ffffff)',
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap',
+          gap: '20px'
+        }}>
+          {/* Left: Page Navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              onClick={goToPreviousPage} 
+              disabled={pageNumber <= 1}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '12px',
+                border: 'none',
+                background: pageNumber <= 1 
+                  ? 'linear-gradient(135deg, #e9ecef, #f8f9fa)' 
+                  : 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: pageNumber <= 1 ? '#6c757d' : '#ffffff',
+                cursor: pageNumber <= 1 ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                fontSize: '14px',
+                fontWeight: '500',
+                boxShadow: pageNumber <= 1 ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.3)',
+                transform: pageNumber <= 1 ? 'none' : 'translateY(-1px)',
+              }}
+              onMouseOver={(e) => {
+                if (pageNumber > 1) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (pageNumber > 1) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                }
+              }}
+            >
+              ← Previous
+            </button>
+            
+            {/* Page Counter */}
+            <div style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #f8f9fa, #ffffff)',
+              borderRadius: '12px',
+              border: '2px solid #e9ecef',
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#495057',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
+              minWidth: '140px',
+              textAlign: 'center'
+            }}>
+              Page {pageNumber} of {numPages || '?'}
+            </div>
+            
+            <button 
+              onClick={goToNextPage} 
+              disabled={numPages > 0 && pageNumber >= numPages}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '12px',
+                border: 'none',
+                background: (numPages > 0 && pageNumber >= numPages)
+                  ? 'linear-gradient(135deg, #e9ecef, #f8f9fa)' 
+                  : 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: (numPages > 0 && pageNumber >= numPages) ? '#6c757d' : '#ffffff',
+                cursor: (numPages > 0 && pageNumber >= numPages) ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                fontSize: '14px',
+                fontWeight: '500',
+                boxShadow: (numPages > 0 && pageNumber >= numPages) ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.3)',
+                transform: (numPages > 0 && pageNumber >= numPages) ? 'none' : 'translateY(-1px)',
+              }}
+              onMouseOver={(e) => {
+                if (!(numPages > 0 && pageNumber >= numPages)) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!(numPages > 0 && pageNumber >= numPages)) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                }
+              }}
+            >
+              Next →
+            </button>
+          </div>
+          
+          {/* Right: Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            {/* Zoom controls */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              background: '#ffffff',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              border: '2px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <button 
+                onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))}
+                style={{ 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #f8f9fa, #ffffff)',
+                  color: '#495057',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #e9ecef, #f8f9fa)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #f8f9fa, #ffffff)';
+                }}
+              >
+                −
+              </button>
+              <span style={{ 
+                fontSize: '14px', 
+                fontWeight: '500',
+                color: '#6c757d',
+                minWidth: '45px',
+                textAlign: 'center'
+              }}>
+                Zoom
+              </span>
+              <button 
+                onClick={() => setPdfScale(s => Math.min(3, s + 0.2))}
+                style={{ 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #f8f9fa, #ffffff)',
+                  color: '#495057',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #e9ecef, #f8f9fa)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #f8f9fa, #ffffff)';
+                }}
+              >
+                +
+              </button>
+            </div>
+            
+            {/* Click navigation toggle */}
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              cursor: 'pointer',
+              background: '#ffffff',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              border: '2px solid #e9ecef',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = '#667eea';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.15)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = '#e9ecef';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+            }}
+            >
+              <input
+                type="checkbox"
+                checked={clickNavigationEnabled}
+                onChange={(e) => setClickNavigationEnabled(e.target.checked)}
+                style={{ 
+                  margin: 0,
+                  width: '18px',
+                  height: '18px',
+                  accentColor: '#667eea'
+                }}
+              />
+              <span style={{ 
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#495057'
+              }}>
+                Click Navigation
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Modern Instructions */}
+      <div style={{ 
+        padding: '20px 32px',
+        background: 'linear-gradient(135deg, #f8f9fa, #ffffff)',
+        borderBottom: '1px solid #e9ecef'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: '30px',
+          flexWrap: 'wrap',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px',
+            color: '#495057',
+            background: '#ffffff',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+          }}>
+            <span style={{ fontSize: '18px' }}>📱</span>
+            <span><strong>Mobile:</strong> Swipe left/right to navigate</span>
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px',
+            color: '#495057',
+            background: '#ffffff',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+          }}>
+            <span style={{ fontSize: '18px' }}>🖱️</span>
+            <span><strong>Desktop:</strong> Smooth scroll - watch the progress indicator</span>
+          </div>
+          {clickNavigationEnabled && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              color: '#495057',
+              background: '#ffffff',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              border: '1px solid #e9ecef',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <span style={{ fontSize: '18px' }}>👆</span>
+              <span><strong>Click Navigation:</strong> Left half = previous, right half = next</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* PDF Reader Section */}
+      <div style={{ 
+        padding: '32px',
+        background: '#ffffff'
+      }}>
+        <div 
+          ref={containerRef}
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'center',
+            position: 'relative',
+            cursor: clickNavigationEnabled ? 'pointer' : 'default',
+            minHeight: '600px',
+            borderRadius: '12px',
+            background: '#fafbfc',
+            border: '2px solid #e9ecef',
+            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.05)'
+          }}
+          onClick={handleContainerClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
         {/* Scroll progress indicator with enhanced visual feedback */}
         {showScrollIndicator && (
           <div 
@@ -557,22 +798,25 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
             />
           </Document>
         </div>
-      </div>
-      
-      {/* Error display */}
-      {error && (
-        <div style={{ 
-          color: 'red', 
-          textAlign: 'center', 
-          marginTop: 16,
-          padding: '16px',
-          background: '#fff5f5',
-          borderRadius: '4px',
-          border: '1px solid #fed7d7'
-        }}>
-          {error}
         </div>
-      )}
+      
+        {/* Error display */}
+        {error && (
+          <div style={{ 
+            color: '#d32f2f', 
+            textAlign: 'center', 
+            margin: '20px 32px',
+            padding: '20px',
+            background: 'linear-gradient(135deg, #fff5f5, #ffffff)',
+            borderRadius: '12px',
+            border: '2px solid #f8d7da',
+            boxShadow: '0 4px 12px rgba(211, 47, 47, 0.1)'
+          }}>
+            {error}
+          </div>
+        )}
+      </div>
+      </div>
     </div>
   );
 } 
