@@ -55,16 +55,20 @@ npm run lint         # Run Next.js linting
 5. **Real-time**: Supabase subscriptions for chat features
 
 ### PDF Viewer Implementation
-- **Scroll-based navigation** with smooth transitions and intelligent input detection
-  - Differentiates between touchpad (smaller deltas) and mouse wheel (larger deltas)
-  - Uses accumulator pattern with adaptive thresholds (250 for touchpad, 150 for mouse)
-  - Implements cooldown period (1200ms) after page changes to prevent accidental jumps
-  - Delta value capping to handle fast scrolling gracefully
-- **Visual progress indicator** showing scroll accumulation in real-time
-  - Displays direction (↑ Previous / ↓ Next) and percentage
-  - Changes color when page change is imminent (blue to white at 100%)
-  - Auto-hides after 500ms of inactivity
-- **Touch/swipe support** for mobile devices with 50px threshold
+- **Smart page-internal scrolling** that allows scrolling within tall PDF pages before changing pages
+  - Only changes pages when at the very top/bottom edge of content
+  - Smooth scroll position management when transitioning between pages
+- **Gesture-based page navigation** requiring sustained scroll gesture at page boundaries
+  - Similar to webnovel/webtoon readers - requires deliberate "long hard rub" to change pages
+  - Accumulates scroll delta with touchpad sensitivity (3x multiplier for touchpad vs mouse wheel)
+  - 500-unit threshold before page change triggers
+  - Compact progress indicator shows gesture progress with color-coded feedback
+  - Auto-resets after 300ms of inactivity at any progress level
+- **Clean, immersive UI design** with no page scrolling (only content scrolls)
+  - All controls are floating overlays that never require scrolling
+  - Auto-hide controls after 3 seconds of inactivity
+  - Lock mode (🔓/🔒) for distraction-free reading
+- **Touch/swipe support** for mobile devices with simple edge-aware navigation
 - **Click zones** for page navigation (left half = previous, right half = next)
 - **Error recovery mechanisms** with helpful messages for blob URL expiration
 

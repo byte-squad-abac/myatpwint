@@ -30,14 +30,26 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  // Smart scroll state for page-internal scrolling
+  // Smart scroll state for page-internal scrolling with gesture-based navigation
   const scrollState = useRef({
     isAtTop: true,
     isAtBottom: false,
     lastScrollTop: 0,
     isScrolling: false,
     scrollTimeout: null as NodeJS.Timeout | null,
+    // Gesture-based page navigation system
+    // Requires sustained scrolling gesture at page boundaries
+    gestureAccumulator: 0, // Accumulates scroll delta when at edge
+    gestureDirection: 0, // 1 for down (next page), -1 for up (previous page)
+    gestureStartTime: 0, // Timestamp when gesture started
+    isGestureActive: false, // True when user is performing edge gesture
+    gestureResetTimeout: null as NodeJS.Timeout | null, // Timeout for resetting gesture
   });
+  
+  // State for visual progress indicator
+  const [gestureProgress, setGestureProgress] = useState<number>(0);
+  const [showGestureIndicator, setShowGestureIndicator] = useState<boolean>(false);
+  const [gestureIndicatorDirection, setGestureIndicatorDirection] = useState<'next' | 'prev'>('next');
 
   // Navigation functions with scroll position reset
   const goToPreviousPage = useCallback(() => {
@@ -81,13 +93,23 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     
     // Update scroll position tracking
     const state = scrollState.current;
-    const scrollDirection = scrollTop > state.lastScrollTop ? 1 : -1;
     state.lastScrollTop = scrollTop;
     
     // Check if at top or bottom with a small threshold (5px)
     const threshold = 5;
+    const wasAtEdge = state.isAtTop || state.isAtBottom;
     state.isAtTop = scrollTop <= threshold;
     state.isAtBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+    const isAtEdge = state.isAtTop || state.isAtBottom;
+    
+    // Reset gesture if user scrolls away from edge
+    if (wasAtEdge && !isAtEdge && state.isGestureActive) {
+      state.gestureAccumulator = 0;
+      state.isGestureActive = false;
+      state.gestureDirection = 0;
+      setGestureProgress(0);
+      setShowGestureIndicator(false);
+    }
     
     // Clear previous timeout
     if (state.scrollTimeout) {
@@ -101,7 +123,18 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
   }, []);
 
   /**
-   * Handle wheel events for page navigation when at edges
+   * Handle wheel events for gesture-based page navigation
+   * 
+   * Gesture-Based Navigation System:
+   * When user reaches the edge of a page, they must perform a sustained
+   * scrolling gesture (like a long hard rub on touchpad) to change pages.
+   * A progress indicator shows how much gesture is needed.
+   * 
+   * Behavior:
+   * 1. At edge + scroll past: Start accumulating gesture
+   * 2. Sustained scroll: Fill progress bar to 100%
+   * 3. Release or pause: Reset gesture after timeout
+   * 4. Complete gesture: Change page and reset
    */
   const handleWheel = useCallback((event: WheelEvent) => {
     const container = containerRef.current;
@@ -110,38 +143,104 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     const state = scrollState.current;
     const scrollingDown = event.deltaY > 0;
     
-    // If we're at the bottom and scrolling down, go to next page
-    if (state.isAtBottom && scrollingDown && !state.isScrolling) {
+    // Check if we're at an edge and trying to scroll past it
+    const atEdgeScrollingPast = 
+      (state.isAtBottom && scrollingDown) || 
+      (state.isAtTop && !scrollingDown);
+    
+    if (atEdgeScrollingPast && !state.isScrolling) {
       event.preventDefault();
-      goToNextPage();
-      // Scroll to top of new page
-      setTimeout(() => {
-        if (containerRef.current) {
-          containerRef.current.scrollTop = 0;
-          state.isAtTop = true;
-          state.isAtBottom = false;
+      
+      // Clear any existing reset timeout
+      if (state.gestureResetTimeout) {
+        clearTimeout(state.gestureResetTimeout);
+      }
+      
+      // Determine gesture direction
+      const gestureDirection = scrollingDown ? 1 : -1;
+      
+      // Start or continue gesture
+      if (!state.isGestureActive || state.gestureDirection !== gestureDirection) {
+        // Starting new gesture
+        state.isGestureActive = true;
+        state.gestureDirection = gestureDirection;
+        state.gestureStartTime = Date.now();
+        state.gestureAccumulator = 0;
+        setGestureIndicatorDirection(gestureDirection === 1 ? 'next' : 'prev');
+      }
+      
+      // Accumulate gesture with higher sensitivity for touchpad
+      // Touchpad typically has smaller deltaY values
+      const isTouchpad = Math.abs(event.deltaY) < 10;
+      const multiplier = isTouchpad ? 3.0 : 1.0;
+      state.gestureAccumulator += Math.abs(event.deltaY) * multiplier;
+      
+      // Calculate progress (0-100%)
+      const GESTURE_THRESHOLD = 500; // Adjust this value to control gesture length
+      const progress = Math.min(100, (state.gestureAccumulator / GESTURE_THRESHOLD) * 100);
+      
+      // Update visual indicator
+      setGestureProgress(progress);
+      setShowGestureIndicator(true);
+      
+      // Check if gesture is complete
+      if (progress >= 100) {
+        // Clear reset timeout since we're changing page
+        if (state.gestureResetTimeout) {
+          clearTimeout(state.gestureResetTimeout);
         }
-      }, 100);
-    }
-    // If we're at the top and scrolling up, go to previous page  
-    else if (state.isAtTop && !scrollingDown && !state.isScrolling) {
-      event.preventDefault();
-      goToPreviousPage();
-      // Scroll to bottom of new page if it's taller than viewport
-      setTimeout(() => {
-        if (containerRef.current) {
-          const container = containerRef.current;
-          const scrollHeight = container.scrollHeight;
-          const clientHeight = container.clientHeight;
-          if (scrollHeight > clientHeight) {
-            container.scrollTop = scrollHeight - clientHeight;
-            state.isAtTop = false;
-            state.isAtBottom = true;
-          }
+        
+        // Change page
+        if (gestureDirection === 1) {
+          goToNextPage();
+          // Scroll to top of new page
+          setTimeout(() => {
+            if (containerRef.current) {
+              containerRef.current.scrollTop = 0;
+              state.isAtTop = true;
+              state.isAtBottom = false;
+            }
+          }, 100);
+        } else {
+          goToPreviousPage();
+          // Scroll to bottom of new page if it's taller than viewport
+          setTimeout(() => {
+            if (containerRef.current) {
+              const container = containerRef.current;
+              const scrollHeight = container.scrollHeight;
+              const clientHeight = container.clientHeight;
+              if (scrollHeight > clientHeight) {
+                container.scrollTop = scrollHeight - clientHeight;
+                state.isAtTop = false;
+                state.isAtBottom = true;
+              }
+            }
+          }, 100);
         }
-      }, 100);
+        
+        // Reset gesture state
+        state.gestureAccumulator = 0;
+        state.isGestureActive = false;
+        state.gestureDirection = 0;
+        state.gestureResetTimeout = null;
+        setGestureProgress(0);
+        
+        // Hide indicator after a delay
+        setTimeout(() => {
+          setShowGestureIndicator(false);
+        }, 300);
+      } else {
+        // Set timeout to reset gesture if user stops scrolling
+        state.gestureResetTimeout = setTimeout(() => {
+          state.gestureAccumulator = 0;
+          state.isGestureActive = false;
+          state.gestureDirection = 0;
+          state.gestureResetTimeout = null;
+          setGestureProgress(0);
+          setShowGestureIndicator(false);
+        }, 300); // Reset after 300ms of inactivity
+      }
     }
-    // Otherwise, let normal scrolling happen
   }, [goToNextPage, goToPreviousPage]);
 
   // Handle click/tap navigation on left/right sides
@@ -181,11 +280,14 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
+    const state = scrollState.current;
 
-    if (isLeftSwipe) {
+    // For touch, we'll keep simple swipe navigation without gesture system
+    // The gesture system is primarily for scroll wheel/touchpad
+    if (isLeftSwipe && state.isAtBottom) {
       goToNextPage();
     }
-    if (isRightSwipe) {
+    if (isRightSwipe && state.isAtTop) {
       goToPreviousPage();
     }
   }, [touchStart, touchEnd, goToNextPage, goToPreviousPage]);
@@ -213,6 +315,9 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
       if (scrollState.current.scrollTimeout) {
         clearTimeout(scrollState.current.scrollTimeout);
       }
+      if (scrollState.current.gestureResetTimeout) {
+        clearTimeout(scrollState.current.gestureResetTimeout);
+      }
     };
   }, [handleScroll, handleWheel]);
 
@@ -227,7 +332,15 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
       lastScrollTop: 0,
       isScrolling: false,
       scrollTimeout: null,
+      gestureAccumulator: 0,
+      gestureDirection: 0,
+      gestureStartTime: 0,
+      isGestureActive: false,
+      gestureResetTimeout: null,
     };
+    // Reset gesture indicator
+    setGestureProgress(0);
+    setShowGestureIndicator(false);
     // Scroll to top
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
@@ -409,6 +522,79 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
           </Document>
         </div>
       </div>
+
+      {/* Gesture Progress Indicator - Compact Design */}
+      {showGestureIndicator && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 0, 0, 0.75)',
+            borderRadius: '20px',
+            padding: '12px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            zIndex: 1000,
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+            transition: 'opacity 0.3s ease',
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: '500',
+          }}>
+            <span style={{ fontSize: '16px' }}>
+              {gestureIndicatorDirection === 'next' ? '↓' : '↑'}
+            </span>
+            <span>
+              {gestureIndicatorDirection === 'next' ? 'Next' : 'Previous'}
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div style={{
+            width: '150px',
+            height: '4px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '2px',
+            overflow: 'hidden',
+            position: 'relative',
+          }}>
+            <div
+              style={{
+                width: `${gestureProgress}%`,
+                height: '100%',
+                background: gestureProgress >= 100 
+                  ? '#10b981' // Green when complete
+                  : gestureProgress >= 75 
+                    ? '#3b82f6' // Blue when almost there
+                    : '#8b5cf6', // Purple for progress
+                transition: 'width 0.1s ease, background 0.3s ease',
+                borderRadius: '2px',
+              }}
+            />
+          </div>
+          
+          <div style={{
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: '11px',
+            textAlign: 'center',
+          }}>
+            {gestureProgress < 100 
+              ? 'Keep scrolling' 
+              : 'Ready'}
+          </div>
+        </div>
+      )}
 
       {/* Lock Mode Toggle - Always Visible */}
       <button
