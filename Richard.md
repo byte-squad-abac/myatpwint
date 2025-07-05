@@ -2,8 +2,27 @@
 
 **Date:** 2024-06-10
 **Update:** Netlify SSR Build Fixes & Deployment Readiness
+**Latest Update:** 2025-07-05
 
 ---
+
+## 2025-07-05 — PDF Viewer Scroll Navigation Improvements
+
+- **Enhanced scroll-based navigation** in PDFViewer component with smooth, controlled scrolling for both mouse wheels and touchpads
+- **Implemented intelligent input detection** to differentiate between touchpad and mouse wheel inputs, applying appropriate thresholds and multipliers
+- **Added visual scroll progress indicator** showing real-time feedback during scrolling with percentage completion
+- **Improved scroll accumulator logic** with:
+  - Delta value capping to prevent huge jumps from fast scrolling
+  - Direction change detection and state reset
+  - Cooldown period after page changes (1200ms) to prevent accidental multi-page jumps
+  - Adaptive thresholds: 250 for touchpad, 150 for mouse wheel
+- **Enhanced user experience** with:
+  - Smooth animations and transitions
+  - Clear visual feedback when page change is about to occur (progress bar fills to 100%)
+  - Automatic indicator hiding after 500ms of inactivity
+  - Prevented default scroll behavior to avoid page jumping
+- **Maintained existing features**: Click navigation zones, touch/swipe support, zoom controls, and error recovery
+- **Code documentation**: Added comprehensive JSDoc comment explaining the scroll handler implementation
 
 ## 2024-06-10 — Netlify SSR Build Fixes & Deployment Readiness
 
