@@ -868,41 +868,48 @@ export default function PDFViewer({ fileUrl }: PDFViewerProps) {
         direction={indicatorDirection}
       />
 
-      {/* Lock Mode Toggle */}
-      <button
-        onClick={() => setLockMode(!lockMode)}
-        style={{
-          ...STYLES.iconButton,
-          top: '20px',
-          left: '20px',
-          zIndex: 1001,
-          background: lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)',
-        }}
-        title={lockMode ? "Unlock controls" : "Lock controls"}
-      >
-        {lockMode ? '🔒' : '🔓'}
-      </button>
-
-      {/* Close Button */}
-      {!lockMode && (
+      {/* Top Right Button Group */}
+      <div style={{
+        position: 'fixed',
+        top: '84px',
+        right: '20px',
+        zIndex: 1001,
+        display: 'flex',
+        gap: '8px',
+        opacity: showControls ? 1 : 0,
+        visibility: showControls ? 'visible' : 'hidden',
+        transition: 'all 0.3s ease',
+        pointerEvents: showControls ? 'auto' : 'none',
+      }}>
+        {/* Lock Mode Toggle */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => setLockMode(!lockMode)}
           style={{
             ...STYLES.iconButton,
-            top: '20px',
-            right: '20px',
-            zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.6)',
-            fontSize: '20px',
-            opacity: showControls ? 1 : 0,
-            visibility: showControls ? 'visible' : 'hidden',
-            transition: 'all 0.3s ease',
-            pointerEvents: showControls ? 'auto' : 'none',
+            position: 'relative',
+            background: lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)',
           }}
+          title={lockMode ? "Unlock controls" : "Lock controls"}
         >
-          ×
+          {lockMode ? '🔒' : '🔓'}
         </button>
-      )}
+
+        {/* Close Button */}
+        {!lockMode && (
+          <button
+            onClick={() => window.history.back()}
+            style={{
+              ...STYLES.iconButton,
+              position: 'relative',
+              background: 'rgba(0, 0, 0, 0.6)',
+              fontSize: '20px',
+            }}
+            title="Close reader"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Bottom Control Bar */}
       {!lockMode && (
