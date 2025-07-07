@@ -1,141 +1,187 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+
+// Constants
+const CONFIG = {
+  GESTURE_THRESHOLD: 500,
+  RESET_TIMEOUT: 300,
+  UNLOCK_TIMEOUT: 500,
+  SCROLL_EDGE_THRESHOLD: 5,
+  SWIPE_THRESHOLD: 50,
+  TOUCHPAD_MULTIPLIER: 3.0,
+  TOUCHPAD_DELTA_THRESHOLD: 10,
+  CONTROL_HIDE_DELAY: 3000,
+  ZOOM_MIN: 0.5,
+  ZOOM_MAX: 3,
+  ZOOM_STEP: 0.2,
+  DEFAULT_SCALE: 1.2,
+} as const;
+
+const STYLES = {
+  container: {
+    height: '100vh',
+    width: '100%',
+    background: '#f8f9fa',
+    overflow: 'hidden',
+    position: 'relative' as const,
+  },
+  scrollContainer: {
+    height: '100vh',
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    position: 'relative' as const,
+    overflow: 'auto',
+    padding: '40px 20px',
+    scrollBehavior: 'smooth' as const,
+  },
+  pdfDocument: {
+    background: '#ffffff',
+    borderRadius: '8px',
+    boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
+    padding: '40px',
+    display: 'inline-block',
+    margin: '0 auto',
+  },
+  loadingState: {
+    padding: '60px',
+    textAlign: 'center' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '20px',
+    minHeight: '400px',
+    justifyContent: 'center',
+  },
+  iconButton: {
+    position: 'fixed' as const,
+    border: 'none',
+    borderRadius: '50%',
+    width: '40px',
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(10px)',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    color: '#ffffff',
+    fontSize: '16px',
+  },
+  controlBar: {
+    position: 'fixed' as const,
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1000,
+    background: 'rgba(0, 0, 0, 0.85)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    padding: '12px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+  },
+  controlButton: {
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.2)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
+  gestureIndicator: {
+    position: 'fixed' as const,
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: '20px',
+    padding: '12px 24px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '8px',
+    zIndex: 1000,
+    backdropFilter: 'blur(8px)',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+    transition: 'opacity 0.3s ease',
+  },
+} as const;
 
 interface PDFViewerProps {
   fileUrl: string;
   bookName: string;
 }
 
-export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
-  // State for PDF data
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [pdfScale, setPdfScale] = useState<number>(1.2);
-  const [error, setError] = useState<string | null>(null);
-  
-  // State for navigation settings
-  const [clickNavigationEnabled, setClickNavigationEnabled] = useState<boolean>(true);
-  const [lockMode, setLockMode] = useState<boolean>(false);
-  
-  // Refs for DOM elements
-  const containerRef = useRef<HTMLDivElement>(null);
-  const pageContainerRef = useRef<HTMLDivElement>(null);
+// Custom hook for gesture-based page navigation
+function useGestureNavigation(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  onPageChange: (direction: 'next' | 'prev') => void
+) {
+  const [gestureProgress, setGestureProgress] = useState(0);
+  const [showIndicator, setShowIndicator] = useState(false);
+  const [indicatorDirection, setIndicatorDirection] = useState<'next' | 'prev'>('next');
 
-  // Touch/swipe state
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // Smart scroll state for page-internal scrolling with gesture-based navigation
   const scrollState = useRef({
     isAtTop: true,
     isAtBottom: false,
     lastScrollTop: 0,
     isScrolling: false,
     scrollTimeout: null as NodeJS.Timeout | null,
-    // Gesture-based page navigation system
-    // Requires sustained scrolling gesture at page boundaries
-    gestureAccumulator: 0, // Accumulates scroll delta when at edge
-    gestureDirection: 0, // 1 for down (next page), -1 for up (previous page)
-    gestureStartTime: 0, // Timestamp when gesture started
-    isGestureActive: false, // True when user is performing edge gesture
-    gestureResetTimeout: null as NodeJS.Timeout | null, // Timeout for resetting gesture
+    gestureAccumulator: 0,
+    gestureDirection: 0,
+    isGestureActive: false,
+    gestureResetTimeout: null as NodeJS.Timeout | null,
+    gestureLocked: false,
   });
-  
-  // State for visual progress indicator
-  const [gestureProgress, setGestureProgress] = useState<number>(0);
-  const [showGestureIndicator, setShowGestureIndicator] = useState<boolean>(false);
-  const [gestureIndicatorDirection, setGestureIndicatorDirection] = useState<'next' | 'prev'>('next');
 
-  // Navigation functions with scroll position reset
-  const goToPreviousPage = useCallback(() => {
-    const newPage = Math.max(1, pageNumber - 1);
-    if (newPage !== pageNumber) {
-      setPageNumber(newPage);
-      // Reset scroll position will be handled in wheel handler
-    }
-  }, [pageNumber]);
+  const resetGesture = useCallback(() => {
+    const state = scrollState.current;
+    state.gestureAccumulator = 0;
+    state.isGestureActive = false;
+    state.gestureDirection = 0;
+    state.gestureLocked = false;
+    setGestureProgress(0);
+    setShowIndicator(false);
+  }, []);
 
-  const goToNextPage = useCallback(() => {
-    let newPage: number;
-    if (numPages === 0) {
-      newPage = pageNumber + 1;
-    } else {
-      newPage = Math.min(numPages, pageNumber + 1);
-    }
-    if (newPage !== pageNumber) {
-      setPageNumber(newPage);
-      // Reset scroll position will be handled in wheel handler
-    }
-  }, [numPages, pageNumber]);
-
-  /**
-   * Smart scroll handler that allows scrolling within tall PDF pages
-   * before changing to the next/previous page.
-   * 
-   * Key features:
-   * - Scrolls within the page content first
-   * - Only changes page when at the top/bottom edge
-   * - Works with mouse wheel, touchpad, and touch
-   * - Prevents accidental page jumps
-   */
-  const handleScroll = useCallback((event: Event) => {
+  const updateScrollState = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    const clientHeight = container.clientHeight;
-    
-    // Update scroll position tracking
+    const { scrollTop, scrollHeight, clientHeight } = container;
     const state = scrollState.current;
+    
     state.lastScrollTop = scrollTop;
     
-    // Check if at top or bottom with a small threshold (5px)
-    const threshold = 5;
     const wasAtEdge = state.isAtTop || state.isAtBottom;
-    state.isAtTop = scrollTop <= threshold;
-    state.isAtBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+    state.isAtTop = scrollTop <= CONFIG.SCROLL_EDGE_THRESHOLD;
+    state.isAtBottom = scrollTop + clientHeight >= scrollHeight - CONFIG.SCROLL_EDGE_THRESHOLD;
     const isAtEdge = state.isAtTop || state.isAtBottom;
     
-    // Reset gesture if user scrolls away from edge
     if (wasAtEdge && !isAtEdge && state.isGestureActive) {
-      state.gestureAccumulator = 0;
-      state.isGestureActive = false;
-      state.gestureDirection = 0;
-      setGestureProgress(0);
-      setShowGestureIndicator(false);
+      resetGesture();
     }
     
-    // Clear previous timeout
-    if (state.scrollTimeout) {
-      clearTimeout(state.scrollTimeout);
-    }
+    if (state.scrollTimeout) clearTimeout(state.scrollTimeout);
     
     state.isScrolling = true;
     state.scrollTimeout = setTimeout(() => {
       state.isScrolling = false;
     }, 150);
-  }, []);
+  }, [containerRef, resetGesture]);
 
-  /**
-   * Handle wheel events for gesture-based page navigation
-   * 
-   * Gesture-Based Navigation System:
-   * When user reaches the edge of a page, they must perform a sustained
-   * scrolling gesture (like a long hard rub on touchpad) to change pages.
-   * A progress indicator shows how much gesture is needed.
-   * 
-   * Behavior:
-   * 1. At edge + scroll past: Start accumulating gesture
-   * 2. Sustained scroll: Fill progress bar to 100%
-   * 3. Release or pause: Reset gesture after timeout
-   * 4. Complete gesture: Change page and reset
-   */
   const handleWheel = useCallback((event: WheelEvent) => {
     const container = containerRef.current;
     if (!container) return;
@@ -143,7 +189,6 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     const state = scrollState.current;
     const scrollingDown = event.deltaY > 0;
     
-    // Check if we're at an edge and trying to scroll past it
     const atEdgeScrollingPast = 
       (state.isAtBottom && scrollingDown) || 
       (state.isAtTop && !scrollingDown);
@@ -151,120 +196,145 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     if (atEdgeScrollingPast && !state.isScrolling) {
       event.preventDefault();
       
-      // Clear any existing reset timeout
+      if (state.gestureLocked) return;
+      
       if (state.gestureResetTimeout) {
         clearTimeout(state.gestureResetTimeout);
       }
       
-      // Determine gesture direction
       const gestureDirection = scrollingDown ? 1 : -1;
       
-      // Start or continue gesture
       if (!state.isGestureActive || state.gestureDirection !== gestureDirection) {
-        // Starting new gesture
         state.isGestureActive = true;
         state.gestureDirection = gestureDirection;
-        state.gestureStartTime = Date.now();
         state.gestureAccumulator = 0;
-        setGestureIndicatorDirection(gestureDirection === 1 ? 'next' : 'prev');
+        setIndicatorDirection(gestureDirection === 1 ? 'next' : 'prev');
       }
       
-      // Accumulate gesture with higher sensitivity for touchpad
-      // Touchpad typically has smaller deltaY values
-      const isTouchpad = Math.abs(event.deltaY) < 10;
-      const multiplier = isTouchpad ? 3.0 : 1.0;
+      const isTouchpad = Math.abs(event.deltaY) < CONFIG.TOUCHPAD_DELTA_THRESHOLD;
+      const multiplier = isTouchpad ? CONFIG.TOUCHPAD_MULTIPLIER : 1.0;
       state.gestureAccumulator += Math.abs(event.deltaY) * multiplier;
       
-      // Calculate progress (0-100%)
-      const GESTURE_THRESHOLD = 500; // Adjust this value to control gesture length
-      const progress = Math.min(100, (state.gestureAccumulator / GESTURE_THRESHOLD) * 100);
+      const progress = Math.min(100, (state.gestureAccumulator / CONFIG.GESTURE_THRESHOLD) * 100);
       
-      // Update visual indicator
       setGestureProgress(progress);
-      setShowGestureIndicator(true);
+      setShowIndicator(true);
       
-      // Check if gesture is complete
       if (progress >= 100) {
-        // Clear reset timeout since we're changing page
+        state.gestureLocked = true;
+        
         if (state.gestureResetTimeout) {
           clearTimeout(state.gestureResetTimeout);
         }
         
-        // Change page
-        if (gestureDirection === 1) {
-          goToNextPage();
-          // Scroll to top of new page
-          setTimeout(() => {
-            if (containerRef.current) {
-              containerRef.current.scrollTop = 0;
-              state.isAtTop = true;
-              state.isAtBottom = false;
-            }
-          }, 100);
-        } else {
-          goToPreviousPage();
-          // Scroll to bottom of new page if it's taller than viewport
-          setTimeout(() => {
-            if (containerRef.current) {
-              const container = containerRef.current;
-              const scrollHeight = container.scrollHeight;
-              const clientHeight = container.clientHeight;
-              if (scrollHeight > clientHeight) {
-                container.scrollTop = scrollHeight - clientHeight;
-                state.isAtTop = false;
-                state.isAtBottom = true;
-              }
-            }
-          }, 100);
-        }
+        onPageChange(gestureDirection === 1 ? 'next' : 'prev');
         
-        // Reset gesture state
-        state.gestureAccumulator = 0;
-        state.isGestureActive = false;
-        state.gestureDirection = 0;
-        state.gestureResetTimeout = null;
-        setGestureProgress(0);
+        resetGesture();
+        state.gestureLocked = true;
         
-        // Hide indicator after a delay
-        setTimeout(() => {
-          setShowGestureIndicator(false);
-        }, 300);
+        setTimeout(() => setShowIndicator(false), CONFIG.RESET_TIMEOUT);
+        setTimeout(() => { state.gestureLocked = false; }, CONFIG.UNLOCK_TIMEOUT);
       } else {
-        // Set timeout to reset gesture if user stops scrolling
-        state.gestureResetTimeout = setTimeout(() => {
-          state.gestureAccumulator = 0;
-          state.isGestureActive = false;
-          state.gestureDirection = 0;
-          state.gestureResetTimeout = null;
-          setGestureProgress(0);
-          setShowGestureIndicator(false);
-        }, 300); // Reset after 300ms of inactivity
+        state.gestureResetTimeout = setTimeout(resetGesture, CONFIG.RESET_TIMEOUT);
       }
     }
-  }, [goToNextPage, goToPreviousPage]);
+  }, [containerRef, onPageChange, resetGesture]);
 
-  // Handle click/tap navigation on left/right sides
-  const handleContainerClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!clickNavigationEnabled) return;
-    
-    const container = event.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const containerWidth = rect.width;
-    
-    // Divide the container into two halves
-    const centerLine = containerWidth / 2;
-    
-    if (clickX < centerLine) {
-      // Clicked on left half - go to previous page
-      goToPreviousPage();
-    } else {
-      // Clicked on right half - go to next page
-      goToNextPage();
+  const resetScrollState = useCallback(() => {
+    const container = containerRef.current;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      scrollState.current.isAtTop = scrollTop <= CONFIG.SCROLL_EDGE_THRESHOLD;
+      scrollState.current.isAtBottom = scrollTop + clientHeight >= scrollHeight - CONFIG.SCROLL_EDGE_THRESHOLD;
     }
-  }, [clickNavigationEnabled, goToNextPage, goToPreviousPage]);
+  }, [containerRef]);
 
-  // Touch handlers for mobile swipe
+  return {
+    handleScroll: updateScrollState,
+    handleWheel,
+    gestureProgress,
+    showIndicator,
+    indicatorDirection,
+    resetGesture,
+    resetScrollState,
+  };
+}
+
+// Custom hook for control visibility
+function useControlVisibility() {
+  const [showControls, setShowControls] = useState(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleActivity = useCallback(() => {
+    setShowControls(true);
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, CONFIG.CONTROL_HIDE_DELAY);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return { showControls, handleActivity };
+}
+
+// Custom hook for keyboard navigation
+function useKeyboardNavigation(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  goToNextPage: () => void,
+  goToPreviousPage: () => void
+) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const container = containerRef.current;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          goToPreviousPage();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          goToNextPage();
+          break;
+        case 'ArrowDown':
+          if (container) {
+            e.preventDefault();
+            container.scrollTo({
+              top: container.scrollHeight - container.clientHeight,
+              behavior: 'smooth'
+            });
+          }
+          break;
+        case 'ArrowUp':
+          if (container) {
+            e.preventDefault();
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [containerRef, goToNextPage, goToPreviousPage]);
+}
+
+// Custom hook for touch navigation
+function useTouchNavigation(goToNextPage: () => void, goToPreviousPage: () => void) {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -278,203 +348,347 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     if (!touchStart || !touchEnd) return;
     
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-    const state = scrollState.current;
+    const isLeftSwipe = distance > CONFIG.SWIPE_THRESHOLD;
+    const isRightSwipe = distance < -CONFIG.SWIPE_THRESHOLD;
 
-    // For touch, we'll keep simple swipe navigation without gesture system
-    // The gesture system is primarily for scroll wheel/touchpad
-    if (isLeftSwipe && state.isAtBottom) {
-      goToNextPage();
-    }
-    if (isRightSwipe && state.isAtTop) {
-      goToPreviousPage();
-    }
+    if (isLeftSwipe) goToNextPage();
+    if (isRightSwipe) goToPreviousPage();
   }, [touchStart, touchEnd, goToNextPage, goToPreviousPage]);
 
-  // Add scroll and wheel event listeners
-  useEffect(() => {
+  return { handleTouchStart, handleTouchMove, handleTouchEnd };
+}
+
+// Gesture Progress Indicator Component
+function GestureIndicator({ 
+  show, 
+  progress, 
+  direction 
+}: { 
+  show: boolean; 
+  progress: number; 
+  direction: 'next' | 'prev'; 
+}) {
+  const progressColor = useMemo(() => {
+    if (progress >= 100) return '#10b981';
+    if (progress >= 75) return '#3b82f6';
+    return '#8b5cf6';
+  }, [progress]);
+
+  if (!show) return null;
+
+  return (
+    <div style={STYLES.gestureIndicator}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        color: '#fff',
+        fontSize: '13px',
+        fontWeight: '500',
+      }}>
+        <span style={{ fontSize: '16px' }}>
+          {direction === 'next' ? '↓' : '↑'}
+        </span>
+        <span>
+          {direction === 'next' ? 'Next' : 'Previous'}
+        </span>
+      </div>
+      
+      <div style={{
+        width: '150px',
+        height: '4px',
+        background: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: '2px',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${progress}%`,
+          height: '100%',
+          background: progressColor,
+          transition: 'width 0.1s ease, background 0.3s ease',
+          borderRadius: '2px',
+        }} />
+      </div>
+      
+      <div style={{
+        color: 'rgba(255, 255, 255, 0.6)',
+        fontSize: '11px',
+        textAlign: 'center',
+      }}>
+        {progress < 100 ? 'Keep scrolling' : 'Ready'}
+      </div>
+    </div>
+  );
+}
+
+// Control Bar Component
+function ControlBar({
+  pageNumber,
+  numPages,
+  pdfScale,
+  clickNavigationEnabled,
+  showControls,
+  onPreviousPage,
+  onNextPage,
+  onZoomIn,
+  onZoomOut,
+  onToggleClickNav,
+}: {
+  pageNumber: number;
+  numPages: number;
+  pdfScale: number;
+  clickNavigationEnabled: boolean;
+  showControls: boolean;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onToggleClickNav: (enabled: boolean) => void;
+}) {
+  const controlStyle = useMemo(() => ({
+    ...STYLES.controlBar,
+    opacity: showControls ? 1 : 0,
+    visibility: showControls ? 'visible' as const : 'hidden' as const,
+    transition: 'all 0.3s ease',
+    pointerEvents: showControls ? 'auto' as const : 'none' as const,
+  }), [showControls]);
+
+  return (
+    <div style={controlStyle}>
+      {/* Page Navigation */}
+      <button 
+        onClick={onPreviousPage} 
+        disabled={pageNumber <= 1}
+        style={{
+          ...STYLES.controlButton,
+          background: pageNumber <= 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+          color: pageNumber <= 1 ? 'rgba(255, 255, 255, 0.4)' : '#ffffff',
+          cursor: pageNumber <= 1 ? 'not-allowed' : 'pointer',
+        }}
+      >
+        ← Previous
+      </button>
+      
+      <div style={{
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#ffffff',
+        minWidth: '120px',
+        textAlign: 'center',
+      }}>
+        Page {pageNumber} of {numPages || '?'}
+      </div>
+      
+      <button 
+        onClick={onNextPage} 
+        disabled={numPages > 0 && pageNumber >= numPages}
+        style={{
+          ...STYLES.controlButton,
+          background: (numPages > 0 && pageNumber >= numPages) ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+          color: (numPages > 0 && pageNumber >= numPages) ? 'rgba(255, 255, 255, 0.4)' : '#ffffff',
+          cursor: (numPages > 0 && pageNumber >= numPages) ? 'not-allowed' : 'pointer',
+        }}
+      >
+        Next →
+      </button>
+
+      <div style={{
+        width: '1px',
+        height: '24px',
+        background: 'rgba(255, 255, 255, 0.2)'
+      }} />
+
+      {/* Zoom Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={onZoomOut} style={STYLES.controlButton}>−</button>
+        <span style={{ 
+          fontSize: '13px',
+          fontWeight: '500',
+          color: '#ffffff',
+          minWidth: '50px',
+          textAlign: 'center',
+        }}>
+          {Math.round(pdfScale * 100)}%
+        </span>
+        <button onClick={onZoomIn} style={STYLES.controlButton}>+</button>
+      </div>
+
+      <div style={{
+        width: '1px',
+        height: '24px',
+        background: 'rgba(255, 255, 255, 0.2)'
+      }} />
+
+      {/* Click Navigation Toggle */}
+      <label style={{ 
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        color: '#ffffff',
+      }}>
+        <input
+          type="checkbox"
+          checked={clickNavigationEnabled}
+          onChange={(e) => onToggleClickNav(e.target.checked)}
+          style={{ 
+            margin: 0,
+            width: '16px',
+            height: '16px',
+            accentColor: '#667eea',
+          }}
+        />
+        Click Nav
+      </label>
+    </div>
+  );
+}
+
+// Main PDF Viewer Component
+export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
+  // PDF state
+  const [numPages, setNumPages] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pdfScale, setPdfScale] = useState<number>(CONFIG.DEFAULT_SCALE);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI state
+  const [clickNavigationEnabled, setClickNavigationEnabled] = useState(false);
+  const [lockMode, setLockMode] = useState(false);
+  
+  // Refs
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Custom hooks
+  const { showControls, handleActivity } = useControlVisibility();
+  
+  const {
+    handleScroll,
+    handleWheel,
+    gestureProgress,
+    showIndicator,
+    indicatorDirection,
+    resetGesture,
+    resetScrollState,
+  } = useGestureNavigation(containerRef, (direction) => {
+    if (direction === 'next') goToNextPage();
+    else goToPreviousPage();
+  });
+
+  // Navigation functions
+  const goToPreviousPage = useCallback(() => {
+    setPageNumber(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const goToNextPage = useCallback(() => {
+    setPageNumber(prev => numPages === 0 ? prev + 1 : Math.min(numPages, prev + 1));
+  }, [numPages]);
+
+  const handleZoomIn = useCallback(() => {
+    setPdfScale(s => Math.min(CONFIG.ZOOM_MAX, s + CONFIG.ZOOM_STEP));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setPdfScale(s => Math.max(CONFIG.ZOOM_MIN, s - CONFIG.ZOOM_STEP));
+  }, []);
+
+  // Event handlers
+  const handleContainerClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!clickNavigationEnabled) return;
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const isLeftHalf = clickX < rect.width / 2;
+    
+    if (isLeftHalf) goToPreviousPage();
+    else goToNextPage();
+  }, [clickNavigationEnabled, goToNextPage, goToPreviousPage]);
+
+  const handlePageRenderSuccess = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
-
-    // Add event listeners
-    container.addEventListener('scroll', handleScroll);
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    
-    // Initialize scroll state
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    const clientHeight = container.clientHeight;
-    scrollState.current.isAtTop = scrollTop <= 5;
-    scrollState.current.isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
-    
-    // Cleanup: remove event listeners when component unmounts
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      container.removeEventListener('wheel', handleWheel);
-      if (scrollState.current.scrollTimeout) {
-        clearTimeout(scrollState.current.scrollTimeout);
-      }
-      if (scrollState.current.gestureResetTimeout) {
-        clearTimeout(scrollState.current.gestureResetTimeout);
-      }
-    };
-  }, [handleScroll, handleWheel]);
-
-  // Reset to first page when file changes
-  useEffect(() => {
-    setPageNumber(1);
-    setError(null);
-    // Reset scroll state
-    scrollState.current = {
-      isAtTop: true,
-      isAtBottom: false,
-      lastScrollTop: 0,
-      isScrolling: false,
-      scrollTimeout: null,
-      gestureAccumulator: 0,
-      gestureDirection: 0,
-      gestureStartTime: 0,
-      isGestureActive: false,
-      gestureResetTimeout: null,
-    };
-    // Reset gesture indicator
-    setGestureProgress(0);
-    setShowGestureIndicator(false);
-    // Scroll to top
-    if (containerRef.current) {
-      containerRef.current.scrollTop = 0;
+    if (container) {
+      container.scrollTop = 0;
+      resetScrollState();
     }
-  }, [fileUrl]);
+  }, [resetScrollState]);
 
-  // Handle PDF load success
   const handleLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    console.log('PDF loaded successfully with', numPages, 'pages');
     setNumPages(numPages);
     setError(null);
   }, []);
 
-  // Handle PDF load error
   const handleLoadError = useCallback((err: Error) => {
-    // Check if it's a blob URL error (happens on page reload)
     if (fileUrl.startsWith('blob:') && err.message.includes('Unexpected server response')) {
       setError('PDF session expired. Please re-upload the file to continue reading.');
     } else {
-      console.error('PDF load error:', err);
       setError('Failed to load PDF. The file might be corrupted or inaccessible.');
     }
   }, [fileUrl]);
 
-  // Handle page render error to suppress TextLayer warnings
   const handlePageRenderError = useCallback((error: Error) => {
-    // Suppress TextLayer cancellation warnings - they're harmless
-    if (error.message && error.message.includes('TextLayer')) {
-      return; // Ignore TextLayer errors silently
-    }
+    if (error.message?.includes('TextLayer')) return;
     console.warn('Page render error:', error);
   }, []);
 
-  // Add state for control visibility
-  const [showControls, setShowControls] = useState<boolean>(true);
-  const [mouseTimeout, setMouseTimeout] = useState<NodeJS.Timeout | null>(null);
+  // Custom hook integrations
+  useKeyboardNavigation(containerRef, goToNextPage, goToPreviousPage);
+  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchNavigation(goToNextPage, goToPreviousPage);
 
-  // Handle mouse movement to show/hide controls
-  const handleMouseMove = useCallback(() => {
-    setShowControls(true);
-    if (mouseTimeout) {
-      clearTimeout(mouseTimeout);
-    }
-    const timeout = setTimeout(() => {
-      setShowControls(false);
-    }, 3000); // Hide after 3 seconds of inactivity
-    setMouseTimeout(timeout);
-  }, [mouseTimeout]);
-
-  // Clean up timeout on unmount
+  // Effects
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    
     return () => {
-      if (mouseTimeout) {
-        clearTimeout(mouseTimeout);
-      }
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleWheel);
     };
-  }, [mouseTimeout]);
+  }, [handleScroll, handleWheel]);
+
+  useEffect(() => {
+    setPageNumber(1);
+    setError(null);
+    resetGesture();
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [fileUrl, resetGesture]);
 
   return (
     <div 
-      style={{ 
-        height: '100vh',
-        width: '100vw',
-        background: '#f8f9fa',
-        overflow: 'hidden', // Prevent page scrolling
-        position: 'relative'
-      }}
-      onMouseMove={handleMouseMove}
-      onTouchStart={() => setShowControls(true)}
+      style={STYLES.container} 
+      onMouseMove={handleActivity} 
+      onTouchStart={() => handleActivity()}
     >
-      {/* Clean PDF Content Area - Scrollable Container */}
+      {/* Scrollable PDF Container */}
       <div 
         ref={containerRef}
-        style={{ 
-          height: '100vh',
-          width: '100%',
-          display: 'flex', 
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          position: 'relative',
+        style={{
+          ...STYLES.scrollContainer,
           cursor: clickNavigationEnabled ? 'pointer' : 'default',
-          overflow: 'auto', // Enable scrolling for tall pages
-          padding: '40px 20px',
-          scrollBehavior: 'smooth', // Smooth scrolling transitions
         }}
         onClick={handleContainerClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* PDF Document - Clean white background */}
-        <div 
-          ref={pageContainerRef}
-          style={{
-            background: '#ffffff',
-            borderRadius: '8px',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
-            padding: '40px',
-            display: 'inline-block',
-            margin: '0 auto',
-          }}
-        >
-          {/* PDF Document */}
+        <div style={STYLES.pdfDocument}>
           <Document
             file={fileUrl}
             onLoadSuccess={handleLoadSuccess}
             onLoadError={handleLoadError}
             loading={
-              <div style={{ 
-                padding: '60px', 
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '20px',
-                minHeight: '400px',
-                justifyContent: 'center'
-              }}>
+              <div style={STYLES.loadingState}>
                 <div style={{ fontSize: '20px', color: '#495057' }}>Loading PDF...</div>
                 <div style={{ fontSize: '16px', color: '#6c757d' }}>This may take a moment for large files</div>
               </div>
             }
             error={
-              <div style={{ 
-                padding: '60px', 
-                textAlign: 'center', 
-                color: '#d32f2f',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '20px',
-                minHeight: '400px',
-                justifyContent: 'center'
-              }}>
+              <div style={{ ...STYLES.loadingState, color: '#d32f2f' }}>
                 <div style={{ fontSize: '20px', fontWeight: '500' }}>
                   {error || 'Failed to load PDF'}
                 </div>
@@ -487,14 +701,14 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
                 <button 
                   onClick={() => window.history.back()}
                   style={{
+                    border: 'none',
                     padding: '12px 24px',
                     borderRadius: '8px',
-                    border: 'none',
                     background: '#667eea',
                     color: '#fff',
                     cursor: 'pointer',
                     fontSize: '16px',
-                    fontWeight: '500'
+                    fontWeight: '500',
                   }}
                 >
                   Go Back
@@ -505,14 +719,10 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
             <Page 
               pageNumber={pageNumber} 
               scale={pdfScale}
+              onRenderSuccess={handlePageRenderSuccess}
               onRenderError={handlePageRenderError}
               loading={
-                <div style={{ 
-                  padding: '40px', 
-                  textAlign: 'center',
-                  fontSize: '16px',
-                  color: '#6c757d'
-                }}>
+                <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px', color: '#6c757d' }}>
                   Loading page {pageNumber}...
                 </div>
               }
@@ -523,339 +733,64 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
         </div>
       </div>
 
-      {/* Gesture Progress Indicator - Compact Design */}
-      {showGestureIndicator && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(0, 0, 0, 0.75)',
-            borderRadius: '20px',
-            padding: '12px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            zIndex: 1000,
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
-            transition: 'opacity 0.3s ease',
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: '500',
-          }}>
-            <span style={{ fontSize: '16px' }}>
-              {gestureIndicatorDirection === 'next' ? '↓' : '↑'}
-            </span>
-            <span>
-              {gestureIndicatorDirection === 'next' ? 'Next' : 'Previous'}
-            </span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div style={{
-            width: '150px',
-            height: '4px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '2px',
-            overflow: 'hidden',
-            position: 'relative',
-          }}>
-            <div
-              style={{
-                width: `${gestureProgress}%`,
-                height: '100%',
-                background: gestureProgress >= 100 
-                  ? '#10b981' // Green when complete
-                  : gestureProgress >= 75 
-                    ? '#3b82f6' // Blue when almost there
-                    : '#8b5cf6', // Purple for progress
-                transition: 'width 0.1s ease, background 0.3s ease',
-                borderRadius: '2px',
-              }}
-            />
-          </div>
-          
-          <div style={{
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontSize: '11px',
-            textAlign: 'center',
-          }}>
-            {gestureProgress < 100 
-              ? 'Keep scrolling' 
-              : 'Ready'}
-          </div>
-        </div>
-      )}
+      {/* Gesture Progress Indicator */}
+      <GestureIndicator 
+        show={showIndicator}
+        progress={gestureProgress}
+        direction={indicatorDirection}
+      />
 
-      {/* Lock Mode Toggle - Always Visible */}
+      {/* Lock Mode Toggle */}
       <button
         onClick={() => setLockMode(!lockMode)}
         style={{
-          position: 'fixed',
+          ...STYLES.iconButton,
           top: '20px',
           left: '20px',
           zIndex: 1001,
           background: lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)',
-          border: 'none',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          fontSize: '16px',
-          cursor: 'pointer',
-          color: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backdropFilter: 'blur(10px)',
-          transition: 'all 0.3s ease',
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.background = lockMode ? 'rgba(220, 38, 38, 1)' : 'rgba(0, 0, 0, 0.8)';
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.background = lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)';
         }}
         title={lockMode ? "Unlock controls" : "Lock controls"}
       >
         {lockMode ? '🔒' : '🔓'}
       </button>
 
-      {/* Close Button - Hidden in Lock Mode */}
+      {/* Close Button */}
       {!lockMode && (
         <button
           onClick={() => window.history.back()}
           style={{
-            position: 'fixed',
+            ...STYLES.iconButton,
             top: '20px',
             right: '20px',
             zIndex: 1000,
             background: 'rgba(0, 0, 0, 0.6)',
-            border: 'none',
-            borderRadius: '50%',
-            width: '40px',
-            height: '40px',
             fontSize: '20px',
-            cursor: 'pointer',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(10px)',
             opacity: showControls ? 1 : 0,
             visibility: showControls ? 'visible' : 'hidden',
             transition: 'all 0.3s ease',
-            pointerEvents: showControls ? 'auto' : 'none'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+            pointerEvents: showControls ? 'auto' : 'none',
           }}
         >
           ×
         </button>
       )}
 
-
-
-      {/* Bottom Control Bar - Hidden in Lock Mode */}
+      {/* Bottom Control Bar */}
       {!lockMode && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          opacity: showControls ? 1 : 0,
-          visibility: showControls ? 'visible' : 'hidden',
-          transition: 'all 0.3s ease',
-          pointerEvents: showControls ? 'auto' : 'none'
-        }}>
-        <div style={{
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '16px',
-          padding: '12px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '24px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        }}>
-          {/* Page Navigation */}
-          <button 
-            onClick={goToPreviousPage} 
-            disabled={pageNumber <= 1}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: pageNumber <= 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
-              color: pageNumber <= 1 ? 'rgba(255, 255, 255, 0.4)' : '#ffffff',
-              cursor: pageNumber <= 1 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-            onMouseOver={(e) => {
-              if (pageNumber > 1) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (pageNumber > 1) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }
-            }}
-          >
-            ← Previous
-          </button>
-          
-          {/* Page Counter */}
-          <div style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#ffffff',
-            minWidth: '120px',
-            textAlign: 'center'
-          }}>
-            Page {pageNumber} of {numPages || '?'}
-          </div>
-          
-          <button 
-            onClick={goToNextPage} 
-            disabled={numPages > 0 && pageNumber >= numPages}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: (numPages > 0 && pageNumber >= numPages) ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
-              color: (numPages > 0 && pageNumber >= numPages) ? 'rgba(255, 255, 255, 0.4)' : '#ffffff',
-              cursor: (numPages > 0 && pageNumber >= numPages) ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-            onMouseOver={(e) => {
-              if (!(numPages > 0 && pageNumber >= numPages)) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!(numPages > 0 && pageNumber >= numPages)) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }
-            }}
-          >
-            Next →
-          </button>
-
-          {/* Divider */}
-          <div style={{
-            width: '1px',
-            height: '24px',
-            background: 'rgba(255, 255, 255, 0.2)'
-          }} />
-
-          {/* Zoom Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button 
-              onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))}
-              style={{ 
-                padding: '8px 12px', 
-                borderRadius: '8px', 
-                border: 'none',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: '#ffffff',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
-            >
-              −
-            </button>
-            <span style={{ 
-              fontSize: '13px', 
-              fontWeight: '500',
-              color: '#ffffff',
-              minWidth: '50px',
-              textAlign: 'center'
-            }}>
-              {Math.round(pdfScale * 100)}%
-            </span>
-            <button 
-              onClick={() => setPdfScale(s => Math.min(3, s + 0.2))}
-              style={{ 
-                padding: '8px 12px', 
-                borderRadius: '8px', 
-                border: 'none',
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: '#ffffff',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              }}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            width: '1px',
-            height: '24px',
-            background: 'rgba(255, 255, 255, 0.2)'
-          }} />
-
-          {/* Click Navigation Toggle */}
-          <label style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            color: '#ffffff'
-          }}>
-            <input
-              type="checkbox"
-              checked={clickNavigationEnabled}
-              onChange={(e) => setClickNavigationEnabled(e.target.checked)}
-              style={{ 
-                margin: 0,
-                width: '16px',
-                height: '16px',
-                accentColor: '#667eea'
-              }}
-            />
-            Click Nav
-          </label>
-        </div>
-        </div>
+        <ControlBar
+          pageNumber={pageNumber}
+          numPages={numPages}
+          pdfScale={pdfScale}
+          clickNavigationEnabled={clickNavigationEnabled}
+          showControls={showControls}
+          onPreviousPage={goToPreviousPage}
+          onNextPage={goToNextPage}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onToggleClickNav={setClickNavigationEnabled}
+        />
       )}
-
     </div>
   );
-} 
+}
