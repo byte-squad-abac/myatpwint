@@ -55,22 +55,28 @@ npm run lint         # Run Next.js linting
 5. **Real-time**: Supabase subscriptions for chat features
 
 ### PDF Viewer Implementation
+- **Modular architecture** with custom hooks for gesture navigation, control visibility, keyboard/touch handling
 - **Smart page-internal scrolling** that allows scrolling within tall PDF pages before changing pages
   - Only changes pages when at the very top/bottom edge of content
-  - Smooth scroll position management when transitioning between pages
+  - Scroll-to-top after page rendering ensures consistent positioning
 - **Gesture-based page navigation** requiring sustained scroll gesture at page boundaries
   - Similar to webnovel/webtoon readers - requires deliberate "long hard rub" to change pages
   - Accumulates scroll delta with touchpad sensitivity (3x multiplier for touchpad vs mouse wheel)
-  - 500-unit threshold before page change triggers
+  - 500-unit threshold before page change triggers with gesture lock to prevent skipping
   - Compact progress indicator shows gesture progress with color-coded feedback
   - Auto-resets after 300ms of inactivity at any progress level
+- **Keyboard navigation** for accessibility
+  - Left/Right arrows: Navigate between pages
+  - Up/Down arrows: Scroll to top/bottom of current page
+  - All arrow keys prevent default browser scrolling behavior
 - **Clean, immersive UI design** with no page scrolling (only content scrolls)
   - All controls are floating overlays that never require scrolling
   - Auto-hide controls after 3 seconds of inactivity
   - Lock mode (🔓/🔒) for distraction-free reading
 - **Touch/swipe support** for mobile devices with simple edge-aware navigation
-- **Click zones** for page navigation (left half = previous, right half = next)
+- **Click zones** for page navigation (left half = previous, right half = next) - disabled by default
 - **Error recovery mechanisms** with helpful messages for blob URL expiration
+- **Component structure**: Separated into GestureIndicator and ControlBar components for maintainability
 
 ## Development Guidelines
 
