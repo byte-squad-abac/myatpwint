@@ -37,7 +37,8 @@ const STYLES = {
     justifyContent: 'center',
     alignItems: 'flex-start',
     position: 'relative' as const,
-    overflow: 'auto',
+    overflowY: 'auto',
+    overflowX: 'hidden',
     padding: '40px 20px',
     scrollBehavior: 'smooth' as const,
   },
@@ -46,8 +47,13 @@ const STYLES = {
     borderRadius: '8px',
     boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
     padding: '40px',
-    display: 'inline-block',
+    display: 'block',
     margin: '0 auto',
+    position: 'relative' as const,
+    maxWidth: 'calc(100% - 40px)',
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    overflowX: 'hidden',
   },
   loadingState: {
     padding: '60px',
@@ -117,11 +123,42 @@ const STYLES = {
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
     transition: 'opacity 0.3s ease',
   },
+  readingProgress: {
+    position: 'absolute' as const,
+    bottom: '0',
+    left: '0',
+    right: '0',
+    height: '6px',
+    background: '#e0e0e0',
+    borderRadius: '0 0 8px 8px',
+    overflow: 'hidden' as const,
+    zIndex: 10,
+  },
+  progressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+    transition: 'width 0.3s ease',
+    borderRadius: '0 0 8px 8px',
+    boxShadow: '0 0 6px rgba(102, 126, 234, 0.4)',
+  },
+  progressLabel: {
+    position: 'absolute' as const,
+    bottom: '12px',
+    right: '12px',
+    fontSize: '11px',
+    color: '#666',
+    background: 'rgba(255, 255, 255, 0.95)',
+    padding: '3px 8px',
+    borderRadius: '12px',
+    pointerEvents: 'none' as const,
+    border: '1px solid rgba(0,0,0,0.1)',
+    fontWeight: '500',
+    zIndex: 11,
+  },
 } as const;
 
 interface PDFViewerProps {
   fileUrl: string;
-  bookName: string;
 }
 
 // Custom hook for gesture-based page navigation
@@ -148,10 +185,12 @@ function useGestureNavigation(
 
   const resetGesture = useCallback(() => {
     const state = scrollState.current;
-    state.gestureAccumulator = 0;
-    state.isGestureActive = false;
-    state.gestureDirection = 0;
-    state.gestureLocked = false;
+    Object.assign(state, {
+      gestureAccumulator: 0,
+      isGestureActive: false,
+      gestureDirection: 0,
+      gestureLocked: false,
+    });
     setGestureProgress(0);
     setShowIndicator(false);
   }, []);
@@ -242,11 +281,12 @@ function useGestureNavigation(
 
   const resetScrollState = useCallback(() => {
     const container = containerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      scrollState.current.isAtTop = scrollTop <= CONFIG.SCROLL_EDGE_THRESHOLD;
-      scrollState.current.isAtBottom = scrollTop + clientHeight >= scrollHeight - CONFIG.SCROLL_EDGE_THRESHOLD;
-    }
+    if (!container) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const state = scrollState.current;
+    state.isAtTop = scrollTop <= CONFIG.SCROLL_EDGE_THRESHOLD;
+    state.isAtBottom = scrollTop + clientHeight >= scrollHeight - CONFIG.SCROLL_EDGE_THRESHOLD;
   }, [containerRef]);
 
   return {
@@ -356,6 +396,59 @@ function useTouchNavigation(goToNextPage: () => void, goToPreviousPage: () => vo
   }, [touchStart, touchEnd, goToNextPage, goToPreviousPage]);
 
   return { handleTouchStart, handleTouchMove, handleTouchEnd };
+}
+
+// Reading Progress Bar Component
+function ReadingProgressBar({ 
+  currentPage, 
+  totalPages 
+}: { 
+  currentPage: number; 
+  totalPages: number;
+}) {
+  if (totalPages === 0) return null;
+  
+  const progress = (currentPage / totalPages) * 100;
+  const progressPercent = Math.round(progress);
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '0',
+      left: '0',
+      right: '0',
+      height: '4px',
+      background: 'rgba(0, 0, 0, 0.1)',
+      zIndex: 1002,
+    }}>
+      {/* Progress Fill */}
+      <div 
+        style={{
+          height: '100%',
+          width: `${progress}%`,
+          background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+          transition: 'width 0.3s ease',
+        }} 
+      />
+      
+      {/* Progress Label */}
+      <div style={{
+        position: 'absolute',
+        bottom: '8px',
+        right: '12px',
+        fontSize: '11px',
+        color: '#666',
+        background: 'rgba(255, 255, 255, 0.95)',
+        padding: '4px 8px',
+        borderRadius: '4px',
+        border: '1px solid rgba(0,0,0,0.1)',
+        fontWeight: '500',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      }}>
+        {progressPercent}% • {currentPage} of {totalPages}
+      </div>
+    </div>
+  );
 }
 
 // Gesture Progress Indicator Component
@@ -546,7 +639,7 @@ function ControlBar({
 }
 
 // Main PDF Viewer Component
-export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
+export default function PDFViewer({ fileUrl }: PDFViewerProps) {
   // PDF state
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -607,10 +700,10 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
 
   const handlePageRenderSuccess = useCallback(() => {
     const container = containerRef.current;
-    if (container) {
-      container.scrollTop = 0;
-      resetScrollState();
-    }
+    if (!container) return;
+    
+    container.scrollTop = 0;
+    resetScrollState();
   }, [resetScrollState]);
 
   const handleLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
@@ -658,6 +751,24 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     }
   }, [fileUrl, resetGesture]);
 
+  // Prevent horizontal scrolling
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyOverflowX = document.body.style.overflowX;
+    const originalDocumentOverflowX = document.documentElement.style.overflowX;
+    
+    // Apply comprehensive overflow controls
+    document.body.style.overflow = 'hidden';
+    document.body.style.overflowX = 'hidden';
+    document.documentElement.style.overflowX = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.overflowX = originalBodyOverflowX;
+      document.documentElement.style.overflowX = originalDocumentOverflowX;
+    };
+  }, []);
+
   return (
     <div 
       style={STYLES.container} 
@@ -677,7 +788,15 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
         onTouchEnd={handleTouchEnd}
       >
         <div style={STYLES.pdfDocument}>
-          <Document
+          <div style={{ 
+            width: '100%', 
+            maxWidth: '100%',
+            overflow: 'hidden',
+            overflowX: 'hidden',
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <Document
             file={fileUrl}
             onLoadSuccess={handleLoadSuccess}
             onLoadError={handleLoadError}
@@ -716,20 +835,29 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
               </div>
             }
           >
-            <Page 
-              pageNumber={pageNumber} 
-              scale={pdfScale}
-              onRenderSuccess={handlePageRenderSuccess}
-              onRenderError={handlePageRenderError}
-              loading={
-                <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px', color: '#6c757d' }}>
-                  Loading page {pageNumber}...
-                </div>
-              }
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-            />
+            <div style={{ 
+              maxWidth: '100%', 
+              width: '100%',
+              overflow: 'hidden',
+              overflowX: 'hidden',
+              boxSizing: 'border-box'
+            }}>
+              <Page 
+                pageNumber={pageNumber} 
+                scale={pdfScale}
+                onRenderSuccess={handlePageRenderSuccess}
+                onRenderError={handlePageRenderError}
+                loading={
+                  <div style={{ padding: '40px', textAlign: 'center', fontSize: '16px', color: '#6c757d' }}>
+                    Loading page {pageNumber}...
+                  </div>
+                }
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </div>
           </Document>
+          </div>
         </div>
       </div>
 
@@ -740,41 +868,48 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
         direction={indicatorDirection}
       />
 
-      {/* Lock Mode Toggle */}
-      <button
-        onClick={() => setLockMode(!lockMode)}
-        style={{
-          ...STYLES.iconButton,
-          top: '20px',
-          left: '20px',
-          zIndex: 1001,
-          background: lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)',
-        }}
-        title={lockMode ? "Unlock controls" : "Lock controls"}
-      >
-        {lockMode ? '🔒' : '🔓'}
-      </button>
-
-      {/* Close Button */}
-      {!lockMode && (
+      {/* Top Right Button Group */}
+      <div style={{
+        position: 'fixed',
+        top: '84px',
+        right: '20px',
+        zIndex: 1001,
+        display: 'flex',
+        gap: '8px',
+        opacity: showControls ? 1 : 0,
+        visibility: showControls ? 'visible' : 'hidden',
+        transition: 'all 0.3s ease',
+        pointerEvents: showControls ? 'auto' : 'none',
+      }}>
+        {/* Lock Mode Toggle */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => setLockMode(!lockMode)}
           style={{
             ...STYLES.iconButton,
-            top: '20px',
-            right: '20px',
-            zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.6)',
-            fontSize: '20px',
-            opacity: showControls ? 1 : 0,
-            visibility: showControls ? 'visible' : 'hidden',
-            transition: 'all 0.3s ease',
-            pointerEvents: showControls ? 'auto' : 'none',
+            position: 'relative',
+            background: lockMode ? 'rgba(220, 38, 38, 0.8)' : 'rgba(0, 0, 0, 0.6)',
           }}
+          title={lockMode ? "Unlock controls" : "Lock controls"}
         >
-          ×
+          {lockMode ? '🔒' : '🔓'}
         </button>
-      )}
+
+        {/* Close Button */}
+        {!lockMode && (
+          <button
+            onClick={() => window.history.back()}
+            style={{
+              ...STYLES.iconButton,
+              position: 'relative',
+              background: 'rgba(0, 0, 0, 0.6)',
+              fontSize: '20px',
+            }}
+            title="Close reader"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Bottom Control Bar */}
       {!lockMode && (
@@ -791,6 +926,12 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
           onToggleClickNav={setClickNavigationEnabled}
         />
       )}
+
+      {/* Reading Progress Bar at Bottom Edge */}
+      <ReadingProgressBar 
+        currentPage={pageNumber}
+        totalPages={numPages}
+      />
     </div>
   );
 }
