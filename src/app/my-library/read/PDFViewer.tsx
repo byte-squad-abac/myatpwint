@@ -10,7 +10,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
 const STYLES = {
   container: {
     height: '100vh',
-    width: '100vw',
+    width: '100%',
     background: '#f8f9fa',
     overflow: 'hidden',
     position: 'relative' as const,
@@ -372,6 +372,22 @@ export default function PDFViewer({ fileUrl, bookName }: PDFViewerProps) {
     if (error.message?.includes('TextLayer')) return;
     console.warn('Page render error:', error);
   }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPreviousPage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goToNextPage();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [goToNextPage, goToPreviousPage]);
 
   // Effects
   useEffect(() => {
