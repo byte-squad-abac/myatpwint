@@ -24,6 +24,8 @@
     "react-dom": "^19.1.0",
     "react-pdf": "^10.0.1",
     "react-swipeable": "^7.0.2",
+    "react-window": "^1.8.11",
+    "react-window-infinite-loader": "^1.0.10",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-window": "^1.8.8",
     "typescript": "^5"
   }
 }
