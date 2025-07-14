@@ -296,6 +296,7 @@ if (isPublisher === null) {
         ➕ Upload New Book
       </button>
       <a className="upload-button" href="/publisher/manuscripts">View Manuscript</a>
+      <a className="upload-button" href="/publisher/author-manage">Manage Author</a>
       </div>
       <div style={{ marginBottom: 20, marginTop: 20, color: 'white' }}>
         <input
