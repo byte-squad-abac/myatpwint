@@ -35,7 +35,7 @@ const AuthorManagePage = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'pending_author');
+        // .eq('role', 'pending_author');
 
       if (data) setAuthors(data);
     };
@@ -77,10 +77,11 @@ const AuthorManagePage = () => {
       <h1>Author Management</h1>
       <p>Manage authors who have applied to become official authors.</p>
 
-      {authors.length === 0 ? (
-        <p>No pending author applications at the moment.</p>
+      <h3>Pending Author Applications</h3>
+      {authors.filter(a => a.role === 'pending_author').length === 0 ? (
+        <p style={{ color: 'gray' }}>No pending author applications at the moment.</p>
       ) : (
-        authors.map((author) => (
+        authors.filter(a => a.role === 'pending_author').map((author) => (
           <div key={author.id} style={{ border: '1px solid #ccc', padding: 16, marginBottom: 12, borderRadius: 8 }}>
             <h3>{author.name || 'Unnamed'}</h3>
             <p>Author Name: {author.author_name || 'N/A'}</p>
@@ -93,6 +94,22 @@ const AuthorManagePage = () => {
           </div>
         ))
       )}
+
+      <h3>Approved Authors</h3>
+      {authors.filter(a => a.role === 'author').length === 0 ? (
+        <p style={{ color: 'gray' }}>No approved authors at the moment.</p>
+      ) : (
+        authors.filter(a => a.role === 'author').map((author) => (
+          <div key={author.id} style={{ border: '1px solid #ccc', padding: 16, marginBottom: 12, borderRadius: 8 }}>
+            <h3>{author.name || 'Unnamed'}</h3>
+            <p>Author Name: {author.author_name || 'N/A'}</p>
+            <p>Email: {author.email}</p>
+            <p>Phone: {author.phone}</p>
+          </div>
+        ))
+      )}
+
+
     </div>
   );
 };
