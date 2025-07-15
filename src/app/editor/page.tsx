@@ -165,7 +165,11 @@ export default function EditorPage() {
               <ConversationBox
                 myId={myId}
                 myRole="editor"
-                authorId={selectedChat.author_id}
+                author_name={selectedChat.author_name}
+                editor_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'} // For future, if there are multiple editors
+                authorId={selectedChat.author_id} // Author's ID. For record
+                //sender_name={selectedChat.author_name} // Author's name as sender
+                sender_name="Editor" //Author don't need to know editor's name
                 editorId={myId}
               />
             </div>

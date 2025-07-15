@@ -24,15 +24,29 @@ export default function AuthorManuscripts() {
 
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [title, setTitle] = useState('');
-  const [authorname, setAuthorname] = useState('');
+  const [authorname, setAuthorname] = useState<any[]>([]);
   const [description, setDescription] = useState('');
   const [newFile, setNewFile] = useState<File>();
   const [statusMsg, setStatusMsg] = useState('');
   const [editTarget, setEditTarget] = useState<Manuscript | null>(null);
   const [editFile, setEditFile] = useState<File>();
-  const [editorId, setEditorId] = useState<string | null>(null);
 
+
+  // Editor ID is hardcoded for now. Don't delete this line.
   const EDITOR_ID = '512f12f6-2c19-486c-9dcf-0d46720950b0'; // editor's user.id (myatpwint.editor@gmail.com)
+
+  //   useEffect(() => {
+  //   const fetchAuthors = async () => {
+  //     const { data, error } = await supabase
+  //       .from('profiles')
+  //       .select('*')
+  //       // .eq('role', 'pending_author');
+
+  //     // if (data) setAuthorname(data);
+  //   };
+  //   fetchAuthors();
+  // }, [supabase]);
+
 
   const loadManuscripts = async () => {
     if (!session) return;
@@ -45,34 +59,15 @@ export default function AuthorManuscripts() {
     setManuscripts(data ?? []);
   };
 
-  // const fetchEditorId = async () => {
-  //   const { data, error } = await supabase.from('editors').select('id').limit(1).single();
-  //   if (!error && data?.id) setEditorId(data.id);
-  // };
-
   
-useEffect(() => {
-  const fetchEditorId = async () => {
-    const { data } = await supabase
-      .from('publishers')
-      .select('id')
-      .eq('role', 'editor')
-      .single();
-    setEditorId(data?.id ?? null);
-  };
-
-  fetchEditorId();
-}, []);
 
   useEffect(() => {
     loadManuscripts();
-    // fetchEditorId();
   }, [session]);
 
   if (session === null) return <p style={{ padding: 40 }}>Loading session…</p>;
   if (!session) return <p style={{ padding: 40 }}>Please sign in.</p>;
   const uid = session.user.id;
-
 
 
 
@@ -104,7 +99,6 @@ useEffect(() => {
     if (dbErr) return setStatusMsg(`DB error: ${dbErr.message}`);
 
     setStatusMsg('✅ Submitted!');
-    setAuthorname('');
     setTitle('');
     setDescription(''); 
     setNewFile(undefined);
@@ -152,17 +146,22 @@ useEffect(() => {
       </form>
       <p style={{ marginTop: 6, color: '#1a237e' }}>{statusMsg}</p>
 
-      {editorId && (
+      
         <div style={{ marginTop: 24 }}>
           <h2>Message with Editor</h2>
+          
+            
+          
           <ConversationBox
             myId={uid}
             myRole="author"
             authorId={uid}
+            author_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'}
+            editor_name="Editor" // Hardcoded for now / Author don't need to know editor's name
+            sender_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'} // Author's name as sender
             editorId={EDITOR_ID}
           />
         </div>
-      )}
 
       <h2 style={{ margin: '32px 0 12px' }}>Your manuscripts</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
