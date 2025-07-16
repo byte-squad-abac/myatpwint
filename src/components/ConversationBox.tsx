@@ -6,6 +6,9 @@ import { useConversation, ChatMessage } from '@/lib/hooks/useConversation';
 type Props = {
   authorId: string;
   editorId: string;
+  author_name: string;
+  editor_name: string;
+  sender_name: string;
   myId: string;
   myRole: 'author' | 'editor';
 };
@@ -43,7 +46,7 @@ export default function ConversationBox(props: Props) {
         background: m.sender_role === props.myRole ? '#e3f2fd' : '#f1f8e9',
       }}
     >
-      <small style={{ opacity: 0.6 }}>{m.sender_role}</small><br />
+      <small style={{ opacity: 0.6 }}>{m.sender_name}</small><br />
       {m.content}
     </div>
   );

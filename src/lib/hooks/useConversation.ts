@@ -7,6 +7,9 @@ export type ChatMessage = {
   id: string;
   room_id: string;
   author_id: string;
+  author_name?: string;
+  editor_name?: string;
+  sender_name: string;
   editor_id: string;
   sender_role: 'author' | 'editor';
   content: string;
@@ -16,6 +19,9 @@ export type ChatMessage = {
 type Options = {
   authorId: string;
   editorId: string;
+  author_name: string; 
+  editor_name: string; 
+  sender_name: string; 
   myId:     string;
   myRole:  'author' | 'editor';
 };
@@ -23,6 +29,9 @@ type Options = {
 export function useConversation ({
   authorId,
   editorId,
+  author_name,
+  sender_name,
+  editor_name,
   myId,
   myRole,
 }: Options) {
@@ -82,6 +91,9 @@ export function useConversation ({
     const { error } = await supabase.from('messages').insert({
       room_id     : roomId,
       author_id   : authorId,
+      sender_name : sender_name,
+      author_name : author_name,
+      editor_name : editor_name,
       editor_id   : editorId,
       sender_role : myRole,
       content,
