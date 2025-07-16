@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Box, CircularProgress, Alert } from '@mui/material';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import styles from './PDFReader.module.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -84,6 +86,7 @@ class PageManager {
 
 
 export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFReaderProps) {
+  const { theme } = useTheme();
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageWidth, setPageWidth] = useState<number>(800);
@@ -105,6 +108,51 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     }
     return null;
   }, [numPages]);
+  
+  // Theme-based styles
+  const containerStyles = useMemo(() => ({
+    backgroundColor: theme === 'dark' ? '#1a1a1a' : '#f5f5f5',
+  }), [theme]);
+  
+  const pageStyles = useMemo(() => ({
+    backgroundColor: theme === 'dark' ? '#2d2d2d' : '#ffffff',
+  }), [theme]);
+  
+  const placeholderStyles = useMemo(() => ({
+    backgroundColor: theme === 'dark' ? '#2d2d2d' : '#ffffff',
+    color: theme === 'dark' ? '#cccccc' : '#999999',
+    border: theme === 'dark' ? '1px solid #444' : '1px solid #eee',
+  }), [theme]);
+  
+  // Apply dark mode styles to PDF content
+  useEffect(() => {
+    const applyDarkMode = () => {
+      const pageElements = document.querySelectorAll('.react-pdf__Page');
+      pageElements.forEach(pageElement => {
+        if (theme === 'dark') {
+          (pageElement as HTMLElement).style.filter = 'invert(1) hue-rotate(180deg)';
+        } else {
+          (pageElement as HTMLElement).style.filter = 'none';
+        }
+      });
+    };
+    
+    // Apply immediately
+    applyDarkMode();
+    
+    // Also apply when new pages are loaded
+    const observer = new MutationObserver(applyDarkMode);
+    if (containerRef.current) {
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true
+      });
+    }
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [theme]);
 
   // Calculate container width and set page width with zoom
   useEffect(() => {
@@ -289,10 +337,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
   return (
     <Box
       ref={containerRef}
+      className={theme === 'dark' ? styles.darkMode : styles.lightMode}
       sx={{
         height: '100%',
         overflow: 'auto',
-        bgcolor: '#f5f5f5',
+        ...containerStyles,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -301,14 +350,14 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
           width: '8px',
         },
         '&::-webkit-scrollbar-track': {
-          background: '#f1f1f1',
+          background: theme === 'dark' ? '#333' : '#f1f1f1',
         },
         '&::-webkit-scrollbar-thumb': {
-          background: '#c1c1c1',
+          background: theme === 'dark' ? '#666' : '#c1c1c1',
           borderRadius: '4px',
         },
         '&::-webkit-scrollbar-thumb:hover': {
-          background: '#a8a8a8',
+          background: theme === 'dark' ? '#777' : '#a8a8a8',
         },
       }}
     >
@@ -343,10 +392,10 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
                   left: '50%',
                   transform: 'translateX(-50%)',
                   mb: 2,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  boxShadow: theme === 'dark' ? '0 2px 8px rgba(255,255,255,0.1)' : '0 2px 8px rgba(0,0,0,0.1)',
                   borderRadius: '4px',
                   overflow: 'hidden',
-                  backgroundColor: '#ffffff',
+                  ...pageStyles,
                   minHeight: pageHeight,
                   display: 'flex',
                   justifyContent: 'center',
@@ -371,9 +420,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    backgroundColor: '#ffffff',
-                    color: '#999',
-                    border: '1px solid #eee'
+                    ...placeholderStyles
                   }}>
                     Page {pageNumber}
                   </Box>

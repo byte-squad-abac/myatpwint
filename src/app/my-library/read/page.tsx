@@ -23,6 +23,8 @@ import {
 
 import dynamic from 'next/dynamic';
 import { bookStorage } from '@/lib/storage';
+import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
+import { DarkMode, LightMode } from '@mui/icons-material';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
   ssr: false,
@@ -58,6 +60,7 @@ interface ReaderState {
 
 
 function BookReaderContent() {
+  const { theme } = useTheme();
   const router = useRouter();
   const session = useSession();
   const searchParams = useSearchParams();
@@ -268,7 +271,7 @@ function BookReaderContent() {
       height: '100vh', 
       display: 'flex', 
       flexDirection: 'column', 
-      bgcolor: '#ffffff',
+      bgcolor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
       position: 'fixed',
       top: 0,
       left: 0,
@@ -284,20 +287,20 @@ function BookReaderContent() {
           alignItems: 'center',
           justifyContent: 'space-between',
           px: 2,
-          bgcolor: '#ffffff',
-          borderBottom: '1px solid #e0e0e0'
+          bgcolor: theme === 'dark' ? '#2d2d2d' : '#ffffff',
+          borderBottom: theme === 'dark' ? '1px solid #444' : '1px solid #e0e0e0'
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton 
             onClick={handleBack}
-            sx={{ color: '#666666', p: 1 }}
+            sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
           >
             <ArrowBack sx={{ fontSize: 24 }} />
           </IconButton>
           
           <IconButton 
-            sx={{ color: '#666666', p: 1 }}
+            sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -310,25 +313,27 @@ function BookReaderContent() {
           sx={{ 
             fontSize: '18px',
             fontWeight: 500,
-            color: '#333333'
+            color: theme === 'dark' ? '#ffffff' : '#333333'
           }}
         >
           {book?.name || 'Reading Book'}
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ThemeToggleButton />
+          
           <IconButton 
-            sx={{ color: '#666666', p: 1 }}
+            sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
             </svg>
           </IconButton>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, border: '1px solid #e0e0e0', borderRadius: '4px', px: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, border: theme === 'dark' ? '1px solid #555' : '1px solid #e0e0e0', borderRadius: '4px', px: 1 }}>
             <IconButton 
               onClick={handleZoomOut}
-              sx={{ color: '#666666', p: 0.5, minWidth: 'auto' }}
+              sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 0.5, minWidth: 'auto' }}
               disabled={zoomLevel <= 50}
               size="small"
             >
@@ -343,7 +348,7 @@ function BookReaderContent() {
                 minWidth: '45px', 
                 textAlign: 'center', 
                 fontSize: '12px',
-                color: '#666666',
+                color: theme === 'dark' ? '#cccccc' : '#666666',
                 fontWeight: 500
               }}
             >
@@ -352,7 +357,7 @@ function BookReaderContent() {
             
             <IconButton 
               onClick={handleZoomIn}
-              sx={{ color: '#666666', p: 0.5, minWidth: 'auto' }}
+              sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 0.5, minWidth: 'auto' }}
               disabled={zoomLevel >= 200}
               size="small"
             >
@@ -364,7 +369,7 @@ function BookReaderContent() {
           
           <IconButton 
             onClick={handleFullscreen}
-            sx={{ color: '#666666', p: 1 }}
+            sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
           >
             {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
           </IconButton>
@@ -404,9 +409,9 @@ function BookReaderContent() {
             value={readerState.progress} 
             sx={{ 
               height: '4px',
-              backgroundColor: '#e0e0e0',
+              backgroundColor: theme === 'dark' ? '#444' : '#e0e0e0',
               '& .MuiLinearProgress-bar': {
-                backgroundColor: '#2196f3'
+                backgroundColor: theme === 'dark' ? '#64b5f6' : '#2196f3'
               }
             }}
           />
@@ -419,7 +424,7 @@ function BookReaderContent() {
             right: 16,
             bottom: 8,
             fontSize: '12px',
-            color: '#666666',
+            color: theme === 'dark' ? '#cccccc' : '#666666',
             fontWeight: 400
           }}
         >
@@ -430,14 +435,30 @@ function BookReaderContent() {
   );
 }
 
+function ThemeToggleButton() {
+  const { theme, toggleTheme } = useTheme();
+  
+  return (
+    <IconButton 
+      onClick={toggleTheme}
+      sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
+      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+    >
+      {theme === 'light' ? <DarkMode /> : <LightMode />}
+    </IconButton>
+  );
+}
+
 export default function BookReaderPage() {
   return (
-    <Suspense fallback={
-      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Box>
-    }>
-      <BookReaderContent />
-    </Suspense>
+    <ThemeProvider>
+      <Suspense fallback={
+        <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      }>
+        <BookReaderContent />
+      </Suspense>
+    </ThemeProvider>
   );
 }
