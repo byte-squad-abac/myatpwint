@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState, ChangeEvent, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
+import ConversationBox from '@/components/ConversationBox';
+
+const publisherId = 'cf41c978-02bc-4bb6-a2f3-1fb5133f3f1a';
 
 export default function AuthorPage() {
   const supabase = useSupabaseClient();
@@ -20,7 +23,7 @@ export default function AuthorPage() {
   useEffect(() => {
     const fetchRole = async () => {
       if (!session) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
@@ -77,42 +80,13 @@ export default function AuthorPage() {
           <form onSubmit={submitApplication} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
             <label>
               Legal Full Name:
-              <input
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                placeholder="Your full name"
-                required
-                style={{ padding: 8, width: '100%' }}
-              />
+              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required />
               Author Name:
-              <input
-                type="text"
-                value={authorName}
-                onChange={e => setAuthorName(e.target.value)}
-                placeholder="Author name (optional)"
-                style={{ padding: 8, width: '100%' }}
-                required
-              />
+              <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)} required />
               Contact Number:
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="Your phone number"
-                required
-                style={{ padding: 8, width: '100%' }}
-              />
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
               Email:
-              <input
-                type="email"
-                placeholder="Your email address"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                style={{ padding: 8, width: '100%' }}
-              />
-              
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
             </label>
             <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
             <button type="submit">Submit Application</button>
@@ -126,10 +100,7 @@ export default function AuthorPage() {
     return (
       <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
         <h1>✍️ Author Application Pending</h1>
-        <p>Your application to become an author is pending approval.</p>
-        <p>
-          Admin will contact you shortly via phone or email. Please check back later or contact us if needed.
-        </p>
+        <p>Your application is being reviewed. Admin will contact you shortly.</p>
       </main>
     );
   }
@@ -140,6 +111,19 @@ export default function AuthorPage() {
       <p>You have Author role. Your email is {session?.user.email}</p>
       <p>Authors can submit manuscripts, track sales, and message publishers.</p>
       <a href="/author/manuscripts">Click to upload manuscript</a>
+
+      <div style={{ marginTop: 32 }}>
+        <h2>📨 Message the Publisher</h2>
+        <ConversationBox
+          myId={session.user.id}
+          myRole="author"
+          authorId={session.user.id}
+          editorId={publisherId}
+          author_name={session.user.user_metadata.author_name || session.user.user_metadata.full_name || 'Author'}
+          editor_name="Publisher"
+          sender_name={session.user.user_metadata.author_name || session.user.user_metadata.full_name || 'Author'}
+        />
+      </div>
     </main>
   );
 }

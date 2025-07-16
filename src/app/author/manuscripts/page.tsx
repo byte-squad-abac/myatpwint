@@ -151,8 +151,13 @@ export default function AuthorManuscripts() {
           <h2>Message with Editor</h2>
           
             
-          
-          <ConversationBox
+          {manuscripts.length === 0 && (
+            <p style={{ color: '#666' }}>No manuscripts submitted yet. To start talking with Editor, please upload a manuscript first.</p>
+            
+          )}
+
+          {manuscripts.length > 0 && (
+            <ConversationBox
             myId={uid}
             myRole="author"
             authorId={uid}
@@ -161,6 +166,9 @@ export default function AuthorManuscripts() {
             sender_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'} // Author's name as sender
             editorId={EDITOR_ID}
           />
+          )}
+          
+          
         </div>
 
       <h2 style={{ margin: '32px 0 12px' }}>Your manuscripts</h2>

@@ -2,116 +2,99 @@
 
 import { useEffect, useState } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/navigation';
+import ConversationBox from '@/components/ConversationBox';
 
-const AuthorManagePage = () => {
+const publisherId = 'cf41c978-02bc-4bb6-a2f3-1fb5133f3f1a';
+
+export default function AuthorManagePage() {
   const supabase = useSupabaseClient();
   const session = useSession();
-  const router = useRouter();
 
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authors, setAuthors] = useState<any[]>([]);
 
-  // Fetch current user's role
   useEffect(() => {
     const fetchRole = async () => {
       if (!session) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single();
-
       if (data?.role) setRole(data.role);
       setLoading(false);
     };
     fetchRole();
-  }, [session, supabase]);
+  }, [session]);
 
-  // Fetch all pending authors
   useEffect(() => {
     const fetchAuthors = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
-        .select('*')
-        // .eq('role', 'pending_author');
-
+        .select('*');
       if (data) setAuthors(data);
     };
     fetchAuthors();
-  }, [supabase]);
+  }, []);
 
-  // Approve author request
   const approveAuthor = async (id: string) => {
-    await supabase
-      .from('profiles')
-      .update({ role: 'author' })
-      .eq('id', id);
-
-    setAuthors(prev => prev.filter(a => a.id !== id));
+    await supabase.from('profiles').update({ role: 'author' }).eq('id', id);
+    setAuthors((prev) => prev.map(a => a.id === id ? { ...a, role: 'author' } : a));
   };
 
-  // Reject author request
   const rejectAuthor = async (id: string) => {
-    await supabase
-      .from('profiles')
-      .update({ role: 'user' }) // or delete if you prefer
-      .eq('id', id);
-
-    setAuthors(prev => prev.filter(a => a.id !== id));
+    await supabase.from('profiles').update({ role: 'user' }).eq('id', id);
+    setAuthors((prev) => prev.map(a => a.id === id ? { ...a, role: 'user' } : a));
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
   if (!session || role !== 'publisher') {
-    return (
-      <div style={{ padding: 40 }}>
-        <h2>Access Denied</h2>
-        <p>You must be a publisher to view this page.</p>
-      </div>
-    );
+    return <p style={{ padding: 40 }}>Access denied. Publisher only.</p>;
   }
 
   return (
     <div style={{ padding: 40 }}>
       <h1>Author Management</h1>
-      <p>Manage authors who have applied to become official authors.</p>
 
-      <h3>Pending Author Applications</h3>
+      <h2>Pending Applications</h2>
       {authors.filter(a => a.role === 'pending_author').length === 0 ? (
-        <p style={{ color: 'gray' }}>No pending author applications at the moment.</p>
+        <p>No pending authors.</p>
       ) : (
-        authors.filter(a => a.role === 'pending_author').map((author) => (
-          <div key={author.id} style={{ border: '1px solid #ccc', padding: 16, marginBottom: 12, borderRadius: 8 }}>
-            <h3>{author.name || 'Unnamed'}</h3>
-            <p>Author Name: {author.author_name || 'N/A'}</p>
-            <p>Email: {author.email}</p>
-            <p>Phone: {author.phone}</p>
-            <div style={{ marginTop: 12 }}>
-              <button onClick={() => approveAuthor(author.id)} style={{ marginRight: 10 }}>✅ Approve</button>
-              <button onClick={() => rejectAuthor(author.id)}>❌ Reject</button>
+        authors.filter(a => a.role === 'pending_author').map(author => (
+          <div key={author.id} style={{ border: '1px solid #ccc', padding: 12, marginBottom: 12 }}>
+            <strong>{author.name}</strong><br />
+            Email: {author.email}<br />
+            Phone: {author.phone}<br />
+            <button onClick={() => approveAuthor(author.id)} style={{ marginRight: 8 }}>✅ Approve</button>
+            <button onClick={() => rejectAuthor(author.id)}>❌ Reject</button>
+          </div>
+        ))
+      )}
+
+      <h2 style={{ marginTop: 40 }}>Approved Authors</h2>
+      {authors.filter(a => a.role === 'author').length === 0 ? (
+        <p>No approved authors.</p>
+      ) : (
+        authors.filter(a => a.role === 'author').map(author => (
+          <div key={author.id} style={{ border: '1px solid #ccc', padding: 12, marginBottom: 12 }}>
+            <strong>{author.name}</strong><br />
+            Email: {author.email}<br />
+            Phone: {author.phone}
+            <div style={{ marginTop: 8 }}>
+              <ConversationBox
+                myId={publisherId}
+                myRole="editor"
+                authorId={author.id}
+                editorId={publisherId}
+                author_name={author.name}
+                editor_name="Publisher"
+                sender_name="Publisher"
+              />
             </div>
           </div>
         ))
       )}
-
-      <h3>Approved Authors</h3>
-      {authors.filter(a => a.role === 'author').length === 0 ? (
-        <p style={{ color: 'gray' }}>No approved authors at the moment.</p>
-      ) : (
-        authors.filter(a => a.role === 'author').map((author) => (
-          <div key={author.id} style={{ border: '1px solid #ccc', padding: 16, marginBottom: 12, borderRadius: 8 }}>
-            <h3>{author.name || 'Unnamed'}</h3>
-            <p>Author Name: {author.author_name || 'N/A'}</p>
-            <p>Email: {author.email}</p>
-            <p>Phone: {author.phone}</p>
-          </div>
-        ))
-      )}
-
-
     </div>
   );
-};
-
-export default AuthorManagePage;
+}
