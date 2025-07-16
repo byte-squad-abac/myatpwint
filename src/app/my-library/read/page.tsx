@@ -72,7 +72,7 @@ function BookReaderContent() {
   const [fileData, setFileData] = useState<ArrayBuffer | string | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'epub' | 'txt' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const [zoomLevel, setZoomLevel] = useState(125);
   const [readerState, setReaderState] = useState<ReaderState>({
     currentPage: 1,
     totalPages: 1,
