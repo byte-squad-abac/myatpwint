@@ -179,7 +179,7 @@ export function useTouchGestures(options: TouchGestureOptions = {}) {
 
 // Hook for scroll-based touch gestures
 export function useScrollTouchGestures(
-  containerRef: React.RefObject<HTMLElement>,
+  containerRef: React.RefObject<HTMLElement | null>,
   options: {
     onPageUp?: () => void;
     onPageDown?: () => void;

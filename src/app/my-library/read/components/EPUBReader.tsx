@@ -39,19 +39,15 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
         await book.ready;
 
         // Get book spine length for page count estimation
-        const spine = book.spine;
-        const spineLength = spine.length;
+        const spine = book.spine as any;
+        const spineLength = spine.length || 1;
         setTotalPages(spineLength);
 
-        // Create rendition with continuous scrolling
-        const rendition = book.renderTo(containerRef.current, {
-          method: 'continuous',
+        // Create rendition
+        const rendition = book.renderTo(containerRef.current!, {
           width: '100%',
           height: '100%',
           allowScriptedContent: true,
-          manager: 'continuous',
-          flow: 'scrolled',
-          snap: false,
         });
         
         renditionRef.current = rendition;
@@ -63,7 +59,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
         const cleanupEventListeners = setupEventListeners(rendition, book);
         
         // Store cleanup function for later use
-        rendition._cleanupEventListeners = cleanupEventListeners;
+        (rendition as any)._cleanupEventListeners = cleanupEventListeners;
 
         setIsLoading(false);
         memoizedOnStateChange({
@@ -91,12 +87,12 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
     return () => {
       if (renditionRef.current) {
         // Clean up event listeners first
-        if (renditionRef.current._cleanupEventListeners) {
-          renditionRef.current._cleanupEventListeners();
+        if ((renditionRef.current as any)._cleanupEventListeners) {
+          (renditionRef.current as any)._cleanupEventListeners();
         }
         // Clean up keyboard handler if it exists
-        if (renditionRef.current._keyPressHandler) {
-          document.removeEventListener('keydown', renditionRef.current._keyPressHandler);
+        if ((renditionRef.current as any)._keyPressHandler) {
+          document.removeEventListener('keydown', (renditionRef.current as any)._keyPressHandler);
         }
         // Destroy rendition
         renditionRef.current.destroy();
@@ -113,7 +109,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
       // Handle location changes
       rendition.on('relocated', (location: any) => {
         try {
-          const currentSpineIndex = book.spine.get(location.start.cfi)?.index || 0;
+          const currentSpineIndex = (book.spine as any).get(location.start.cfi)?.index || 0;
           const newCurrentPage = currentSpineIndex + 1;
           const newProgress = (currentSpineIndex / Math.max(1, totalPages - 1)) * 100;
           
@@ -167,7 +163,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
               break;
             case 'End':
               event.preventDefault();
-              rendition.display(book.spine.last().href);
+              rendition.display((book.spine as any).last().href);
               break;
           }
         } catch (error) {
@@ -179,7 +175,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
       document.addEventListener('keydown', handleKeyPress);
       
       // Store the cleanup function properly
-      rendition._keyPressHandler = handleKeyPress;
+      (rendition as any)._keyPressHandler = handleKeyPress;
       
       // Return cleanup function
       return () => {
