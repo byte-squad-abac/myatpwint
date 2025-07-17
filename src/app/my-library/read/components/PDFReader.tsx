@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { Box, CircularProgress, Alert } from '@mui/material';
+import { Box, CircularProgress, Alert, Typography } from '@mui/material';
 import { useTheme } from '@/lib/contexts/ThemeContext';
-import { PDFReaderProps, ReaderPerformanceMetrics } from '../types';
+import { PDFReaderProps } from '../types';
 import { PDFLoadError } from './ReaderErrorBoundary';
 import { useScrollTouchGestures } from '../hooks/useTouchGestures';
 import styles from './PDFReader.module.css';
@@ -30,19 +30,80 @@ console.error = (...args) => {
 
 class PageManager {
   private pageHeights = new Map<number, number>();
-  private static readonly BUFFER_SIZE = 5;
+  private static readonly SCROLL_BUFFER = 5;
+  private static readonly NAVIGATION_BUFFER = 15; // Larger buffer for navigation
   private static readonly ESTIMATED_PAGE_HEIGHT = 600;
+  private isPreloading = false;
+  private preloadProgress = 0;
   
   constructor(private totalPages: number) {}
   
-  getVisiblePageRange(scrollTop: number, containerHeight: number): [number, number] {
+  getVisiblePageRange(scrollTop: number, containerHeight: number, isNavigating = false): [number, number] {
     const averagePageHeight = this.getAveragePageHeight();
-    const startPage = Math.max(1, Math.floor(scrollTop / averagePageHeight) - PageManager.BUFFER_SIZE);
-    const endPage = Math.min(this.totalPages, Math.ceil((scrollTop + containerHeight) / averagePageHeight) + PageManager.BUFFER_SIZE);
+    const bufferSize = isNavigating ? PageManager.NAVIGATION_BUFFER : PageManager.SCROLL_BUFFER;
+    
+    const startPage = Math.max(1, Math.floor(scrollTop / averagePageHeight) - bufferSize);
+    const endPage = Math.min(this.totalPages, Math.ceil((scrollTop + containerHeight) / averagePageHeight) + bufferSize);
+    
     return [startPage, endPage];
   }
   
-  private getAveragePageHeight(): number {
+  // Pre-calculate all page dimensions for instant navigation
+  async preloadPageDimensions(pdfDocument: any, scale: number, onProgress?: (progress: number) => void): Promise<void> {
+    if (this.isPreloading) return;
+    
+    this.isPreloading = true;
+    this.preloadProgress = 0;
+    
+    try {
+      const batchSize = 10; // Process pages in batches to avoid blocking
+      
+      for (let i = 1; i <= this.totalPages; i += batchSize) {
+        const batch = [];
+        const endBatch = Math.min(i + batchSize - 1, this.totalPages);
+        
+        // Process batch of pages
+        for (let j = i; j <= endBatch; j++) {
+          batch.push(this.loadPageDimension(pdfDocument, j, scale));
+        }
+        
+        await Promise.all(batch);
+        
+        this.preloadProgress = (endBatch / this.totalPages) * 100;
+        onProgress?.(this.preloadProgress);
+        
+        // Yield to main thread to prevent blocking
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    } catch (error) {
+      console.warn('Page dimension preloading failed:', error);
+    } finally {
+      this.isPreloading = false;
+    }
+  }
+  
+  private async loadPageDimension(pdfDocument: any, pageNumber: number, scale: number): Promise<void> {
+    try {
+      if (this.pageHeights.has(pageNumber)) return;
+      
+      const page = await pdfDocument.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: scale });
+      this.pageHeights.set(pageNumber, viewport.height);
+    } catch (error) {
+      // Use estimated height if loading fails
+      this.pageHeights.set(pageNumber, PageManager.ESTIMATED_PAGE_HEIGHT);
+    }
+  }
+  
+  // Get predictive range around a target page for faster navigation
+  getPredictiveRange(targetPage: number): [number, number] {
+    const bufferSize = 10;
+    const startPage = Math.max(1, targetPage - bufferSize);
+    const endPage = Math.min(this.totalPages, targetPage + bufferSize);
+    return [startPage, endPage];
+  }
+  
+  getAveragePageHeight(): number {
     if (this.pageHeights.size === 0) return PageManager.ESTIMATED_PAGE_HEIGHT;
     const heights = Array.from(this.pageHeights.values());
     return heights.reduce((sum, height) => sum + height, 0) / heights.length;
@@ -72,19 +133,35 @@ class PageManager {
     return pageNumber >= visibleRange[0] && pageNumber <= visibleRange[1];
   }
   
+  hasPageHeight(pageNumber: number): boolean {
+    return this.pageHeights.has(pageNumber);
+  }
+  
   cleanup() {
     this.pageHeights.clear();
   }
 }
 
 
-export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFReaderProps) {
+export interface PDFNavigationProps {
+  onNavigateToPage: (page: number) => void;
+  onNavigateFirst: () => void;
+  onNavigateLast: () => void;
+  onNavigateNext: () => void;
+  onNavigatePrevious: () => void;
+}
+
+export default function PDFReader({ fileData, zoomLevel, onStateChange, navigationProps }: PDFReaderProps & { navigationProps?: PDFNavigationProps }) {
   const { theme } = useTheme();
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageWidth, setPageWidth] = useState<number>(800);
   const [error, setError] = useState<string | null>(null);
   const [visibleRange, setVisibleRange] = useState<[number, number]>([1, 10]);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [preloadProgress, setPreloadProgress] = useState(0);
+  const [isPreloading, setIsPreloading] = useState(false);
+  const pdfDocumentRef = useRef<any>(null);
   
   // Memoized onStateChange to prevent unnecessary re-renders
   const memoizedOnStateChange = useCallback(onStateChange, [onStateChange]);
@@ -95,7 +172,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
   
   // Touch gesture support
-  const touchGestures = useScrollTouchGestures(containerRef, {
+  useScrollTouchGestures(containerRef, {
     onPageUp: () => {
       if (containerRef.current) {
         const scrollAmount = containerRef.current.clientHeight * 0.8;
@@ -186,9 +263,15 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
   }, [zoomLevel]);
 
   // Handle document load success
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+  const onDocumentLoadSuccess = useCallback((pdfDoc: any) => {
+    const { numPages } = pdfDoc;
     setNumPages(numPages);
     setError(null);
+    pdfDocumentRef.current = pdfDoc;
+    
+    // Reset visible range for new document
+    const initialRange = Math.min(10, numPages);
+    setVisibleRange([1, initialRange]);
     
     memoizedOnStateChange({
       totalPages: numPages,
@@ -197,7 +280,25 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
       isLoading: false,
       error: null
     });
-  }, [memoizedOnStateChange]);
+    
+    // Start preloading page dimensions for fast navigation
+    if (pageManager && numPages > 20) { // Only for larger documents
+      setIsPreloading(true);
+      pageManager.preloadPageDimensions(
+        pdfDoc, 
+        pageWidth / 800, // Base scale
+        (progress) => {
+          setPreloadProgress(progress);
+          if (progress >= 100) {
+            setIsPreloading(false);
+          }
+        }
+      ).catch(error => {
+        console.warn('Preloading failed:', error);
+        setIsPreloading(false);
+      });
+    }
+  }, [memoizedOnStateChange, pageManager, pageWidth]);
 
   // Handle document load error
   const onDocumentLoadError = useCallback((_error: Error) => {
@@ -218,7 +319,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     });
   }, [memoizedOnStateChange]);
 
-  // Handle page load success
+  // Handle page load success with caching
   const onPageLoadSuccess = useCallback((page: any, pageNumber: number) => {
     const viewport = page.getViewport({ scale: 1 });
     const scale = pageWidth / viewport.width;
@@ -236,8 +337,8 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
       const newScrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
       
-      // Calculate visible page range
-      const newVisibleRange = pageManager.getVisiblePageRange(newScrollTop, containerHeight);
+      // Calculate visible page range with navigation awareness
+      const newVisibleRange = pageManager.getVisiblePageRange(newScrollTop, containerHeight, isNavigating);
       
       // Update visible range if changed
       if (newVisibleRange[0] !== visibleRange[0] || newVisibleRange[1] !== visibleRange[1]) {
@@ -245,7 +346,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
       }
       
       // Calculate current page based on scroll position
-      const averagePageHeight = pageManager.getPageHeight(1);
+      const averagePageHeight = pageManager.getAveragePageHeight();
       const estimatedCurrentPage = Math.max(1, Math.min(numPages, Math.ceil(newScrollTop / averagePageHeight)));
       
       // Only update if page actually changed
@@ -265,7 +366,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     } catch (error) {
       console.error('Error in handleScroll:', error);
     }
-  }, [currentPage, visibleRange, pageManager, numPages, memoizedOnStateChange]);
+  }, [currentPage, visibleRange, pageManager, numPages, memoizedOnStateChange, isNavigating]);
 
   // Setup intersection observer for better performance
   useEffect(() => {
@@ -367,6 +468,89 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentPage, numPages]);
 
+  // Navigation functions with predictive loading
+  const navigateToPage = useCallback((pageNumber: number) => {
+    if (!pageManager || !containerRef.current || pageNumber < 1 || pageNumber > numPages) {
+      return;
+    }
+    
+    // Enable navigation mode for larger buffer
+    setIsNavigating(true);
+    
+    // Predictive loading: expand visible range around target
+    const predictiveRange = pageManager.getPredictiveRange(pageNumber);
+    setVisibleRange(predictiveRange);
+    
+    let targetPosition: number;
+    
+    // Special handling for last page - scroll to end of document
+    if (pageNumber === numPages) {
+      setTimeout(() => {
+        if (containerRef.current) {
+          const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
+          containerRef.current.scrollTo({
+            top: maxScroll,
+            behavior: 'smooth'
+          });
+        }
+        // Reset navigation mode after scroll
+        setTimeout(() => setIsNavigating(false), 1000);
+      }, 100);
+      targetPosition = pageManager.getPagePosition(pageNumber);
+    } else {
+      targetPosition = pageManager.getPagePosition(pageNumber);
+      containerRef.current.scrollTo({
+        top: targetPosition,
+        behavior: 'smooth'
+      });
+      // Reset navigation mode after scroll completes
+      setTimeout(() => setIsNavigating(false), 1000);
+    }
+    
+    // Update current page immediately for better UX
+    setCurrentPage(pageNumber);
+    
+    // Calculate progress
+    const totalScrollHeight = pageManager.getEstimatedScrollHeight();
+    const progress = totalScrollHeight > 0 ? (targetPosition / totalScrollHeight) * 100 : 0;
+    
+    memoizedOnStateChange({
+      currentPage: pageNumber,
+      progress: Math.min(100, Math.max(0, progress))
+    });
+  }, [pageManager, numPages, memoizedOnStateChange]);
+
+  const navigateFirst = useCallback(() => {
+    navigateToPage(1);
+  }, [navigateToPage]);
+
+  const navigateLast = useCallback(() => {
+    navigateToPage(numPages);
+  }, [navigateToPage, numPages]);
+
+  const navigateNext = useCallback(() => {
+    if (currentPage < numPages) {
+      navigateToPage(currentPage + 1);
+    }
+  }, [navigateToPage, currentPage, numPages]);
+
+  const navigatePrevious = useCallback(() => {
+    if (currentPage > 1) {
+      navigateToPage(currentPage - 1);
+    }
+  }, [navigateToPage, currentPage]);
+
+  // Expose navigation functions to parent component
+  useEffect(() => {
+    if (navigationProps) {
+      navigationProps.onNavigateToPage = navigateToPage;
+      navigationProps.onNavigateFirst = navigateFirst;
+      navigationProps.onNavigateLast = navigateLast;
+      navigationProps.onNavigateNext = navigateNext;
+      navigationProps.onNavigatePrevious = navigatePrevious;
+    }
+  }, [navigationProps, navigateToPage, navigateFirst, navigateLast, navigateNext, navigatePrevious]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -430,6 +614,44 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
         },
       }}
     >
+      {/* Preloading Progress Indicator */}
+      {isPreloading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            backgroundColor: theme === 'dark' ? '#333' : '#f0f0f0',
+            zIndex: 9999,
+          }}
+        >
+          <Box
+            sx={{
+              height: '100%',
+              width: `${preloadProgress}%`,
+              backgroundColor: '#2196f3',
+              transition: 'width 0.3s ease',
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              position: 'absolute',
+              top: '5px',
+              right: '10px',
+              fontSize: '11px',
+              color: theme === 'dark' ? '#cccccc' : '#666666',
+              backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+              padding: '2px 6px',
+              borderRadius: '3px',
+            }}
+          >
+            Optimizing navigation... {Math.round(preloadProgress)}%
+          </Typography>
+        </Box>
+      )}
       <Document
         file={fileData}
         onLoadSuccess={onDocumentLoadSuccess}
@@ -448,7 +670,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
         >
           {Array.from(new Array(visibleRange[1] - visibleRange[0] + 1), (_, index) => {
             const pageNumber = visibleRange[0] + index;
-            const shouldRender = pageManager?.shouldRenderPage(pageNumber, visibleRange);
+            const shouldRender = pageManager?.shouldRenderPage(pageNumber, visibleRange) ?? true;
             const pagePosition = pageManager?.getPagePosition(pageNumber) || 0;
             const pageHeight = pageManager?.getPageHeight(pageNumber) || 600;
             

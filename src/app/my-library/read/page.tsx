@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@supabase/auth-helpers-react';
 import {
@@ -17,8 +17,6 @@ import {
   ArrowBack,
   Fullscreen,
   FullscreenExit,
-  MenuBook,
-  TextFields,
 } from '@mui/icons-material';
 
 import dynamic from 'next/dynamic';
@@ -26,6 +24,8 @@ import { bookStorage } from '@/lib/storage';
 import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { DarkMode, LightMode } from '@mui/icons-material';
 import { ReaderErrorBoundary } from './components/ReaderErrorBoundary';
+import PDFNavigationControls from './components/PDFNavigationControls';
+import { PDFNavigationProps } from './components/PDFReader';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
   ssr: false,
@@ -81,6 +81,28 @@ function BookReaderContent() {
     isLoading: true,
     error: null,
   });
+  
+  // PDF Navigation props ref
+  const pdfNavigationRef = React.useRef<PDFNavigationProps>({
+    onNavigateToPage: () => {},
+    onNavigateFirst: () => {},
+    onNavigateLast: () => {},
+    onNavigateNext: () => {},
+    onNavigatePrevious: () => {},
+  });
+  
+  // Track window size for responsive navigation controls
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    handleResize(); // Set initial value
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load book from IndexedDB
   useEffect(() => {
@@ -182,9 +204,6 @@ function BookReaderContent() {
     setZoomLevel(prev => Math.max(prev - 25, 50));
   };
 
-  const handleResetZoom = () => {
-    setZoomLevel(100);
-  };
 
   // Handle fullscreen state changes
   useEffect(() => {
@@ -312,6 +331,20 @@ function BookReaderContent() {
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
           </IconButton>
+          
+          {/* PDF Navigation Controls */}
+          {fileType === 'pdf' && readerState.totalPages > 1 && (
+            <PDFNavigationControls
+              currentPage={readerState.currentPage}
+              totalPages={readerState.totalPages}
+              onNavigateToPage={pdfNavigationRef.current.onNavigateToPage}
+              onNavigateFirst={pdfNavigationRef.current.onNavigateFirst}
+              onNavigateLast={pdfNavigationRef.current.onNavigateLast}
+              onNavigateNext={pdfNavigationRef.current.onNavigateNext}
+              onNavigatePrevious={pdfNavigationRef.current.onNavigatePrevious}
+              compact={isMobile}
+            />
+          )}
         </Box>
         
         <Typography 
@@ -398,6 +431,7 @@ function BookReaderContent() {
               fileData={fileData as ArrayBuffer}
               onStateChange={handleReaderStateChange}
               zoomLevel={zoomLevel}
+              navigationProps={pdfNavigationRef.current}
             />
           )}
           {fileType === 'epub' && fileData && (
