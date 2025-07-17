@@ -46,39 +46,37 @@ npm run lint         # Run Next.js linting
   /supabaseClient.ts # Supabase initialization
 ```
 
-### Authentication Architecture
-- **Dual Supabase Client Pattern**: SessionContextProvider in root layout + singleton client in lib
-- **Role-Based Access**: Email-based role detection via publishers table
-- **Protected Routes**: Client-side checks (validate server-side for production)
-- **Profile Management**: Automatic profile creation on signup
+### Key Implementation Patterns
 
-### State Management Patterns
-- **Cart Store**: Zustand with persist middleware, handles physical/digital items
-- **Server State**: Direct Supabase queries, no abstraction layer
-- **Real-time State**: Supabase subscriptions for chat/live updates
-- **Computed Values**: Store methods like getTotal() and isInCart()
+1. **Client Components**: Most interactive features use 'use client' directive
+2. **Authentication**: Wrapped in SessionContextProvider at root layout
+3. **Role Detection**: Check user email against publishers table
+4. **Cart State**: Zustand store with persistence (useCartStore)
+5. **Real-time**: Supabase subscriptions for chat features
 
-### Real-time Implementation
-- **Chat System**: Room-based with deterministic IDs, encapsulated in useConversation hook
-- **Subscription Pattern**: Channel-based with proper cleanup
-- **Database Tables**: messages, manuscripts, profiles, publishers
-
-### PDF Viewer Architecture
-- **Modular Hooks**: Separate hooks for gestures, controls, keyboard, touch
-- **Page-Internal Scrolling**: Scroll within pages before changing
-- **Gesture Navigation**: 500-unit threshold with touchpad sensitivity (3x multiplier)
-- **Keyboard Support**: Arrow keys with preventDefault for browser scroll
-- **UI Design**: Floating controls, auto-hide after 3s, lock mode for immersion
-- **Component Structure**: GestureIndicator and ControlBar separation
-
-### PDF Reader Performance Optimization (Large Files)
-- **Window Virtualization**: Only renders visible pages + 5 page buffer to handle 3000+ pages
-- **PageManager Class**: Handles page lifecycle, heights, positioning, and cleanup
-- **Dynamic Memory Management**: Automatically cleans up off-screen pages
-- **Throttled Scroll**: Uses requestAnimationFrame for smooth performance
-- **Absolute Positioning**: Maintains scroll position while reducing DOM elements
-- **Memory Usage**: Reduced from ~3GB to ~50MB for large documents
-- **Performance**: Prevents browser freezing on large PDFs
+### PDF Viewer Implementation
+- **Modular architecture** with custom hooks for gesture navigation, control visibility, keyboard/touch handling
+- **Smart page-internal scrolling** that allows scrolling within tall PDF pages before changing pages
+  - Only changes pages when at the very top/bottom edge of content
+  - Scroll-to-top after page rendering ensures consistent positioning
+- **Gesture-based page navigation** requiring sustained scroll gesture at page boundaries
+  - Similar to webnovel/webtoon readers - requires deliberate "long hard rub" to change pages
+  - Accumulates scroll delta with touchpad sensitivity (3x multiplier for touchpad vs mouse wheel)
+  - 500-unit threshold before page change triggers with gesture lock to prevent skipping
+  - Compact progress indicator shows gesture progress with color-coded feedback
+  - Auto-resets after 300ms of inactivity at any progress level
+- **Keyboard navigation** for accessibility
+  - Left/Right arrows: Navigate between pages
+  - Up/Down arrows: Scroll to top/bottom of current page
+  - All arrow keys prevent default browser scrolling behavior
+- **Clean, immersive UI design** with no page scrolling (only content scrolls)
+  - All controls are floating overlays that never require scrolling
+  - Auto-hide controls after 3 seconds of inactivity
+  - Lock mode (🔓/🔒) for distraction-free reading
+- **Touch/swipe support** for mobile devices with simple edge-aware navigation
+- **Click zones** for page navigation (left half = previous, right half = next) - disabled by default
+- **Error recovery mechanisms** with helpful messages for blob URL expiration
+- **Component structure**: Separated into GestureIndicator and ControlBar components for maintainability
 
 ## Development Guidelines
 
@@ -94,9 +92,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - Path alias: `@/*` → `./src/*`
 - Build errors intentionally ignored for rapid development
 
-### Key Implementation Notes
-1. **Client-Heavy Architecture**: Most logic runs client-side with direct Supabase access
-2. **No Test Framework**: Testing not configured
-3. **Mixed Styling**: MUI components + inline styles + CSS modules
-4. **Build Configuration**: TypeScript/ESLint errors ignored in next.config.ts
-5. **SSR Deployment**: Netlify plugin configured, not static export
+### Component Patterns
+- Use MUI components for consistency
+- Follow existing styling patterns (Emotion/styled-components)
+- Implement error boundaries for reader components
+- Use Suspense for dynamic imports
+
+### State Management
+- Local UI state: React hooks
+- Global client state: Zustand stores
+- Server state: Supabase queries/subscriptions
+- Cart persistence: localStorage via Zustand
+
+## Important Notes
+
+1. **No Test Setup**: Currently no testing framework configured
+2. **Build Warnings**: TypeScript and ESLint errors are ignored during builds
+3. **SSR Deployment**: Configured for Netlify SSR, not static export
+4. **Role-Based Access**: UI-level checks must be validated server-side
+5. **Real-time Features**: Chat system uses Supabase subscriptions
+
+## Common Development Tasks
+
+When implementing new features:
+1. Check existing patterns in similar components
+2. Use MUI components and follow design system
+3. Add proper loading states and error handling
+4. Ensure mobile responsiveness
+5. Test with different user roles (reader/author/editor/publisher)

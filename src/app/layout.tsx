@@ -6,6 +6,8 @@ import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import supabase from '@/lib/supabaseClient';               // ← server-side singleton
 import Link     from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import {
@@ -23,47 +25,40 @@ const HEADER_HEIGHT = 64;
 const HEADER_BG     = '#641B2E';
 const HEADER_COLOR  = '#FBDB93';
 const HEADER_RADIUS = 16;
-const NAV_MAX_WIDTH = 1200;
+const NAV_MAX_WIDTH = 1400;
 
 const headerStyle: CSSProperties = {
   position : 'fixed',
   top      : 0,
   left     : 0,
-  right    : 0,
-  width    : '100%',
+  width    : '100vw',
   height   : HEADER_HEIGHT,
   background: HEADER_BG,
   color    : HEADER_COLOR,
   borderBottomLeftRadius : HEADER_RADIUS,
   borderBottomRightRadius: HEADER_RADIUS,
   zIndex   : 1000,
-  padding  : '0',
-  boxSizing: 'border-box',
-  margin   : 0,
+  padding  : '0 16px',
 };
 
 const navContainerStyle: CSSProperties = {
+  maxWidth: NAV_MAX_WIDTH,
+  margin  : '0 auto',
   width   : '100%',
   display : 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   height  : HEADER_HEIGHT,
-  boxSizing: 'border-box',
-  paddingLeft: '20px',
-  paddingRight: '20px',
 };
 
 const linkBarStyle: CSSProperties = { display: 'flex', gap: 20, alignItems: 'center' };
 
 const mainStyle: CSSProperties = {
+  position  : 'absolute',
   width     : '100%',
   paddingTop: HEADER_HEIGHT,
   minHeight : '100vh',
-  boxSizing : 'border-box',
-  margin    : 0,
-  paddingLeft: 0,
-  paddingRight: 0,
-  paddingBottom: 0,
+  marginTop : -HEADER_RADIUS,
 };
 
 /* ============================================================================
@@ -150,7 +145,7 @@ function HeaderWithRoleAwareNav() {
         </nav>
 
         {/* -------- RIGHT LINKS -------- */}
-        <div style={linkBarStyle}>
+        <div style={{ ...linkBarStyle, marginRight: '50px' }}>
           {pathname.startsWith('/books') && <CartPopover />}
           {session && (
             <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
