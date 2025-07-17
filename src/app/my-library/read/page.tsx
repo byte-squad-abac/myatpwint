@@ -25,6 +25,7 @@ import dynamic from 'next/dynamic';
 import { bookStorage } from '@/lib/storage';
 import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { DarkMode, LightMode } from '@mui/icons-material';
+import { ReaderErrorBoundary } from './components/ReaderErrorBoundary';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
   ssr: false,
@@ -72,7 +73,7 @@ function BookReaderContent() {
   const [fileData, setFileData] = useState<ArrayBuffer | string | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'epub' | 'txt' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(125);
+  const [zoomLevel, setZoomLevel] = useState(150);
   const [readerState, setReaderState] = useState<ReaderState>({
     currentPage: 1,
     totalPages: 1,
@@ -295,12 +296,17 @@ function BookReaderContent() {
           <IconButton 
             onClick={handleBack}
             sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
+            aria-label="Go back to library"
+            title="Go back to library"
           >
             <ArrowBack sx={{ fontSize: 24 }} />
           </IconButton>
           
           <IconButton 
             sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
+            aria-label="Search in document"
+            title="Search in document (coming soon)"
+            disabled
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -310,6 +316,7 @@ function BookReaderContent() {
         
         <Typography 
           variant="h6" 
+          component="h1"
           sx={{ 
             fontSize: '18px',
             fontWeight: 500,
@@ -336,6 +343,8 @@ function BookReaderContent() {
               sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 0.5, minWidth: 'auto' }}
               disabled={zoomLevel <= 50}
               size="small"
+              aria-label="Zoom out"
+              title="Zoom out"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13H5v-2h14v2z"/>
@@ -351,6 +360,7 @@ function BookReaderContent() {
                 color: theme === 'dark' ? '#cccccc' : '#666666',
                 fontWeight: 500
               }}
+              aria-label={`Current zoom level: ${zoomLevel} percent`}
             >
               {zoomLevel}%
             </Typography>
@@ -360,6 +370,8 @@ function BookReaderContent() {
               sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 0.5, minWidth: 'auto' }}
               disabled={zoomLevel >= 200}
               size="small"
+              aria-label="Zoom in"
+              title="Zoom in"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -370,6 +382,8 @@ function BookReaderContent() {
           <IconButton 
             onClick={handleFullscreen}
             sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
             {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
           </IconButton>
@@ -378,31 +392,41 @@ function BookReaderContent() {
 
       {/* Main Reader Content */}
       <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {fileType === 'pdf' && fileData && (
-          <PDFReader 
-            fileData={fileData as ArrayBuffer}
-            onStateChange={handleReaderStateChange}
-            zoomLevel={zoomLevel}
-          />
-        )}
-        {fileType === 'epub' && fileData && (
-          <EPUBReader 
-            fileData={fileData as ArrayBuffer}
-            onStateChange={handleReaderStateChange}
-            zoomLevel={zoomLevel}
-          />
-        )}
-        {fileType === 'txt' && fileData && (
-          <TXTReader 
-            fileData={fileData as string}
-            onStateChange={handleReaderStateChange}
-            zoomLevel={zoomLevel}
-          />
-        )}
+        <ReaderErrorBoundary>
+          {fileType === 'pdf' && fileData && (
+            <PDFReader 
+              fileData={fileData as ArrayBuffer}
+              onStateChange={handleReaderStateChange}
+              zoomLevel={zoomLevel}
+            />
+          )}
+          {fileType === 'epub' && fileData && (
+            <EPUBReader 
+              fileData={fileData as ArrayBuffer}
+              onStateChange={handleReaderStateChange}
+              zoomLevel={zoomLevel}
+            />
+          )}
+          {fileType === 'txt' && fileData && (
+            <TXTReader 
+              fileData={fileData as string}
+              onStateChange={handleReaderStateChange}
+              zoomLevel={zoomLevel}
+            />
+          )}
+        </ReaderErrorBoundary>
       </Box>
 
       {/* Bottom Progress Bar - Exact Book Fusion Style */}
-      <Box sx={{ position: 'relative', height: '40px', display: 'flex', alignItems: 'center' }}>
+      <Box 
+        sx={{ position: 'relative', height: '40px', display: 'flex', alignItems: 'center' }}
+        role="progressbar"
+        aria-label="Reading progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={readerState.progress}
+        aria-valuetext={`${Math.round(readerState.progress)}% complete, page ${readerState.currentPage} of ${readerState.totalPages}`}
+      >
         <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px' }}>
           <LinearProgress 
             variant="determinate" 
@@ -414,6 +438,7 @@ function BookReaderContent() {
                 backgroundColor: theme === 'dark' ? '#64b5f6' : '#2196f3'
               }
             }}
+            aria-hidden="true"
           />
         </Box>
         
@@ -427,6 +452,8 @@ function BookReaderContent() {
             color: theme === 'dark' ? '#cccccc' : '#666666',
             fontWeight: 400
           }}
+          aria-live="polite"
+          aria-atomic="true"
         >
           {readerState.currentPage} of {readerState.totalPages}
         </Typography>
@@ -442,7 +469,10 @@ function ThemeToggleButton() {
     <IconButton 
       onClick={toggleTheme}
       sx={{ color: theme === 'dark' ? '#cccccc' : '#666666', p: 1 }}
+      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
       title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      role="switch"
+      aria-checked={theme === 'dark'}
     >
       {theme === 'light' ? <DarkMode /> : <LightMode />}
     </IconButton>

@@ -3,18 +3,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import ePub from 'epubjs';
+import { EPUBReaderProps } from '../types';
+import { EPUBLoadError } from './ReaderErrorBoundary';
 
-interface EPUBReaderProps {
-  fileData: ArrayBuffer;
-  zoomLevel: number;
-  onStateChange: (state: {
-    currentPage?: number;
-    totalPages?: number;
-    progress?: number;
-    isLoading?: boolean;
-    error?: string | null;
-  }) => void;
-}
+// EPUBReaderProps is now imported from types
 
 export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBReaderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -22,6 +14,9 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [progress, setProgress] = useState<number>(0);
+  
+  // Memoized onStateChange to prevent unnecessary re-renders
+  const memoizedOnStateChange = useCallback(onStateChange, [onStateChange]);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<any>(null);
@@ -64,11 +59,14 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
         // Display the book
         await rendition.display();
 
-        // Set up event listeners
-        setupEventListeners(rendition, book);
+        // Set up event listeners and store cleanup function
+        const cleanupEventListeners = setupEventListeners(rendition, book);
+        
+        // Store cleanup function for later use
+        rendition._cleanupEventListeners = cleanupEventListeners;
 
         setIsLoading(false);
-        onStateChange({
+        memoizedOnStateChange({
           totalPages: spineLength,
           currentPage: 1,
           progress: 0,
@@ -80,7 +78,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
         console.error('Error initializing EPUB:', err);
         setError('Failed to load EPUB file');
         setIsLoading(false);
-        onStateChange({
+        memoizedOnStateChange({
           isLoading: false,
           error: 'Failed to load EPUB file'
         });
@@ -92,72 +90,108 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
     // Cleanup
     return () => {
       if (renditionRef.current) {
+        // Clean up event listeners first
+        if (renditionRef.current._cleanupEventListeners) {
+          renditionRef.current._cleanupEventListeners();
+        }
+        // Clean up keyboard handler if it exists
+        if (renditionRef.current._keyPressHandler) {
+          document.removeEventListener('keydown', renditionRef.current._keyPressHandler);
+        }
+        // Destroy rendition
         renditionRef.current.destroy();
       }
       if (bookRef.current) {
         bookRef.current.destroy();
       }
     };
-  }, [fileData]); // Remove onStateChange from dependencies
+  }, [fileData, memoizedOnStateChange]);
 
   // Setup event listeners for the rendition
   const setupEventListeners = useCallback((rendition: any, book: any) => {
-    // Handle location changes
-    rendition.on('relocated', (location: any) => {
-      const currentSpineIndex = book.spine.get(location.start.cfi)?.index || 0;
-      const newCurrentPage = currentSpineIndex + 1;
-      const newProgress = (currentSpineIndex / Math.max(1, totalPages - 1)) * 100;
-      
-      setCurrentPage(newCurrentPage);
-      setProgress(newProgress);
-      
-      onStateChange({
-        currentPage: newCurrentPage,
-        progress: Math.min(100, Math.max(0, newProgress))
+    try {
+      // Handle location changes
+      rendition.on('relocated', (location: any) => {
+        try {
+          const currentSpineIndex = book.spine.get(location.start.cfi)?.index || 0;
+          const newCurrentPage = currentSpineIndex + 1;
+          const newProgress = (currentSpineIndex / Math.max(1, totalPages - 1)) * 100;
+          
+          // Only update if values actually changed
+          if (newCurrentPage !== currentPage) {
+            setCurrentPage(newCurrentPage);
+            setProgress(newProgress);
+            
+            memoizedOnStateChange({
+              currentPage: newCurrentPage,
+              progress: Math.min(100, Math.max(0, newProgress))
+            });
+          }
+        } catch (error) {
+          console.error('Error handling location change:', error);
+        }
       });
-    });
 
-    // Handle rendering errors
-    rendition.on('renderError', (error: any) => {
-      console.error('EPUB render error:', error);
-    });
+      // Handle rendering errors
+      rendition.on('renderError', (error: any) => {
+        console.error('EPUB render error:', error);
+        setError('Error rendering EPUB content');
+        memoizedOnStateChange({
+          error: 'Error rendering EPUB content'
+        });
+      });
 
-    // Handle book loading
-    rendition.on('loaded', () => {
-      console.log('EPUB loaded successfully');
-    });
+      // Handle book loading
+      rendition.on('loaded', () => {
+        console.log('EPUB loaded successfully');
+      });
 
-    // Keyboard navigation
-    const handleKeyPress = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          event.preventDefault();
-          rendition.prev();
-          break;
-        case 'ArrowRight':
-        case 'ArrowDown':
-        case ' ':
-          event.preventDefault();
-          rendition.next();
-          break;
-        case 'Home':
-          event.preventDefault();
-          rendition.display(0);
-          break;
-        case 'End':
-          event.preventDefault();
-          rendition.display(book.spine.last().href);
-          break;
-      }
-    };
+      // Keyboard navigation
+      const handleKeyPress = (event: KeyboardEvent) => {
+        try {
+          switch (event.key) {
+            case 'ArrowLeft':
+            case 'ArrowUp':
+              event.preventDefault();
+              rendition.prev();
+              break;
+            case 'ArrowRight':
+            case 'ArrowDown':
+            case ' ':
+              event.preventDefault();
+              rendition.next();
+              break;
+            case 'Home':
+              event.preventDefault();
+              rendition.display(0);
+              break;
+            case 'End':
+              event.preventDefault();
+              rendition.display(book.spine.last().href);
+              break;
+          }
+        } catch (error) {
+          console.error('Error handling keyboard navigation:', error);
+        }
+      };
 
-    // Add keyboard event listener
-    document.addEventListener('keydown', handleKeyPress);
-    
-    // Store the cleanup function
-    rendition._keyPressHandler = handleKeyPress;
-  }, [totalPages]); // Remove onStateChange from dependencies
+      // Add keyboard event listener
+      document.addEventListener('keydown', handleKeyPress);
+      
+      // Store the cleanup function properly
+      rendition._keyPressHandler = handleKeyPress;
+      
+      // Return cleanup function
+      return () => {
+        document.removeEventListener('keydown', handleKeyPress);
+        rendition.off('relocated');
+        rendition.off('renderError');
+        rendition.off('loaded');
+      };
+    } catch (error) {
+      console.error('Error setting up event listeners:', error);
+    }
+  }, [totalPages, currentPage, memoizedOnStateChange]);
 
   // Resize handler
   useEffect(() => {
@@ -171,14 +205,7 @@ export default function EPUBReader({ fileData, zoomLevel, onStateChange }: EPUBR
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Cleanup keyboard listener
-  useEffect(() => {
-    return () => {
-      if (renditionRef.current && renditionRef.current._keyPressHandler) {
-        document.removeEventListener('keydown', renditionRef.current._keyPressHandler);
-      }
-    };
-  }, []);
+  // Cleanup is now handled in the main useEffect above
 
   if (error) {
     return (

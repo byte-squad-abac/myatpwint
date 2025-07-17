@@ -1,25 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
+import { TXTReaderProps } from '../types';
+import { TXTLoadError } from './ReaderErrorBoundary';
 
-interface TXTReaderProps {
-  fileData: string;
-  zoomLevel: number;
-  onStateChange: (state: {
-    currentPage?: number;
-    totalPages?: number;
-    progress?: number;
-    isLoading?: boolean;
-    error?: string | null;
-  }) => void;
-}
+// TXTReaderProps is now imported from types
 
 export default function TXTReader({ fileData, zoomLevel, onStateChange }: TXTReaderProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [progress, setProgress] = useState<number>(0);
   const [lineHeight, setLineHeight] = useState<number>(1.6);
+  
+  // Memoized onStateChange to prevent unnecessary re-renders
+  const memoizedOnStateChange = useCallback(onStateChange, [onStateChange]);
   
   // Calculate font size based on zoom level
   const fontSize = Math.round(16 * (zoomLevel / 100));
@@ -39,42 +34,48 @@ export default function TXTReader({ fileData, zoomLevel, onStateChange }: TXTRea
     
     setTotalPages(estimatedPages);
     
-    onStateChange({
+    memoizedOnStateChange({
       totalPages: estimatedPages,
       currentPage: 1,
       progress: 0,
       isLoading: false,
       error: null
     });
-  }, [fileData]); // Remove onStateChange from dependencies
+  }, [fileData, memoizedOnStateChange]);
 
   // Handle scroll position and update current page
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !contentRef.current) return;
 
-    const container = containerRef.current;
-    const content = contentRef.current;
-    
-    const scrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
-    const contentHeight = content.scrollHeight;
-    
-    // Calculate progress (0-100)
-    const totalScrollHeight = contentHeight - containerHeight;
-    const newProgress = totalScrollHeight > 0 ? (scrollTop / totalScrollHeight) * 100 : 0;
-    
-    // Calculate current page based on scroll position
-    const newCurrentPage = Math.ceil((newProgress / 100) * totalPages) || 1;
-    
-    // Update state
-    setCurrentPage(newCurrentPage);
-    setProgress(newProgress);
-    
-    onStateChange({
-      currentPage: newCurrentPage,
-      progress: Math.min(100, Math.max(0, newProgress))
-    });
-  }, [totalPages]); // Remove onStateChange from dependencies
+    try {
+      const container = containerRef.current;
+      const content = contentRef.current;
+      
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const contentHeight = content.scrollHeight;
+      
+      // Calculate progress (0-100)
+      const totalScrollHeight = contentHeight - containerHeight;
+      const newProgress = totalScrollHeight > 0 ? (scrollTop / totalScrollHeight) * 100 : 0;
+      
+      // Calculate current page based on scroll position
+      const newCurrentPage = Math.ceil((newProgress / 100) * totalPages) || 1;
+      
+      // Update state only if values changed
+      if (newCurrentPage !== currentPage) {
+        setCurrentPage(newCurrentPage);
+        setProgress(newProgress);
+        
+        memoizedOnStateChange({
+          currentPage: newCurrentPage,
+          progress: Math.min(100, Math.max(0, newProgress))
+        });
+      }
+    } catch (error) {
+      console.error('Error in TXT handleScroll:', error);
+    }
+  }, [totalPages, currentPage, memoizedOnStateChange]);
 
   // Set up scroll listener
   useEffect(() => {
@@ -161,9 +162,11 @@ export default function TXTReader({ fileData, zoomLevel, onStateChange }: TXTRea
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  // Format text with paragraphs
-  const formatText = (text: string) => {
-    return text.split('\n').map((paragraph, index) => {
+  // Memoized formatted text to prevent unnecessary re-renders
+  const formattedText = useMemo(() => {
+    if (!fileData) return null;
+    
+    return fileData.split('\n').map((paragraph, index) => {
       if (paragraph.trim() === '') {
         return <br key={index} />;
       }
@@ -185,7 +188,7 @@ export default function TXTReader({ fileData, zoomLevel, onStateChange }: TXTRea
         </Typography>
       );
     });
-  };
+  }, [fileData, fontSize, lineHeight]);
 
   return (
     <Box
@@ -218,7 +221,7 @@ export default function TXTReader({ fileData, zoomLevel, onStateChange }: TXTRea
           padding: '0 20px',
         }}
       >
-        {formatText(fileData)}
+        {formattedText}
       </Box>
     </Box>
   );

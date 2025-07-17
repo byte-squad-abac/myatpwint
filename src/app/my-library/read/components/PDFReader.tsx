@@ -4,6 +4,9 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { useTheme } from '@/lib/contexts/ThemeContext';
+import { PDFReaderProps, ReaderPerformanceMetrics } from '../types';
+import { PDFLoadError } from './ReaderErrorBoundary';
+import { useScrollTouchGestures } from '../hooks/useTouchGestures';
 import styles from './PDFReader.module.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -23,17 +26,7 @@ console.error = (...args) => {
   originalConsoleError(...args);
 };
 
-interface PDFReaderProps {
-  fileData: ArrayBuffer;
-  zoomLevel: number;
-  onStateChange: (state: {
-    currentPage?: number;
-    totalPages?: number;
-    progress?: number;
-    isLoading?: boolean;
-    error?: string | null;
-  }) => void;
-}
+// PDFReaderProps is now imported from types
 
 class PageManager {
   private pageHeights = new Map<number, number>();
@@ -93,10 +86,29 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
   const [error, setError] = useState<string | null>(null);
   const [visibleRange, setVisibleRange] = useState<[number, number]>([1, 10]);
   
+  // Memoized onStateChange to prevent unnecessary re-renders
+  const memoizedOnStateChange = useCallback(onStateChange, [onStateChange]);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pageManagerRef = useRef<PageManager | null>(null);
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
+  
+  // Touch gesture support
+  const touchGestures = useScrollTouchGestures(containerRef, {
+    onPageUp: () => {
+      if (containerRef.current) {
+        const scrollAmount = containerRef.current.clientHeight * 0.8;
+        containerRef.current.scrollBy({ top: -scrollAmount, behavior: 'smooth' });
+      }
+    },
+    onPageDown: () => {
+      if (containerRef.current) {
+        const scrollAmount = containerRef.current.clientHeight * 0.8;
+        containerRef.current.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+      }
+    },
+  });
   
   const pageManager = useMemo(() => {
     if (numPages > 0) {
@@ -159,8 +171,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     const updateDimensions = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
-        // Set page width to 90% of container width for nice margins, then apply zoom
-        const baseWidth = Math.min(containerWidth * 0.9, 800);
+        // Mobile-responsive width calculation
+        const isMobile = window.innerWidth < 768;
+        const marginRatio = isMobile ? 0.95 : 0.9; // Less margin on mobile
+        const maxWidth = isMobile ? containerWidth : 800;
+        const baseWidth = Math.min(containerWidth * marginRatio, maxWidth);
         setPageWidth(baseWidth * (zoomLevel / 100));
       }
     };
@@ -175,23 +190,33 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     setNumPages(numPages);
     setError(null);
     
-    onStateChange({
+    memoizedOnStateChange({
       totalPages: numPages,
       currentPage: 1,
       progress: 0,
       isLoading: false,
       error: null
     });
-  }, []); // Remove onStateChange from dependencies
+  }, [memoizedOnStateChange]);
 
   // Handle document load error
   const onDocumentLoadError = useCallback((_error: Error) => {
-    setError('Failed to load PDF document');
-    onStateChange({
+    const errorMessage = 'Failed to load PDF document';
+    const pdfError = new PDFLoadError(errorMessage);
+    
+    setError(errorMessage);
+    memoizedOnStateChange({
       isLoading: false,
-      error: 'Failed to load PDF document'
+      error: errorMessage
     });
-  }, []); // Remove onStateChange from dependencies
+    
+    // Log structured error for debugging
+    console.error('PDF Load Error:', {
+      error: pdfError,
+      originalError: _error,
+      timestamp: new Date().toISOString()
+    });
+  }, [memoizedOnStateChange]);
 
   // Handle page load success
   const onPageLoadSuccess = useCallback((page: any, pageNumber: number) => {
@@ -206,36 +231,41 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !pageManager) return;
 
-    const container = containerRef.current;
-    const newScrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
-    
-    // Calculate visible page range
-    const newVisibleRange = pageManager.getVisiblePageRange(newScrollTop, containerHeight);
-    
-    // Update visible range if changed
-    if (newVisibleRange[0] !== visibleRange[0] || newVisibleRange[1] !== visibleRange[1]) {
-      setVisibleRange(newVisibleRange);
+    try {
+      const container = containerRef.current;
+      const newScrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      
+      // Calculate visible page range
+      const newVisibleRange = pageManager.getVisiblePageRange(newScrollTop, containerHeight);
+      
+      // Update visible range if changed
+      if (newVisibleRange[0] !== visibleRange[0] || newVisibleRange[1] !== visibleRange[1]) {
+        setVisibleRange(newVisibleRange);
+      }
+      
+      // Calculate current page based on scroll position
+      const averagePageHeight = pageManager.getPageHeight(1);
+      const estimatedCurrentPage = Math.max(1, Math.min(numPages, Math.ceil(newScrollTop / averagePageHeight)));
+      
+      // Only update if page actually changed
+      if (estimatedCurrentPage !== currentPage) {
+        setCurrentPage(estimatedCurrentPage);
+        
+        // Calculate progress (0-100)
+        const totalScrollHeight = pageManager.getEstimatedScrollHeight();
+        const progress = totalScrollHeight > 0 ? (newScrollTop / totalScrollHeight) * 100 : 0;
+        
+        // Update state only when page changes to reduce API calls
+        memoizedOnStateChange({
+          currentPage: estimatedCurrentPage,
+          progress: Math.min(100, Math.max(0, progress))
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleScroll:', error);
     }
-    
-    // Calculate current page based on scroll position
-    const averagePageHeight = pageManager.getPageHeight(1);
-    const estimatedCurrentPage = Math.max(1, Math.min(numPages, Math.ceil(newScrollTop / averagePageHeight)));
-    
-    if (estimatedCurrentPage !== currentPage) {
-      setCurrentPage(estimatedCurrentPage);
-    }
-
-    // Calculate progress (0-100)
-    const totalScrollHeight = pageManager.getEstimatedScrollHeight();
-    const progress = totalScrollHeight > 0 ? (newScrollTop / totalScrollHeight) * 100 : 0;
-    
-    // Update state
-    onStateChange({
-      currentPage: estimatedCurrentPage,
-      progress: Math.min(100, Math.max(0, progress))
-    });
-  }, [currentPage, visibleRange, pageManager, numPages]);
+  }, [currentPage, visibleRange, pageManager, numPages, memoizedOnStateChange]);
 
   // Setup intersection observer for better performance
   useEffect(() => {
@@ -278,7 +308,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     return () => container.removeEventListener('scroll', throttledScroll);
   }, [handleScroll]);
 
-  // Keyboard navigation
+  // Keyboard navigation with screen reader announcements
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (!containerRef.current) return;
@@ -291,25 +321,51 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
         case ' ':
           event.preventDefault();
           container.scrollBy({ top: pageHeight, behavior: 'smooth' });
+          // Announce page change for screen readers
+          setTimeout(() => {
+            const announcement = `Page ${currentPage} of ${numPages}`;
+            const ariaLabel = container.getAttribute('aria-label');
+            if (ariaLabel !== announcement) {
+              container.setAttribute('aria-label', `PDF document, ${announcement}`);
+            }
+          }, 100);
           break;
         case 'ArrowUp':
           event.preventDefault();
           container.scrollBy({ top: -pageHeight, behavior: 'smooth' });
+          // Announce page change for screen readers
+          setTimeout(() => {
+            const announcement = `Page ${currentPage} of ${numPages}`;
+            const ariaLabel = container.getAttribute('aria-label');
+            if (ariaLabel !== announcement) {
+              container.setAttribute('aria-label', `PDF document, ${announcement}`);
+            }
+          }, 100);
           break;
         case 'Home':
           event.preventDefault();
           container.scrollTo({ top: 0, behavior: 'smooth' });
+          container.setAttribute('aria-label', 'PDF document, beginning of document');
           break;
         case 'End':
           event.preventDefault();
           container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+          container.setAttribute('aria-label', 'PDF document, end of document');
+          break;
+        case 'PageDown':
+          event.preventDefault();
+          container.scrollBy({ top: pageHeight, behavior: 'smooth' });
+          break;
+        case 'PageUp':
+          event.preventDefault();
+          container.scrollBy({ top: -pageHeight, behavior: 'smooth' });
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [currentPage, numPages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -338,6 +394,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
     <Box
       ref={containerRef}
       className={theme === 'dark' ? styles.darkMode : styles.lightMode}
+      role="document"
+      aria-label={`PDF document, page ${currentPage} of ${numPages}`}
+      aria-live="polite"
+      aria-atomic="false"
+      tabIndex={0}
       sx={{
         height: '100%',
         overflow: 'auto',
@@ -345,9 +406,12 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '20px 0',
+        padding: { xs: '10px 0', sm: '20px 0' },
+        // Touch-friendly scrolling
+        WebkitOverflowScrolling: 'touch',
+        // Responsive scrollbar
         '&::-webkit-scrollbar': {
-          width: '8px',
+          width: { xs: '4px', sm: '8px' },
         },
         '&::-webkit-scrollbar-track': {
           background: theme === 'dark' ? '#333' : '#f1f1f1',
@@ -358,6 +422,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
         },
         '&::-webkit-scrollbar-thumb:hover': {
           background: theme === 'dark' ? '#777' : '#a8a8a8',
+        },
+        // Focus indicators
+        '&:focus': {
+          outline: '2px solid #2196f3',
+          outlineOffset: '2px',
         },
       }}
     >
@@ -391,7 +460,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
                   top: pagePosition,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  mb: 2,
+                  mb: { xs: 1, sm: 2 },
                   boxShadow: theme === 'dark' ? '0 2px 8px rgba(255,255,255,0.1)' : '0 2px 8px rgba(0,0,0,0.1)',
                   borderRadius: '4px',
                   overflow: 'hidden',
@@ -400,6 +469,8 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange }: PDFRea
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
+                  // Mobile-friendly touch target
+                  touchAction: 'pan-y pinch-zoom',
                 }}
               >
                 {shouldRender ? (
