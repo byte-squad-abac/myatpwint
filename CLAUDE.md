@@ -80,6 +80,16 @@ npm run lint         # Run Next.js linting
 - **Memory Usage**: Reduced from ~3GB to ~50MB for large documents
 - **Performance**: Prevents browser freezing on large PDFs
 
+### Bookshelf (My Library) Design System
+- **3D Book Cards**: Realistic book spine design with CSS 3D transforms and perspective
+- **Placeholder Thumbnails**: Unsplash book images as temporary cover placeholders
+- **Responsive Grid**: CSS Grid layout replacing MUI Grid for better performance
+- **Component Architecture**: Modular BookCard, BookshelfGrid, SearchAndFilter components
+- **Visual Design**: Clean "Bookshelf" branding, immersive backgrounds, floating particles
+- **User Experience**: Book titles under books, hover animations, loading skeletons
+- **File Type Support**: PDF, EPUB, TXT with color-coded badges
+- **Hybrid Storage**: Supabase cloud + IndexedDB local fallback
+
 ## Development Guidelines
 
 ### Environment Variables
