@@ -104,40 +104,47 @@ function BookReaderContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load book from IndexedDB
+  // Load book from Supabase or IndexedDB
   useEffect(() => {
-    if (!bookId) {
+    if (!bookId || !session) {
       setReaderState(prev => ({ ...prev, error: 'No book selected', isLoading: false }));
       return;
     }
 
     const loadBook = async () => {
       try {
-        const storedBook = await bookStorage.getBook(bookId);
+        // Try to get book record using hybrid method
+        const bookRecord = await bookStorage.getBookHybrid(bookId);
         
-        if (!storedBook) {
+        if (!bookRecord) {
           setReaderState(prev => ({ ...prev, error: 'Book not found', isLoading: false }));
           return;
         }
 
-        // Create file object from stored data
-        const file = new File([storedBook.fileData], storedBook.fileName, { type: storedBook.fileType });
-        
         const book: LibraryBook = {
-          id: storedBook.id,
-          name: storedBook.name,
-          fileName: storedBook.fileName,
-          file: file,
-          size: storedBook.size,
-          uploadDate: storedBook.uploadDate,
+          id: bookRecord.id,
+          name: bookRecord.name,
+          fileName: bookRecord.fileName,
+          file: null, // We'll load this on demand
+          size: bookRecord.size,
+          uploadDate: bookRecord.uploadDate,
         };
 
         setBook(book);
         
-        // Load file data
-        loadFileData(file, storedBook.fileName);
+        // Load file data based on source
+        if (bookRecord.source === 'supabase' && bookRecord.fileUrl) {
+          await loadFileDataFromUrl(bookRecord.fileUrl, bookRecord.fileName);
+        } else if (bookRecord.source === 'indexeddb') {
+          // Load from IndexedDB
+          const storedBook = await bookStorage.getBook(bookId);
+          if (storedBook) {
+            const file = new File([storedBook.fileData], storedBook.fileName, { type: storedBook.fileType });
+            await loadFileData(file, storedBook.fileName);
+          }
+        }
       } catch (error) {
-        console.error('Error loading book from IndexedDB:', error);
+        console.error('Error loading book:', error);
         setReaderState(prev => ({ 
           ...prev, 
           error: 'Error loading book from library', 
@@ -147,7 +154,7 @@ function BookReaderContent() {
     };
 
     loadBook();
-  }, [bookId]);
+  }, [bookId, session]);
 
   const loadFileData = async (file: File, fileName: string) => {
     try {
@@ -174,6 +181,37 @@ function BookReaderContent() {
       setReaderState(prev => ({ 
         ...prev, 
         error: 'Error loading file data', 
+        isLoading: false 
+      }));
+    }
+  };
+
+  const loadFileDataFromUrl = async (url: string, fileName: string) => {
+    try {
+      const extension = fileName.split('.').pop()?.toLowerCase();
+      
+      if (extension === 'pdf') {
+        const arrayBuffer = await bookStorage.fetchFileFromUrl(url);
+        setFileData(arrayBuffer);
+        setFileType('pdf');
+      } else if (extension === 'epub') {
+        const arrayBuffer = await bookStorage.fetchFileFromUrl(url);
+        setFileData(arrayBuffer);
+        setFileType('epub');
+      } else if (extension === 'txt') {
+        const text = await bookStorage.fetchTextFromUrl(url);
+        setFileData(text);
+        setFileType('txt');
+      } else {
+        throw new Error('Unsupported file format');
+      }
+      
+      setReaderState(prev => ({ ...prev, isLoading: false }));
+    } catch (error) {
+      console.error('Error loading file from URL:', error);
+      setReaderState(prev => ({ 
+        ...prev, 
+        error: 'Error loading file from cloud storage', 
         isLoading: false 
       }));
     }

@@ -21,7 +21,7 @@ import {
   Delete,
   Visibility,
 } from '@mui/icons-material';
-import { bookStorage } from '@/lib/storage';
+import { bookStorage, BookRecord } from '@/lib/storage';
 
 interface LibraryBook {
   id: string;
@@ -30,6 +30,8 @@ interface LibraryBook {
   file: File | null;
   size: string;
   uploadDate: string;
+  source: 'indexeddb' | 'supabase';
+  fileUrl?: string;
 }
 
 
@@ -48,29 +50,55 @@ export default function MyLibraryPage() {
     setIsClient(true);
   }, []);
 
-  // Load books from IndexedDB on component mount
+  // Load books from both Supabase and IndexedDB
   useEffect(() => {
-    if (!isClient) return;
+    if (!isClient || !session) return;
     
     const loadBooks = async () => {
       try {
-        const storedBooks = await bookStorage.getAllBooks();
-        const books = storedBooks.map(storedBook => ({
-          id: storedBook.id,
-          name: storedBook.name,
-          fileName: storedBook.fileName,
-          size: storedBook.size,
-          uploadDate: storedBook.uploadDate,
-          file: new File([storedBook.fileData], storedBook.fileName, { type: storedBook.fileType }),
-        }));
+        const userId = session.user.id;
+        const bookRecords = await bookStorage.getAllBooksHybrid(userId);
+        
+        const books: LibraryBook[] = [];
+        
+        for (const record of bookRecords) {
+          if (record.source === 'supabase') {
+            // For Supabase books, we don't need to load the file data immediately
+            books.push({
+              id: record.id,
+              name: record.name,
+              fileName: record.fileName,
+              size: record.size,
+              uploadDate: record.uploadDate,
+              file: null, // We'll load this on demand
+              source: 'supabase',
+              fileUrl: record.fileUrl
+            });
+          } else {
+            // For IndexedDB books, load the file data
+            const storedBook = await bookStorage.getBook(record.id);
+            if (storedBook) {
+              books.push({
+                id: storedBook.id,
+                name: storedBook.name,
+                fileName: storedBook.fileName,
+                size: storedBook.size,
+                uploadDate: storedBook.uploadDate,
+                file: new File([storedBook.fileData], storedBook.fileName, { type: storedBook.fileType }),
+                source: 'indexeddb'
+              });
+            }
+          }
+        }
+        
         setBooks(books);
       } catch (error) {
-        console.error('Error loading books from IndexedDB:', error);
+        console.error('Error loading books:', error);
       }
     };
     
     loadBooks();
-  }, [isClient]);
+  }, [isClient, session]);
 
   // Handle session loading
   useEffect(() => {
@@ -122,7 +150,7 @@ export default function MyLibraryPage() {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && session) {
       // Check file type
       const allowedTypes = ['.txt', '.pdf', '.epub'];
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -132,51 +160,41 @@ export default function MyLibraryPage() {
         return;
       }
 
-      // Check file size (100MB limit for IndexedDB storage)
-      if (file.size > 100 * 1024 * 1024) {
-        setError('File size must be less than 100MB');
+      // Check file size (50MB limit for Supabase storage)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('File size must be less than 50MB');
         return;
       }
 
       setError(null);
       
       try {
+        const userId = session.user.id;
+        
+        // Use hybrid storage - tries Supabase first, falls back to IndexedDB
+        const bookRecord = await bookStorage.saveBookHybrid(file, userId);
+        
         const newBook: LibraryBook = {
-          id: Date.now().toString(),
-          name: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension for display
-          fileName: file.name, // Store original file name with extension
-          file: file, // Keep file object in memory
-          size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-          uploadDate: new Date().toLocaleDateString(),
+          id: bookRecord.id,
+          name: bookRecord.name,
+          fileName: bookRecord.fileName,
+          size: bookRecord.size,
+          uploadDate: bookRecord.uploadDate,
+          source: bookRecord.source,
+          fileUrl: bookRecord.fileUrl,
+          file: bookRecord.source === 'indexeddb' ? file : null
         };
 
-        // Store file in IndexedDB
-        try {
-          const fileData = await file.arrayBuffer();
-          await bookStorage.saveBook({
-            id: newBook.id,
-            name: newBook.name,
-            fileName: newBook.fileName,
-            size: newBook.size,
-            uploadDate: newBook.uploadDate,
-            fileData: fileData,
-            fileType: file.type,
-          });
-
-          // Add to books list
-          setBooks(prev => [...prev, newBook]);
-        } catch (storageError: any) {
-          console.error('Could not save to IndexedDB:', storageError);
-          setError('Failed to save book. Please try again.');
-        }
+        // Add to books list
+        setBooks(prev => [...prev, newBook]);
         
         // Clear file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       } catch (error) {
-        setError('Error reading file. Please try again.');
-        console.error('Error reading file:', error);
+        setError('Failed to save book. Please try again.');
+        console.error('Error saving book:', error);
       }
     }
   };
@@ -188,7 +206,7 @@ export default function MyLibraryPage() {
 
   const handleDeleteBook = async (bookId: string) => {
     try {
-      await bookStorage.deleteBook(bookId);
+      await bookStorage.deleteBookHybrid(bookId);
       setBooks(prev => prev.filter(book => book.id !== bookId));
     } catch (error) {
       console.error('Error deleting book:', error);
@@ -206,7 +224,7 @@ export default function MyLibraryPage() {
         📚 My Library
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Upload and read your personal book collection. Your books are stored locally for privacy.
+        Upload and read your personal book collection. Your books are stored in the cloud with local backup.
       </Typography>
 
       {/* Upload Section */}
@@ -215,7 +233,7 @@ export default function MyLibraryPage() {
           Add New Book
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Supported formats: .txt, .pdf, .epub (max 100MB)
+          Supported formats: .txt, .pdf, .epub (max 50MB)
         </Typography>
         
         <input
@@ -304,11 +322,11 @@ export default function MyLibraryPage() {
           ℹ️ About My Library
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          • Books are stored persistently in your browser using IndexedDB<br/>
+          • Books are stored in the cloud with Supabase (with local backup)<br/>
           • Supported formats: TXT, PDF, EPUB<br/>
-          • Maximum file size: 100MB<br/>
-          • Files persist after page refresh<br/>
-          • Large files are supported with efficient storage
+          • Maximum file size: 50MB<br/>
+          • Access your books from any device<br/>
+          • Automatic fallback to local storage if needed
         </Typography>
       </Paper>
     </Container>

@@ -157,7 +157,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageWidth, setPageWidth] = useState<number>(800);
   const [error, setError] = useState<string | null>(null);
-  const [visibleRange, setVisibleRange] = useState<[number, number]>([1, 10]);
+  const [visibleRange, setVisibleRange] = useState<[number, number]>([1, Math.max(1, 10)]);
   const [isNavigating, setIsNavigating] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   const [isPreloading, setIsPreloading] = useState(false);
@@ -270,7 +270,7 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
     pdfDocumentRef.current = pdfDoc;
     
     // Reset visible range for new document
-    const initialRange = Math.min(10, numPages);
+    const initialRange = Math.max(1, Math.min(10, numPages));
     setVisibleRange([1, initialRange]);
     
     memoizedOnStateChange({
@@ -340,9 +340,13 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
       // Calculate visible page range with navigation awareness
       const newVisibleRange = pageManager.getVisiblePageRange(newScrollTop, containerHeight, isNavigating);
       
-      // Update visible range if changed
+      // Update visible range if changed (with safety bounds)
       if (newVisibleRange[0] !== visibleRange[0] || newVisibleRange[1] !== visibleRange[1]) {
-        setVisibleRange(newVisibleRange);
+        const safeRange: [number, number] = [
+          Math.max(1, Math.min(newVisibleRange[0], numPages || 1)),
+          Math.min(numPages || 1, Math.max(newVisibleRange[1], 1))
+        ];
+        setVisibleRange(safeRange);
       }
       
       // Calculate current page based on scroll position
@@ -479,7 +483,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
     
     // Predictive loading: expand visible range around target
     const predictiveRange = pageManager.getPredictiveRange(pageNumber);
-    setVisibleRange(predictiveRange);
+    const safeRange: [number, number] = [
+      Math.max(1, Math.min(predictiveRange[0], numPages || 1)),
+      Math.min(numPages || 1, Math.max(predictiveRange[1], 1))
+    ];
+    setVisibleRange(safeRange);
     
     let targetPosition: number;
     
@@ -668,10 +676,18 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
             position: 'relative',
           }}
         >
-          {Array.from(new Array(visibleRange[1] - visibleRange[0] + 1), (_, index) => {
-            const pageNumber = visibleRange[0] + index;
-            const shouldRender = pageManager?.shouldRenderPage(pageNumber, visibleRange) ?? true;
-            const pagePosition = pageManager?.getPagePosition(pageNumber) || 0;
+          {(() => {
+            // Validate visibleRange to prevent invalid array length
+            const start = Math.max(1, Math.min(visibleRange[0], numPages || 1));
+            const end = Math.min(numPages || 1, Math.max(visibleRange[1], 1));
+            const rangeLength = Math.max(0, end - start + 1);
+            
+            if (rangeLength <= 0) return null;
+            
+            return Array.from(new Array(rangeLength), (_, index) => {
+              const pageNumber = start + index;
+              const shouldRender = pageManager?.shouldRenderPage(pageNumber, [start, end]) ?? true;
+              const pagePosition = pageManager?.getPagePosition(pageNumber) || 0;
             const pageHeight = pageManager?.getPageHeight(pageNumber) || 600;
             
             return (
@@ -720,7 +736,8 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
                 )}
               </Box>
             );
-          })}
+          });
+          })()}
         </Box>
       </Document>
     </Box>
