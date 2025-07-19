@@ -14,6 +14,8 @@ import IconButton from '@mui/material/IconButton';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { useCartStore } from '@/lib/store/cartStore';
+import { useSession } from '@supabase/auth-helpers-react';
+import supabaseClient from '@/lib/supabaseClient';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
@@ -42,15 +44,45 @@ type DeliveryType = 'physical' | 'digital';
 
 export default function BookDetailPage({ book }: BookDetailPageProps) {
   const router = useRouter();
+  const session = useSession();
   const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('physical');
   const [tab, setTab] = useState(0);
+  const [isOwned, setIsOwned] = useState(false);
+  const [checkingOwnership, setCheckingOwnership] = useState(false);
   const { addItem, removeItem, isInCart, getItemQuantity, updateQuantity } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Check if user already owns this book
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    
+    const checkOwnership = async () => {
+      setCheckingOwnership(true);
+      try {
+        const { data, error } = await supabaseClient
+          .from('purchases')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('book_id', book.id)
+          .limit(1);
+        
+        if (!error && data && data.length > 0) {
+          setIsOwned(true);
+        }
+      } catch (error) {
+        console.error('Error checking book ownership:', error);
+      } finally {
+        setCheckingOwnership(false);
+      }
+    };
+    
+    checkOwnership();
+  }, [session?.user?.id, book.id]);
 
   const handleAddToCart = () => {
     if (isInCart(book.id, deliveryType)) {
@@ -77,8 +109,14 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   };
 
   // Pre-compute button text and state to avoid hydration mismatch
-  const cartButtonText = mounted ? (isInCart(book.id, deliveryType) ? 'Remove from Cart' : 'Add to Cart') : 'Add to Cart';
-  const cartButtonColor = mounted ? (isInCart(book.id, deliveryType) ? 'error' : 'primary') : 'primary';
+  const getButtonState = () => {
+    if (!mounted) return { text: 'Add to Cart', color: 'primary' as const, disabled: false };
+    if (isOwned) return { text: 'Already Owned', color: 'success' as const, disabled: true };
+    if (isInCart(book.id, deliveryType)) return { text: 'Remove from Cart', color: 'error' as const, disabled: false };
+    return { text: 'Add to Cart', color: 'primary' as const, disabled: false };
+  };
+
+  const buttonState = getButtonState();
   const currentQuantity = mounted ? getItemQuantity(book.id, deliveryType) : 0;
 
   return (
@@ -159,7 +197,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 <Typography><strong>Edition:</strong> {book.edition}</Typography>
                 <Typography><strong>Published Date:</strong> {new Date(book.published_date).toLocaleDateString()}</Typography>
                 <Typography><strong>Category:</strong> {book.category}</Typography>
-                <Typography><strong>Tags:</strong> {book.tags.join(', ')}</Typography>
+                <Typography><strong>Tags:</strong> {book.tags?.join(', ') || 'No tags'}</Typography>
               </Box>
             )}
             {tab === 2 && (
@@ -216,33 +254,35 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
             <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
               <Button
                 variant="contained"
-                color={cartButtonColor}
-                onClick={handleAddToCart}
+                color={buttonState.color}
+                onClick={isOwned ? () => router.push('/my-library') : handleAddToCart}
+                disabled={buttonState.disabled}
                 sx={{ 
                   py: 1.5,
-                  cursor: 'pointer',
+                  cursor: buttonState.disabled ? 'default' : 'pointer',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
+                    transform: buttonState.disabled ? 'none' : 'translateY(-2px)',
                     transition: 'transform 0.2s ease-in-out'
                   }
                 }}
               >
-                {cartButtonText}
+                {isOwned ? 'Go to Library' : buttonState.text}
               </Button>
               <Button
                 variant="contained"
                 color="secondary"
-                onClick={handleCheckout}
+                onClick={isOwned ? () => router.push('/my-library') : handleCheckout}
+                disabled={isOwned}
                 sx={{ 
                   py: 1.5,
-                  cursor: 'pointer',
+                  cursor: isOwned ? 'default' : 'pointer',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
+                    transform: isOwned ? 'none' : 'translateY(-2px)',
                     transition: 'transform 0.2s ease-in-out'
                   }
                 }}
               >
-                Buy Now
+                {isOwned ? 'Read Now' : 'Buy Now'}
               </Button>
             </Box>
 
@@ -251,14 +291,18 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 Published: {new Date(book.published_date).toLocaleDateString()}
               </Typography>
               <Box sx={{ mt: 1 }}>
-                {book.tags.map((tag) => (
+                {book.tags?.map((tag) => (
                   <Chip
                     key={tag}
                     label={tag}
                     size="small"
                     sx={{ mr: 0.5, mb: 0.5 }}
                   />
-                ))}
+                )) || (
+                  <Typography variant="body2" color="text.secondary">
+                    No tags available
+                  </Typography>
+                )}
               </Box>
             </Box>
           </Box>

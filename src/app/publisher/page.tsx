@@ -430,7 +430,7 @@ if (isPublisher === null) {
               <p><strong>Author:</strong> {book.author} | <strong>Price:</strong> {book.price} kyats</p>
               <p><strong>Category:</strong> {book.category}</p>
               <p><strong>Published:</strong> {new Date(book.published_date).toLocaleDateString()} | <strong>Edition:</strong> {book.edition}</p>
-              <p><strong>Tags:</strong> {book.tags.join(', ')}</p>
+              <p><strong>Tags:</strong> {book.tags?.join(', ') || 'No tags'}</p>
               <p><strong>Added on:</strong> {new Date(book.created_at).toLocaleDateString()}</p>
               <strong>Description:</strong>
               <p>{book.description}</p>

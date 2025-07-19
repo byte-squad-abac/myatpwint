@@ -21,14 +21,18 @@ import {
   CardContent,
 } from '@mui/material';
 import { useCartStore, CartItem } from '@/lib/store/cartStore';
+import supabaseClient from '@/lib/supabaseClient';
+import { useSession } from '@supabase/auth-helpers-react';
 
 const steps = ['Shipping Information', 'Payment Details', 'Review Order'];
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const session = useSession();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { items, getTotal } = useCartStore();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { items, getTotal, clearCart } = useCartStore();
 
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -48,17 +52,59 @@ export default function CheckoutPage() {
     cvv: '',
   });
 
+  const processFakePayment = async () => {
+    if (!session?.user?.id) {
+      throw new Error('Please log in to complete purchase');
+    }
+
+    // Simulate payment processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Generate fake transaction ID
+    const transactionId = `FAKE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Save each purchase to database
+    const purchases = items.map(item => ({
+      user_id: session.user.id,
+      book_id: item.book.id,
+      purchase_price: item.book.price * item.quantity,
+      purchase_type: 'purchase',
+      payment_method: 'fake_payment',
+      transaction_id: transactionId,
+    }));
+
+    const { error } = await supabaseClient
+      .from('purchases')
+      .insert(purchases);
+
+    if (error) {
+      throw new Error(`Payment failed: ${error.message}`);
+    }
+
+    return transactionId;
+  };
+
   const handleNext = async () => {
     try {
       if (activeStep === steps.length - 1) {
-        // Process order
-        // await placeOrder(shippingInfo, paymentInfo); // Uncomment when implementing
-        router.push('/checkout/success');
+        setIsProcessing(true);
+        setError(null);
+        
+        // Process fake payment and save to database
+        const transactionId = await processFakePayment();
+        
+        // Clear cart after successful purchase
+        clearCart();
+        
+        // Redirect to success page
+        router.push(`/checkout/success?transaction=${transactionId}`);
       } else {
         setActiveStep((prevStep) => prevStep + 1);
       }
-    } catch (err) {
-      setError('Failed to process order. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to process order. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -162,11 +208,49 @@ export default function CheckoutPage() {
           </Box>
         )}
 
-        {/* Payment Details Step (not implemented) */}
+        {/* Payment Details Step */}
         {activeStep === 1 && (
           <Box sx={{ display: 'grid', gap: 3 }}>
-            {/* Payment fields can go here in the future */}
-            <Alert severity="info">Payment step coming soon.</Alert>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This is a fake payment system for demonstration. No real payment is processed.
+            </Alert>
+            
+            <Typography variant="h6" gutterBottom>
+              Payment Information
+            </Typography>
+            
+            <TextField
+              fullWidth
+              label="Card Number"
+              placeholder="1234 5678 9012 3456"
+              value={paymentInfo.cardNumber}
+              onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
+            />
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Cardholder Name"
+                value={paymentInfo.cardName}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+              />
+              <TextField
+                fullWidth
+                label="Expiry Date"
+                placeholder="MM/YY"
+                value={paymentInfo.expiryDate}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+              />
+            </Box>
+            
+            <TextField
+              fullWidth
+              label="CVV"
+              placeholder="123"
+              value={paymentInfo.cvv}
+              onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
+              sx={{ maxWidth: 120 }}
+            />
           </Box>
         )}
 
@@ -210,8 +294,9 @@ export default function CheckoutPage() {
           <Button
             variant="contained"
             onClick={handleNext}
+            disabled={isProcessing}
           >
-            {activeStep === steps.length - 1 ? 'Place Order' : 'Next'}
+            {isProcessing ? 'Processing Payment...' : (activeStep === steps.length - 1 ? 'Place Order' : 'Next')}
           </Button>
         </Box>
       </Paper>
