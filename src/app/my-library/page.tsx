@@ -78,6 +78,8 @@ function usePurchasedBooks(session: any) {
       setError(null);
       
       try {
+        console.log('🔍 Loading books for user:', session.user.id);
+        
         const { data: purchases, error } = await supabaseClient
           .from('purchases')
           .select(`
@@ -97,6 +99,8 @@ function usePurchasedBooks(session: any) {
           `)
           .eq('user_id', session.user.id);
 
+        console.log('📚 Purchases query result:', { purchases, error });
+        
         if (error) throw error;
 
         const transformedBooks: LibraryBook[] = purchases?.map((purchase: any) => ({

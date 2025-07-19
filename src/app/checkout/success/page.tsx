@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Paper,
   Typography,
   Button,
-  Box
+  Box,
+  CircularProgress
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transactionId = searchParams.get('transaction');
@@ -70,4 +71,16 @@ export default function CheckoutSuccessPage() {
       </Paper>
     </Container>
   );
-} 
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="sm" sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
+  );
+}
