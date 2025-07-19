@@ -154,7 +154,7 @@ function HeaderWithRoleAwareNav() {
           {pathname.startsWith('/books') && <CartPopover />}
           {session && (
             <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
-              📚 My Library
+              BookShelf
             </Link>
           )}
           {!session && (

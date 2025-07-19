@@ -138,3 +138,4 @@ dist
 
 # Claude Code session data
 .claude/
+.mcp.json

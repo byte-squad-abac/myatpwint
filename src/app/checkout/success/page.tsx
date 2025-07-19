@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Paper,
   Typography,
   Button,
-  Box
+  Box,
+  CircularProgress
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const transactionId = searchParams.get('transaction');
 
   useEffect(() => {
     // Redirect to home if accessed directly
@@ -40,6 +43,12 @@ export default function CheckoutSuccessPage() {
           You will receive an email confirmation shortly with your order details.
         </Typography>
 
+        {transactionId && (
+          <Typography variant="body2" color="text.secondary" paragraph sx={{ fontFamily: 'monospace', backgroundColor: 'grey.100', p: 1, borderRadius: 1 }}>
+            Transaction ID: {transactionId}
+          </Typography>
+        )}
+
         <Box sx={{ mt: 4 }}>
           <Button
             variant="contained"
@@ -50,9 +59,9 @@ export default function CheckoutSuccessPage() {
           </Button>
           <Button
             variant="outlined"
-            onClick={() => router.push('/profile')}
+            onClick={() => router.push('/my-library')}
           >
-            View Orders
+            View My Library
           </Button>
         </Box>
 
@@ -62,4 +71,16 @@ export default function CheckoutSuccessPage() {
       </Paper>
     </Container>
   );
-} 
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="sm" sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
+  );
+}
