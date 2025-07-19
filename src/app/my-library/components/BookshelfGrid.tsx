@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Box,
   Typography,
@@ -34,31 +34,7 @@ export default function BookshelfGrid({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [filteredBooks, setFilteredBooks] = useState<LibraryBook[]>([]);
-
-  // Filter books based on search term and filter type
-  useEffect(() => {
-    let filtered = [...books];
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(book => 
-        book.name.toLowerCase().includes(searchLower) ||
-        book.fileName.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(book => {
-        const fileExtension = book.fileName.split('.').pop()?.toLowerCase();
-        return fileExtension === filterType;
-      });
-    }
-
-    setFilteredBooks(filtered);
-  }, [books, searchTerm, filterType]);
+  // Books are already filtered by parent component
 
 
 
@@ -87,43 +63,13 @@ export default function BookshelfGrid({
     return <LoadingBookshelf />;
   }
 
-  if (filteredBooks.length === 0 && books.length === 0) {
+  if (books.length === 0) {
     return <EmptyBookshelf />;
   }
 
-  if (filteredBooks.length === 0 && books.length > 0) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          py: 8,
-          textAlign: 'center',
-        }}
-      >
-        <Typography
-          variant="h5"
-          color="text.secondary"
-          gutterBottom
-          sx={{ fontWeight: 600 }}
-        >
-          📚 No books found
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-          Try adjusting your search or filter criteria
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Search term: &ldquo;{searchTerm}&rdquo; • Filter: {filterType}
-        </Typography>
-      </Box>
-    );
-  }
-
   // Show grouped view when not searching
-  if (!searchTerm && filterType === 'all' && filteredBooks.length > 6) {
-    const groupedBooks = groupBooksByType(filteredBooks);
+  if (!searchTerm && filterType === 'all' && books.length > 6) {
+    const groupedBooks = groupBooksByType(books);
     
     return (
       <Box sx={{ width: '100%' }}>
@@ -320,7 +266,7 @@ export default function BookshelfGrid({
             }
           }}
         >
-          Your Immersive Library ({filteredBooks.length} book{filteredBooks.length !== 1 ? 's' : ''})
+          Your Immersive Library ({books.length} book{books.length !== 1 ? 's' : ''})
         </Typography>
         
         {(searchTerm || filterType !== 'all') && (
@@ -387,7 +333,7 @@ export default function BookshelfGrid({
             gap: 4,
           }}
         >
-          {filteredBooks.map((book, index) => (
+          {books.map((book, index) => (
             <Box key={`regular-${book.id}-${index}`}>
               <Grow
                 in={true}

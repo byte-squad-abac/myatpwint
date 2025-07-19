@@ -159,7 +159,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 <Typography><strong>Edition:</strong> {book.edition}</Typography>
                 <Typography><strong>Published Date:</strong> {new Date(book.published_date).toLocaleDateString()}</Typography>
                 <Typography><strong>Category:</strong> {book.category}</Typography>
-                <Typography><strong>Tags:</strong> {book.tags.join(', ')}</Typography>
+                <Typography><strong>Tags:</strong> {book.tags?.join(', ') || 'No tags'}</Typography>
               </Box>
             )}
             {tab === 2 && (
@@ -251,14 +251,18 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 Published: {new Date(book.published_date).toLocaleDateString()}
               </Typography>
               <Box sx={{ mt: 1 }}>
-                {book.tags.map((tag) => (
+                {book.tags?.map((tag) => (
                   <Chip
                     key={tag}
                     label={tag}
                     size="small"
                     sx={{ mr: 0.5, mb: 0.5 }}
                   />
-                ))}
+                )) || (
+                  <Typography variant="body2" color="text.secondary">
+                    No tags available
+                  </Typography>
+                )}
               </Box>
             </Box>
           </Box>

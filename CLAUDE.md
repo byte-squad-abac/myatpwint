@@ -89,6 +89,9 @@ npm run lint         # Run Next.js linting
 - **User Experience**: Book titles under books, hover animations, loading skeletons
 - **File Type Support**: PDF, EPUB, TXT with color-coded badges
 - **Hybrid Storage**: Supabase cloud + IndexedDB local fallback
+- **Clean Architecture**: Custom hooks (usePurchasedBooks, useBookFiltering) for separation of concerns
+- **Type Safety**: Centralized LibraryBook interface, no duplicate type definitions
+- **Performance**: Memoized calculations, debounced search, optimized component structure
 
 ## Development Guidelines
 

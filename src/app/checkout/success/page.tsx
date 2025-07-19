@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Paper,
@@ -13,6 +13,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 export default function CheckoutSuccessPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const transactionId = searchParams.get('transaction');
 
   useEffect(() => {
     // Redirect to home if accessed directly
@@ -40,6 +42,12 @@ export default function CheckoutSuccessPage() {
           You will receive an email confirmation shortly with your order details.
         </Typography>
 
+        {transactionId && (
+          <Typography variant="body2" color="text.secondary" paragraph sx={{ fontFamily: 'monospace', backgroundColor: 'grey.100', p: 1, borderRadius: 1 }}>
+            Transaction ID: {transactionId}
+          </Typography>
+        )}
+
         <Box sx={{ mt: 4 }}>
           <Button
             variant="contained"
@@ -50,9 +58,9 @@ export default function CheckoutSuccessPage() {
           </Button>
           <Button
             variant="outlined"
-            onClick={() => router.push('/profile')}
+            onClick={() => router.push('/my-library')}
           >
-            View Orders
+            View My Library
           </Button>
         </Box>
 

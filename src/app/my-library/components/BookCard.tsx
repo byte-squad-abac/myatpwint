@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Typography,
   IconButton,
@@ -18,15 +18,77 @@ import {
   AutoStories,
 } from '@mui/icons-material';
 
-interface LibraryBook {
+// Constants
+const BOOK_COLOR_SETS = [
+  { primary: '#8B4513', secondary: '#A0522D', spine: '#654321' },
+  { primary: '#1B4F72', secondary: '#2E86AB', spine: '#0F3460' },
+  { primary: '#145A32', secondary: '#239B56', spine: '#0E4B2E' },
+  { primary: '#78281F', secondary: '#C0392B', spine: '#641E16' },
+  { primary: '#4A235A', secondary: '#8E44AD', spine: '#3E1F4F' },
+  { primary: '#935116', secondary: '#D68910', spine: '#7D4427' },
+  { primary: '#2C3E50', secondary: '#566573', spine: '#1B2631' },
+  { primary: '#7E5109', secondary: '#B7950B', spine: '#633F02' },
+  { primary: '#922B21', secondary: '#CB4335', spine: '#7B241C' },
+  { primary: '#1A5490', secondary: '#2874A6', spine: '#154360' },
+];
+
+const PLACEHOLDER_IMAGES = [
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=300&h=400&fit=crop&crop=center',
+  'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=400&fit=crop&crop=center',
+];
+
+const FILE_TYPE_CONFIG = {
+  pdf: { type: 'PDF', icon: MenuBook, color: '#FF6B6B' },
+  epub: { type: 'EPUB', icon: AutoStories, color: '#4ECDC4' },
+  txt: { type: 'TXT', icon: MenuBook, color: '#45B7D1' },
+  default: { type: 'BOOK', icon: MenuBook, color: '#96CEB4' },
+};
+
+// Utility functions
+const generateHash = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+};
+
+const generateBookColor = (name: string) => {
+  const hash = generateHash(name);
+  return BOOK_COLOR_SETS[hash % BOOK_COLOR_SETS.length];
+};
+
+const generatePlaceholderCover = (name: string) => {
+  const hash = generateHash(name);
+  return PLACEHOLDER_IMAGES[hash % PLACEHOLDER_IMAGES.length];
+};
+
+const getFileType = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  return FILE_TYPE_CONFIG[extension as keyof typeof FILE_TYPE_CONFIG] || FILE_TYPE_CONFIG.default;
+};
+
+export interface LibraryBook {
   id: string;
   name: string;
   fileName: string;
   file: File | null;
   size: string;
   uploadDate: string;
-  source: 'indexeddb' | 'supabase';
+  source: 'indexeddb' | 'supabase' | 'purchased';
   fileUrl?: string;
+  author?: string;
+  description?: string;
+  category?: string;
+  imageUrl?: string;
+  tags?: string[];
+  purchasePrice?: number;
+  purchaseDate?: string;
 }
 
 interface BookCardProps {
@@ -37,69 +99,100 @@ interface BookCardProps {
   index?: number;
 }
 
+// Loading skeleton component
+function BookCardSkeleton() {
+  return (
+    <Box sx={{ height: 380, perspective: '1000px', transformStyle: 'preserve-3d' }}>
+      <Skeleton
+        variant="rectangular"
+        sx={{
+          width: '100%',
+          height: '100%',
+          borderRadius: 2,
+          transform: 'rotateY(-8deg) rotateX(3deg)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+        }}
+      />
+    </Box>
+  );
+}
+
+// Action buttons component
+function ActionButtons({ 
+  isHovered, 
+  onRead, 
+  onDelete 
+}: { 
+  isHovered: boolean; 
+  onRead: () => void; 
+  onDelete: () => void; 
+}) {
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        opacity: isHovered ? 1 : 0,
+        transform: isHovered ? 'translateX(0)' : 'translateX(20px)',
+        transition: 'all 0.3s ease',
+        zIndex: 10,
+      }}
+    >
+      <IconButton
+        onClick={(e) => {
+          e.stopPropagation();
+          onRead();
+        }}
+        sx={{
+          width: 40,
+          height: 40,
+          backgroundColor: 'rgba(25, 118, 210, 0.9)',
+          color: 'white',
+          '&:hover': {
+            backgroundColor: 'rgba(25, 118, 210, 1)',
+            transform: 'scale(1.1)',
+          },
+          transition: 'all 0.2s ease',
+        }}
+      >
+        <Visibility sx={{ fontSize: 20 }} />
+      </IconButton>
+
+      <IconButton
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        sx={{
+          width: 40,
+          height: 40,
+          backgroundColor: 'rgba(211, 47, 47, 0.9)',
+          color: 'white',
+          '&:hover': {
+            backgroundColor: 'rgba(211, 47, 47, 1)',
+            transform: 'scale(1.1)',
+          },
+          transition: 'all 0.2s ease',
+        }}
+      >
+        <Delete sx={{ fontSize: 20 }} />
+      </IconButton>
+    </Box>
+  );
+}
+
 export default function BookCard({ book, onRead, onDelete, loading = false, index = 0 }: BookCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
 
-  // Generate book colors based on name hash
-  const generateBookColor = (name: string) => {
-    const colorSets = [
-      { primary: '#8B4513', secondary: '#A0522D', spine: '#654321' },
-      { primary: '#1B4F72', secondary: '#2E86AB', spine: '#0F3460' },
-      { primary: '#145A32', secondary: '#239B56', spine: '#0E4B2E' },
-      { primary: '#78281F', secondary: '#C0392B', spine: '#641E16' },
-      { primary: '#4A235A', secondary: '#8E44AD', spine: '#3E1F4F' },
-      { primary: '#935116', secondary: '#D68910', spine: '#7D4427' },
-      { primary: '#2C3E50', secondary: '#566573', spine: '#1B2631' },
-      { primary: '#7E5109', secondary: '#B7950B', spine: '#633F02' },
-      { primary: '#922B21', secondary: '#CB4335', spine: '#7B241C' },
-      { primary: '#1A5490', secondary: '#2874A6', spine: '#154360' },
-    ];
-    
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colorSets[Math.abs(hash) % colorSets.length];
-  };
-
-  // Generate placeholder cover image
-  const generatePlaceholderCover = (name: string) => {
-    const backgrounds = [
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=300&h=400&fit=crop&crop=center',
-      'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=400&fit=crop&crop=center',
-    ];
-    
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return backgrounds[Math.abs(hash) % backgrounds.length];
-  };
-
-  // Get file type info
-  const getFileType = (fileName: string) => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'pdf': 
-        return { type: 'PDF', icon: <MenuBook />, color: '#FF6B6B' };
-      case 'epub': 
-        return { type: 'EPUB', icon: <AutoStories />, color: '#4ECDC4' };
-      case 'txt': 
-        return { type: 'TXT', icon: <MenuBook />, color: '#45B7D1' };
-      default: 
-        return { type: 'BOOK', icon: <MenuBook />, color: '#96CEB4' };
-    }
-  };
-
-  const bookColors = generateBookColor(book.name);
-  const fileInfo = getFileType(book.fileName);
-  const placeholderCover = generatePlaceholderCover(book.name);
+  // Memoize expensive calculations
+  const bookColors = useMemo(() => generateBookColor(book.name), [book.name]);
+  const fileInfo = useMemo(() => getFileType(book.fileName), [book.fileName]);
+  const placeholderCover = useMemo(() => generatePlaceholderCover(book.name), [book.name]);
 
   const handleRead = () => {
     setIsOpening(true);
@@ -107,20 +200,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   };
 
   if (loading) {
-    return (
-      <Box sx={{ height: 380, perspective: '1000px', transformStyle: 'preserve-3d' }}>
-        <Skeleton
-          variant="rectangular"
-          sx={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 2,
-            transform: 'rotateY(-8deg) rotateX(3deg)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-          }}
-        />
-      </Box>
-    );
+    return <BookCardSkeleton />;
   }
 
   return (
@@ -197,7 +277,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
                 boxShadow: isHovered 
                   ? '0 30px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
                   : '0 20px 40px rgba(0,0,0,0.2)',
-                backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%), url(${placeholderCover})`,
+                backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%), url(${book.imageUrl || placeholderCover})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
@@ -229,7 +309,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
             >
               {/* File Type Badge */}
               <Chip
-                icon={fileInfo.icon as React.ReactElement}
+                icon={<fileInfo.icon />}
                 label={fileInfo.type}
                 sx={{
                   position: 'absolute',
@@ -265,7 +345,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
                   py: 0.5,
                 }}
               >
-                {book.source === 'supabase' ? (
+                {book.source === 'purchased' ? (
                   <CloudDownload sx={{ fontSize: 12, color: 'white', opacity: 0.9 }} />
                 ) : (
                   <Storage sx={{ fontSize: 12, color: 'white', opacity: 0.9 }} />
@@ -285,7 +365,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
             </Box>
 
             {/* Pages Effect */}
-            {[...Array(5)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <Box
                 key={i}
                 sx={{
@@ -322,70 +402,14 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
             />
           </Box>
 
-          {/* Action Buttons */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              opacity: isHovered ? 1 : 0,
-              transform: isHovered ? 'translateX(0)' : 'translateX(20px)',
-              transition: 'all 0.3s ease',
-              zIndex: 10,
-            }}
-          >
-            <IconButton
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRead();
-              }}
-              sx={{
-                width: 40,
-                height: 40,
-                backgroundColor: 'rgba(25, 118, 210, 0.9)',
-                color: 'white',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 1)',
-                  transform: 'scale(1.1)',
-                  boxShadow: '0 8px 20px rgba(25, 118, 210, 0.4)',
-                },
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Visibility sx={{ fontSize: 20 }} />
-            </IconButton>
-
-            <IconButton
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(book.id);
-              }}
-              sx={{
-                width: 40,
-                height: 40,
-                backgroundColor: 'rgba(211, 47, 47, 0.9)',
-                color: 'white',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                '&:hover': {
-                  backgroundColor: 'rgba(211, 47, 47, 1)',
-                  transform: 'scale(1.1)',
-                  boxShadow: '0 8px 20px rgba(211, 47, 47, 0.4)',
-                },
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Delete sx={{ fontSize: 20 }} />
-            </IconButton>
-          </Box>
+          <ActionButtons
+            isHovered={isHovered}
+            onRead={handleRead}
+            onDelete={() => onDelete(book.id)}
+          />
         </Box>
 
-        {/* Book Title */}
+        {/* Book Info */}
         <Box sx={{ textAlign: 'center', mt: 1 }}>
           <Typography
             variant="subtitle1"
@@ -404,15 +428,33 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
           >
             {book.name}
           </Typography>
+          
+          {book.author && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.75rem',
+                opacity: 0.8,
+                display: 'block',
+                mb: 0.5,
+              }}
+            >
+              by {book.author}
+            </Typography>
+          )}
+          
           <Typography
             variant="caption"
             sx={{
               color: 'text.secondary',
-              fontSize: '0.75rem',
-              opacity: 0.8,
+              fontSize: '0.7rem',
+              opacity: 0.6,
             }}
           >
-            Added {book.uploadDate}
+            {book.purchaseDate 
+              ? `Purchased ${new Date(book.purchaseDate).toLocaleDateString()}` 
+              : `Added ${new Date(book.uploadDate).toLocaleDateString()}`}
           </Typography>
         </Box>
       </Box>
@@ -420,4 +462,4 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   );
 }
 
-export type { LibraryBook, BookCardProps };
+export type { BookCardProps };

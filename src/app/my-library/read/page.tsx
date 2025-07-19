@@ -7,8 +7,6 @@ import {
   Box,
   IconButton,
   Typography,
-  AppBar,
-  Toolbar,
   LinearProgress,
   Alert,
   CircularProgress,
@@ -17,15 +15,17 @@ import {
   ArrowBack,
   Fullscreen,
   FullscreenExit,
+  DarkMode,
+  LightMode,
 } from '@mui/icons-material';
 
 import dynamic from 'next/dynamic';
-import { bookStorage } from '@/lib/storage';
+import supabaseClient from '@/lib/supabaseClient';
 import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
-import { DarkMode, LightMode } from '@mui/icons-material';
 import { ReaderErrorBoundary } from './components/ReaderErrorBoundary';
 import PDFNavigationControls from './components/PDFNavigationControls';
 import { PDFNavigationProps } from './components/PDFReader';
+import { LibraryBook } from '../components/BookCard';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
   ssr: false,
@@ -42,14 +42,6 @@ const TXTReader = dynamic(() => import('./components/TXTReader'), {
   loading: () => <CircularProgress />
 });
 
-interface LibraryBook {
-  id: string;
-  name: string;
-  fileName: string;
-  file: File | null;
-  size: string;
-  uploadDate: string;
-}
 
 interface ReaderState {
   currentPage: number;
@@ -67,7 +59,6 @@ function BookReaderContent() {
   const searchParams = useSearchParams();
   const bookId = searchParams.get('id');
   
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
   
   const [book, setBook] = useState<LibraryBook | null>(null);
   const [fileData, setFileData] = useState<ArrayBuffer | string | null>(null);
@@ -111,49 +102,57 @@ function BookReaderContent() {
       return;
     }
 
-    const loadBook = async () => {
+    const loadPurchasedBook = async () => {
       try {
-        // Try to get book record using hybrid method
-        const bookRecord = await bookStorage.getBookHybrid(bookId);
-        
-        if (!bookRecord) {
-          setReaderState(prev => ({ ...prev, error: 'Book not found', isLoading: false }));
+        // Check if user has purchased this book
+        const { data: purchase, error: purchaseError } = await supabaseClient
+          .from('purchases')
+          .select(`
+            *,
+            books (
+              id,
+              name,
+              author,
+              file_url
+            )
+          `)
+          .eq('user_id', session.user.id)
+          .eq('book_id', bookId)
+          .single();
+
+        if (purchaseError || !purchase) {
+          setReaderState(prev => ({ ...prev, error: 'Book not found in your library', isLoading: false }));
           return;
         }
 
         const book: LibraryBook = {
-          id: bookRecord.id,
-          name: bookRecord.name,
-          fileName: bookRecord.fileName,
-          file: null, // We'll load this on demand
-          size: bookRecord.size,
-          uploadDate: bookRecord.uploadDate,
+          id: purchase.books.id,
+          name: purchase.books.name,
+          fileName: `${purchase.books.name}.pdf`,
+          file: null,
+          size: 'Unknown',
+          uploadDate: purchase.purchased_at,
         };
 
         setBook(book);
         
-        // Load file data based on source
-        if (bookRecord.source === 'supabase' && bookRecord.fileUrl) {
-          await loadFileDataFromUrl(bookRecord.fileUrl, bookRecord.fileName);
-        } else if (bookRecord.source === 'indexeddb') {
-          // Load from IndexedDB
-          const storedBook = await bookStorage.getBook(bookId);
-          if (storedBook) {
-            const file = new File([storedBook.fileData], storedBook.fileName, { type: storedBook.fileType });
-            await loadFileData(file, storedBook.fileName);
-          }
+        // Load file from URL
+        if (purchase.books.file_url) {
+          await loadFileDataFromUrl(purchase.books.file_url, book.fileName);
+        } else {
+          setReaderState(prev => ({ ...prev, error: 'Book file not available', isLoading: false }));
         }
       } catch (error) {
-        console.error('Error loading book:', error);
+        console.error('Error loading purchased book:', error);
         setReaderState(prev => ({ 
           ...prev, 
-          error: 'Error loading book from library', 
+          error: 'Failed to load book. Please try again.', 
           isLoading: false 
         }));
       }
     };
 
-    loadBook();
+    loadPurchasedBook();
   }, [bookId, session]);
 
   const loadFileData = async (file: File, fileName: string) => {
@@ -191,15 +190,26 @@ function BookReaderContent() {
       const extension = fileName.split('.').pop()?.toLowerCase();
       
       if (extension === 'pdf') {
-        const arrayBuffer = await bookStorage.fetchFileFromUrl(url);
+        const response = await fetch(url, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
         setFileData(arrayBuffer);
         setFileType('pdf');
       } else if (extension === 'epub') {
-        const arrayBuffer = await bookStorage.fetchFileFromUrl(url);
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
         setFileData(arrayBuffer);
         setFileType('epub');
       } else if (extension === 'txt') {
-        const text = await bookStorage.fetchTextFromUrl(url);
+        const response = await fetch(url);
+        const text = await response.text();
         setFileData(text);
         setFileType('txt');
       } else {
@@ -253,30 +263,12 @@ function BookReaderContent() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Handle session loading and redirect
+  // Handle session redirect
   useEffect(() => {
-    // Give some time for session to load
-    const timer = setTimeout(() => {
-      setIsSessionLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!isSessionLoading && !session) {
+    if (!session) {
       router.push('/login');
     }
-  }, [session, router, isSessionLoading]);
-
-  // Show loading while session is loading
-  if (isSessionLoading) {
-    return (
-      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  }, [session, router]);
 
   if (!session) {
     return null;
@@ -285,16 +277,14 @@ function BookReaderContent() {
   if (readerState.error) {
     return (
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <AppBar position="static" sx={{ bgcolor: '#641B2E' }}>
-          <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleBack}>
-              <ArrowBack />
-            </IconButton>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              Error Loading Book
-            </Typography>
-          </Toolbar>
-        </AppBar>
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: '#641B2E' }}>
+          <IconButton edge="start" color="inherit" onClick={handleBack}>
+            <ArrowBack />
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1, color: 'white' }}>
+            Error Loading Book
+          </Typography>
+        </Box>
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
           <Alert severity="error" sx={{ maxWidth: 600 }}>
             {readerState.error}
@@ -307,16 +297,14 @@ function BookReaderContent() {
   if (readerState.isLoading) {
     return (
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <AppBar position="static" sx={{ bgcolor: '#641B2E' }}>
-          <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleBack}>
-              <ArrowBack />
-            </IconButton>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              Loading...
-            </Typography>
-          </Toolbar>
-        </AppBar>
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: '#641B2E' }}>
+          <IconButton edge="start" color="inherit" onClick={handleBack}>
+            <ArrowBack />
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1, color: 'white' }}>
+            Loading...
+          </Typography>
+        </Box>
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <CircularProgress />
         </Box>
