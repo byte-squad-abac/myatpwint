@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 
 import { useCartStore } from '@/lib/store/cartStore';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import type { CSSProperties } from 'react';
 
 /* ============================================================================
@@ -78,10 +79,69 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
+      <head>
+        {/* PWA Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+        
+        {/* PWA Meta Tags */}
+        <meta name="application-name" content="Myat Pwint Publishing" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Myat Pwint" />
+        <meta name="description" content="Digital publishing platform for Myanmar - discover, read, rent, or publish books" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-config" content="/icons/browserconfig.xml" />
+        <meta name="msapplication-TileColor" content="#641B2E" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="theme-color" content="#FBDB93" />
+        
+        {/* Viewport for mobile responsiveness */}
+        <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, user-scalable=no, viewport-fit=cover" />
+        
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+        
+        {/* Favicon */}
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        
+        {/* Start URL for PWA */}
+        <meta name="start_url" content="/" />
+        
+        {/* Disable automatic telephone number detection */}
+        <meta name="format-detection" content="telephone=no" />
+        
+        {/* Open Graph Meta Tags */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Myat Pwint Publishing House" />
+        <meta property="og:description" content="Digital publishing platform for Myanmar" />
+        <meta property="og:site_name" content="Myat Pwint Publishing" />
+        <meta property="og:url" content="/" />
+        <meta property="og:image" content="/icons/icon-512x512.png" />
+        
+        {/* Twitter Card Meta Tags */}
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:url" content="/" />
+        <meta name="twitter:title" content="Myat Pwint Publishing House" />
+        <meta name="twitter:description" content="Digital publishing platform for Myanmar" />
+        <meta name="twitter:image" content="/icons/icon-512x512.png" />
+        <meta name="twitter:creator" content="@MyatPwintPub" />
+        
+        {/* Prevent search engine indexing in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <meta name="robots" content="noindex, nofollow" />
+        )}
+      </head>
       <body>
         <SessionContextProvider supabaseClient={browserSupabaseClient}>
           <HeaderWithRoleAwareNav />
           <main style={mainStyle}>{children}</main>
+          {/* Auto-show PWA install prompt */}
+          <PWAInstallPrompt autoShow={true} />
         </SessionContextProvider>
       </body>
     </html>
@@ -152,6 +212,7 @@ function HeaderWithRoleAwareNav() {
         {/* -------- RIGHT LINKS -------- */}
         <div style={linkBarStyle}>
           {pathname.startsWith('/books') && <CartPopover />}
+          <PWAInstallPrompt showInHeader={true} autoShow={false} />
           {session && (
             <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
               BookShelf

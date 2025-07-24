@@ -16,7 +16,12 @@ import {
   Storage,
   MenuBook,
   AutoStories,
+  CloudOff,
+  Cloud,
 } from '@mui/icons-material';
+
+// Import offline functionality
+import { useOfflineBooks, useOnlineStatus } from '@/lib/hooks/useOfflineBooks';
 
 // Constants
 const BOOK_COLOR_SETS = [
@@ -121,11 +126,21 @@ function BookCardSkeleton() {
 function ActionButtons({ 
   isHovered, 
   onRead, 
-  onDelete 
+  onDelete,
+  isOnline,
+  bookIsOffline,
+  onDownloadOffline,
+  onRemoveOffline,
+  isOfflineLoading
 }: { 
   isHovered: boolean; 
   onRead: () => void; 
   onDelete: () => void; 
+  isOnline: boolean;
+  bookIsOffline: boolean;
+  onDownloadOffline: () => void;
+  onRemoveOffline: () => void;
+  isOfflineLoading: boolean;
 }) {
   return (
     <Box
@@ -162,6 +177,57 @@ function ActionButtons({
         <Visibility sx={{ fontSize: 20 }} />
       </IconButton>
 
+      {/* Offline Download/Remove Button */}
+      {bookIsOffline ? (
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveOffline();
+          }}
+          disabled={isOfflineLoading}
+          sx={{
+            width: 40,
+            height: 40,
+            backgroundColor: 'rgba(156, 39, 176, 0.9)',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: 'rgba(156, 39, 176, 1)',
+              transform: 'scale(1.1)',
+            },
+            '&:disabled': {
+              backgroundColor: 'rgba(156, 39, 176, 0.5)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <CloudOff sx={{ fontSize: 20 }} />
+        </IconButton>
+      ) : (
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownloadOffline();
+          }}
+          disabled={!isOnline || isOfflineLoading}
+          sx={{
+            width: 40,
+            height: 40,
+            backgroundColor: 'rgba(76, 175, 80, 0.9)',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: 'rgba(76, 175, 80, 1)',
+              transform: 'scale(1.1)',
+            },
+            '&:disabled': {
+              backgroundColor: 'rgba(76, 175, 80, 0.5)',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <CloudDownload sx={{ fontSize: 20 }} />
+        </IconButton>
+      )}
+
       <IconButton
         onClick={(e) => {
           e.stopPropagation();
@@ -189,6 +255,19 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   const [isHovered, setIsHovered] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
 
+  // Offline functionality hooks
+  const isOnline = useOnlineStatus();
+  const { 
+    isBookOffline, 
+    downloadBookOffline, 
+    removeOfflineBook,
+    isLoading: isOfflineLoading 
+  } = useOfflineBooks();
+
+  // Check if this specific book is available offline
+  const bookIsOffline = isBookOffline(book.id);
+  const canReadOffline = !isOnline && bookIsOffline;
+
   // Memoize expensive calculations
   const bookColors = useMemo(() => generateBookColor(book.name), [book.name]);
   const fileInfo = useMemo(() => getFileType(book.fileName), [book.fileName]);
@@ -197,6 +276,34 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   const handleRead = () => {
     setIsOpening(true);
     setTimeout(() => onRead(book.id), 600);
+  };
+
+  // Handle downloading book for offline reading
+  const handleDownloadOffline = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!book.fileUrl || !book.name || !book.author) {
+      console.warn('Missing book information for offline download');
+      return;
+    }
+
+    // Extract file type from filename or URL
+    const fileType = book.fileName.split('.').pop()?.toLowerCase() as 'pdf' | 'epub' | 'txt' || 'pdf';
+    
+    await downloadBookOffline(
+      book.id,
+      book.name,
+      book.author,
+      book.fileUrl,
+      fileType,
+      book.imageUrl
+    );
+  };
+
+  // Handle removing book from offline storage
+  const handleRemoveOffline = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await removeOfflineBook(book.id);
   };
 
   if (loading) {
@@ -406,6 +513,11 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
             isHovered={isHovered}
             onRead={handleRead}
             onDelete={() => onDelete(book.id)}
+            isOnline={isOnline}
+            bookIsOffline={bookIsOffline}
+            onDownloadOffline={() => handleDownloadOffline({} as React.MouseEvent)}
+            onRemoveOffline={() => handleRemoveOffline({} as React.MouseEvent)}
+            isOfflineLoading={isOfflineLoading}
           />
         </Box>
 
@@ -443,6 +555,44 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
               by {book.author}
             </Typography>
           )}
+
+          {/* Offline Status Indicator */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+            {bookIsOffline && (
+              <Chip
+                icon={<CloudOff />}
+                label="Available Offline"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                  color: 'rgba(156, 39, 176, 1)',
+                  border: '1px solid rgba(156, 39, 176, 0.3)',
+                  '& .MuiChip-icon': {
+                    fontSize: 12,
+                  },
+                }}
+              />
+            )}
+            {!isOnline && (
+              <Chip
+                icon={<CloudOff />}
+                label="Offline Mode"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                  color: 'rgba(255, 152, 0, 1)',
+                  border: '1px solid rgba(255, 152, 0, 0.3)',
+                  '& .MuiChip-icon': {
+                    fontSize: 12,
+                  },
+                }}
+              />
+            )}
+          </Box>
           
           <Typography
             variant="caption"
@@ -450,6 +600,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
               color: 'text.secondary',
               fontSize: '0.7rem',
               opacity: 0.6,
+              mt: 0.5,
             }}
           >
             {book.purchaseDate 
