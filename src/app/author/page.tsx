@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 import ConversationBox from '@/components/ConversationBox';
+import '@/app/author/author.css'; // Import the CSS file for styling
 
 const publisherId = 'cf41c978-02bc-4bb6-a2f3-1fb5133f3f1a';
 
@@ -22,59 +23,6 @@ export default function AuthorPage() {
   const [links, setLinks] = useState<string[]>([]);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const labelStyle: React.CSSProperties = {
-  display: 'block',
-  marginBottom: 6,
-  fontWeight: 600,
-  fontSize: '0.95rem',
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px',
-  borderRadius: 6,
-  border: '1.5px solid #ccc',
-  fontSize: '1rem',
-  background: '#fff',
-};
-
-const addButton: React.CSSProperties = {
-  background: '#e3f2fd',
-  border: 'none',
-  borderRadius: 6,
-  padding: '6px 12px',
-  cursor: 'pointer',
-  fontWeight: 500,
-  color: '#1a237e',
-};
-
-const clearButton: React.CSSProperties = {
-  background: '#f44336',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 6,
-  padding: '6px 10px',
-  cursor: 'pointer',
-};
-
-const cancelButton: React.CSSProperties = {
-  background: '#eee',
-  border: '1px solid #ccc',
-  borderRadius: 6,
-  padding: '8px 16px',
-  fontWeight: 500,
-  cursor: 'pointer',
-};
-
-const submitButton: React.CSSProperties = {
-  background: '#1a237e',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 6,
-  padding: '8px 16px',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
 
 
   useEffect(() => {
@@ -142,89 +90,89 @@ const submitButton: React.CSSProperties = {
           <button onClick={handleApply}>Apply as Author</button>
         ) : (
           <form onSubmit={submitApplication} style={{ 
-  display: 'flex', 
-  flexDirection: 'column', 
-  gap: '20px', 
-  marginTop: 20, 
-  background: '#f9f9f9',
-  padding: '24px',
-  borderRadius: '12px',
-  boxShadow: '0 2px 10px rgba(0,0,0,0.06)' 
-}}>
-  {/* Full Name */}
-  <div>
-    <label style={labelStyle}>Legal Full Name *</label>
-    <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required style={inputStyle} placeholder='Enter Legal Name' />
-  </div>
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '20px', 
+            marginTop: 20, 
+            background: '#f9f9f9',
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.06)' 
+          }}>
+            {/* Full Name */}
+            <div>
+              <label className='labelStyle'>Legal Full Name *</label>
+              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required className='inputStyle' placeholder='Enter Legal Name' />
+            </div>
 
-  {/* Author Name */}
-  <div>
-    <label style={labelStyle}>Author Name / Pen Name *</label>
-    <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)} required style={inputStyle} placeholder='Enter Pen Name' />
-  </div>
+            {/* Author Name */}
+            <div>
+              <label className='labelStyle'>Author Name / Pen Name *</label>
+              <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)} required className='inputStyle' placeholder='Enter Pen Name' />
+            </div>
 
-  {/* Author ID */}
-  <div>
-    <label style={labelStyle}>Author ID *</label>
-    <input type="text" value={authorID} onChange={e => setAuthorID(e.target.value)} required style={inputStyle} placeholder='Enter registered Author ID issued by Author Association' />
-  </div>
+            {/* Author ID */}
+            <div>
+              <label className='labelStyle'>Author ID *</label>
+              <input type="text" value={authorID} onChange={e => setAuthorID(e.target.value)} required className='inputStyle' placeholder='Enter registered Author ID issued by Author Association' />
+            </div>
 
-  {/* Age */}
-  <div>
-    <label style={labelStyle}>Age *</label>
-    <input type="number" value={age} onChange={e => setAge(e.target.value)} required style={inputStyle} placeholder='Enter Age' />
-  </div>
+            {/* Age */}
+            <div>
+              <label className='labelStyle'>Age *</label>
+              <input type="number" value={age} onChange={e => setAge(e.target.value)} required className='inputStyle' placeholder='Enter Age' />
+            </div>
 
-  {/* Links */}
-  <div>
-    <label style={labelStyle}>Links:</label>
-    {links.map((link, index) => (
-      <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-        <input
-          type="url"
-          value={link}
-          onChange={e => {
-            const updatedLinks = [...links];
-            updatedLinks[index] = e.target.value;
-            setLinks(updatedLinks);
-          }}
-          required
-          style={{ ...inputStyle, flex: 1 }}
-          placeholder={`Link ${index + 1}`}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const updated = links.filter((_, i) => i !== index);
-            setLinks(updated);
-          }}
-          style={clearButton}
-        >
-          clear
-        </button>
-      </div>
-    ))}
-    <button type="button" onClick={() => setLinks([...links, ''])} style={addButton}>➕ Add link</button>
-  </div>
+            {/* Links */}
+            <div>
+              <label className='labelStyle'>Links:</label>
+              {links.map((link, index) => (
+                <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                  <input
+                    type="url"
+                    value={link}
+                    onChange={e => {
+                      const updatedLinks = [...links];
+                      updatedLinks[index] = e.target.value;
+                      setLinks(updatedLinks);
+                    }}
+                    required
+                    className='inputStyle'
+                    placeholder={`Link ${index + 1}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = links.filter((_, i) => i !== index);
+                      setLinks(updated);
+                    }}
+                    className='clearButton'
+                  >
+                    clear
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setLinks([...links, ''])} className='addButton'>➕ Add link</button>
+            </div>
 
-  {/* Phone */}
-  <div>
-    <label style={labelStyle}>Contact Number *</label>
-    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required style={inputStyle} placeholder='Enter Contact Number' />
-  </div>
+            {/* Phone */}
+            <div>
+              <label className='labelStyle'>Contact Number *</label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className='inputStyle' placeholder='Enter Contact Number' />
+            </div>
 
-  {/* Email */}
-  <div>
-    <label style={labelStyle}>Email *</label>
-    <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} placeholder='Enter Email' />
-  </div>
+            {/* Email */}
+            <div>
+              <label className='labelStyle'>Email *</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className='inputStyle' placeholder='Enter Email' />
+            </div>
 
-  {/* Actions */}
-  <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-    <button type="button" onClick={() => setShowForm(false)} style={cancelButton}>Cancel</button>
-    <button type="submit" style={submitButton}>Submit Application</button>
-  </div>
-</form>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowForm(false)} className='cancelButton'>Cancel</button>
+              <button type="submit" className='submitButton'>Submit Application</button>
+            </div>
+          </form>
 
         )}
       </main>

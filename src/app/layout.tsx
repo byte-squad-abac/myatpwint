@@ -109,7 +109,7 @@ function HeaderWithRoleAwareNav() {
       }
 
       const { data, error } = await supabase
-        .from('publishers')           // <-- your table that stores roles
+        .from('profiles')           // <-- your table that stores roles
         .select('role')
         .eq('email', session.user.email)
         .single();

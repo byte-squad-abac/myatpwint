@@ -1,0 +1,53 @@
+.labelStyle {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.inputStyle {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1.5px solid #ccc;
+  font-size: 1rem;
+  background: #fff;
+}
+
+.addButton {
+  background: #e3f2fd;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #1a237e;
+}
+
+.clearButton {
+background: #f44336;
+  color: #fff;
+  border: none,;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.cancelButton {
+    background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submitButton{
+background: #1a237e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -116,7 +116,7 @@ export default function PublisherPage() {
 
       const email = session.user.email;
       const { data, error } = await supabase
-        .from('publishers')
+        .from('profiles')
         .select('email, role')
         .eq('email', email)
         .single();
@@ -421,7 +421,7 @@ if (isPublisher === null) {
         {books.map((book) => (
           <li key={book.id}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
+              <img src={book.image_url || "null"} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
             </div>
 
             <div className="book-info">
