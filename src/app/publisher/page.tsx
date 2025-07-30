@@ -203,7 +203,24 @@ export default function PublisherPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('books').delete().eq('id', id);
+    await supabase.from('books').delete().eq('id', id); //Deleting the book
+
+    const bookToDelete = books.find(b => b.id === id); //Finding the book deleted
+
+    // If that book had a manuscript, update its status
+    if (bookToDelete?.manuscript_id) {
+    const { error } = await supabase
+      .from('manuscripts')
+      .update({ status: 'waiting_upload' })
+      .eq('id', bookToDelete.manuscript_id);
+
+    if (error) {
+      console.error('❌ Manuscript status update failed:', error.message);
+    } else {
+      console.log('✅ Manuscript status set to waiting_upload');
+    }
+  }
+    setStatus('✅ Book deleted');
     fetchBooks();
   };
 

@@ -24,6 +24,24 @@ export default function AuthorPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
+  const fetchAuthorName = async () => { // Function to fetch author name
+  if (!session) return;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('author_name')
+    .eq('id', session.user.id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching author name:", error);
+    return;
+  }
+
+  const authorName = data?.author_name || 'Author';  // Fallback to 'Author' if no name
+  setAuthorName(authorName);  // Store it in state or use as needed
+};
+
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -37,7 +55,11 @@ export default function AuthorPage() {
       if (data?.role) setRole(data.role);
       setLoading(false);
     };
+
+    if (session) {
     fetchRole();
+    fetchAuthorName();
+  }
   }, [session, supabase]);
 
   const handleApply = () => {
@@ -209,7 +231,7 @@ export default function AuthorPage() {
 
       <div style={{ marginTop: 32 }}>
         <h2>📨 Message the Publisher</h2>
-
+        
         <ConversationBox
           myId={session.user.id}
           myRole="author"
@@ -217,7 +239,7 @@ export default function AuthorPage() {
           editorId={publisherId}
           author_name={session.user.user_metadata.author_name || session.user.user_metadata.full_name || 'Author'}
           editor_name="Publisher"
-          sender_name={session.user.user_metadata.author_name || session.user.user_metadata.full_name || 'Author'}
+          sender_name={authorName || session.user.user_metadata.full_name || 'Author'}
         />
       </div>
     </main>

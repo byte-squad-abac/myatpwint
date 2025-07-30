@@ -112,8 +112,9 @@ export default function AuthorManuscripts() {
     if (!editTarget || !editFile) return setStatusMsg('Attach a replacement file');
     setStatusMsg('Re-uploading …');
 
-    const safe = editFile.name.replace(/\s+/g, '_');
-    const path = `${uid}/${Date.now()}-${safe}`;
+    const safe = editFile.name.replace(/\s+/g, '_');  // File Name Sanitization
+    const path = `${uid}/${Date.now()}-${safe}`;      //Need to adjust the path later (e.g. add manuscript id-filename)
+    // separate folder for each author or each book is ok. each author is preferable.
 
     const { error: upErr } = await supabase.storage.from('manuscripts').upload(path, editFile, {
       cacheControl: '3600',
