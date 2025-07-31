@@ -231,10 +231,11 @@ export default function PublisherPage() {
 
     if (form.image) {
       const file     = form.image;
-      const fileName = `${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from('book-covers').upload(fileName, file);
+      const bookTitle = form.name.replace(/\s+/g, '_');
+      const filePath = `${bookTitle}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from('book-covers').upload(filePath, file);
       if (upErr) { setStatus('❌ Failed to upload image'); return; }
-      const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(filePath);
       imageUrl = urlData.publicUrl;
     }
 

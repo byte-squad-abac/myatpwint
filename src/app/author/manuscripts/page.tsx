@@ -24,7 +24,7 @@ export default function AuthorManuscripts() {
 
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [title, setTitle] = useState('');
-  const [authorname, setAuthorname] = useState<any[]>([]);
+  const [authorname, setAuthorname] = useState<string>('Author');
   const [description, setDescription] = useState('');
   const [newFile, setNewFile] = useState<File>();
   const [statusMsg, setStatusMsg] = useState('');
@@ -35,19 +35,24 @@ export default function AuthorManuscripts() {
   // Editor ID is hardcoded for now. Don't delete this line.
   const EDITOR_ID = '512f12f6-2c19-486c-9dcf-0d46720950b0'; // editor's user.id (myatpwint.editor@gmail.com)
 
-    useEffect(() => {
-    const fetchAuthors = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        // .eq('role', 'author');
 
-      // if (data) setAuthorname(data);
-      setAuthorname(data || []);
-    };
-    fetchAuthors();
-  }, [supabase]);
+const fetchAuthors = async () => { // Function to fetch author name
+  if (!session) return;
 
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('author_name')
+    .eq('id', session.user.id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching author name:", error);
+    return;
+  }
+
+  const authorName = data?.author_name || 'Author';  // Fallback to 'Author' if no name
+  setAuthorname(authorName);  // Store it in state or use as needed
+};
 
   const loadManuscripts = async () => {
     if (!session) return;
@@ -64,6 +69,7 @@ export default function AuthorManuscripts() {
 
   useEffect(() => {
     loadManuscripts();
+    if (session) fetchAuthors();
   }, [session]);
 
   if (session === null) return <p style={{ padding: 40 }}>Loading session…</p>;
@@ -78,7 +84,10 @@ export default function AuthorManuscripts() {
     setStatusMsg('Uploading …');
 
     const safeName = newFile.name.replace(/\s+/g, '_');
-    const path = `${uid}/${Date.now()}-${safeName}`;
+    const safeAuthorName = (authorname ?? session?.user.email ?? 'Unnamed').replace(/\s+/g, '_');
+    const safeTitle = title.replace(/\s+/g, '_');
+    const path = `${safeAuthorName}/${safeTitle}/${Date.now()}-${safeName}`;
+
 
     const { error: upErr } = await supabase.storage.from('manuscripts').upload(path, newFile, {
       cacheControl: '3600',
@@ -113,8 +122,10 @@ export default function AuthorManuscripts() {
     setStatusMsg('Re-uploading …');
 
     const safe = editFile.name.replace(/\s+/g, '_');  // File Name Sanitization
-    const path = `${uid}/${Date.now()}-${safe}`;      //Need to adjust the path later (e.g. add manuscript id-filename)
-    // separate folder for each author or each book is ok. each author is preferable.
+    const safeAuthorName = (authorname ?? session?.user.email ?? 'Unnamed').replace(/\s+/g, '_');
+    const safeTitle = editTarget?.title.replace(/\s+/g, '_');
+    const path = `${safeAuthorName}/${safeTitle}/${Date.now()}-${safe}`;
+
 
     const { error: upErr } = await supabase.storage.from('manuscripts').upload(path, editFile, {
       cacheControl: '3600',
