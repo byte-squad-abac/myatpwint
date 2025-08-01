@@ -116,7 +116,7 @@ export default function PublisherPage() {
 
       const email = session.user.email;
       const { data, error } = await supabase
-        .from('publishers')
+        .from('profiles')
         .select('email, role')
         .eq('email', email)
         .single();
@@ -203,7 +203,24 @@ export default function PublisherPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('books').delete().eq('id', id);
+    await supabase.from('books').delete().eq('id', id); //Deleting the book
+
+    const bookToDelete = books.find(b => b.id === id); //Finding the book deleted
+
+    // If that book had a manuscript, update its status
+    if (bookToDelete?.manuscript_id) {
+    const { error } = await supabase
+      .from('manuscripts')
+      .update({ status: 'waiting_upload' })
+      .eq('id', bookToDelete.manuscript_id);
+
+    if (error) {
+      console.error('❌ Manuscript status update failed:', error.message);
+    } else {
+      console.log('✅ Manuscript status set to waiting_upload');
+    }
+  }
+    setStatus('✅ Book deleted');
     fetchBooks();
   };
 
@@ -214,10 +231,11 @@ export default function PublisherPage() {
 
     if (form.image) {
       const file     = form.image;
-      const fileName = `${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from('book-covers').upload(fileName, file);
+      const bookTitle = form.name.replace(/\s+/g, '_');
+      const filePath = `${bookTitle}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from('book-covers').upload(filePath, file);
       if (upErr) { setStatus('❌ Failed to upload image'); return; }
-      const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from('book-covers').getPublicUrl(filePath);
       imageUrl = urlData.publicUrl;
     }
 
@@ -421,7 +439,7 @@ if (isPublisher === null) {
         {books.map((book) => (
           <li key={book.id}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <img src={book.image_url} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
+              <img src={book.image_url || "null"} alt={book.name} style={{ width: 200, height: 'auto', objectFit: 'cover', borderRadius: 6 }} />
             </div>
 
             <div className="book-info">
