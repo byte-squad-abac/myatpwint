@@ -1,84 +1,372 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
   Paper,
   Typography,
-  Button,
   Box,
-  Alert,
   CircularProgress,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
+  Fade,
+  Grow,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
-  CloudUpload,
-  Book,
-  Delete,
-  Visibility,
+  AutoStories,
+  TrendingUp,
 } from '@mui/icons-material';
+import supabaseClient from '@/lib/supabaseClient';
 
-interface LibraryBook {
-  id: string;
-  name: string;
-  fileName: string;
-  file: File | null;
-  size: string;
-  uploadDate: string;
+// Import components
+import BookshelfGrid from './components/BookshelfGrid';
+import SearchAndFilter from './components/SearchAndFilter';
+import EmptyBookshelf from './components/EmptyBookshelf';
+import LoadingBookshelf from './components/LoadingBookshelf';
+import { LibraryBook } from './components/BookCard';
+
+// Constants
+const BACKGROUND_STYLES = {
+  background: `
+    radial-gradient(ellipse at top left, rgba(139, 69, 19, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at top right, rgba(160, 82, 45, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom center, rgba(205, 133, 63, 0.08) 0%, transparent 70%),
+    linear-gradient(135deg, 
+      rgba(245, 245, 220, 0.3) 0%, 
+      transparent 25%,
+      rgba(222, 184, 135, 0.2) 50%,
+      transparent 75%,
+      rgba(245, 245, 220, 0.3) 100%
+    )
+  `,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: `
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 100px,
+        rgba(139, 69, 19, 0.02) 100px,
+        rgba(139, 69, 19, 0.02) 101px,
+        transparent 101px,
+        transparent 200px
+      )
+    `,
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+};
+
+// Custom hook for purchased books
+function usePurchasedBooks(session: any) {
+  const [books, setBooks] = useState<LibraryBook[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    
+    const loadPurchasedBooks = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        console.log('🔍 Loading books for user:', session.user.id);
+        
+        const { data: purchases, error } = await supabaseClient
+          .from('purchases')
+          .select(`
+            *,
+            books (
+              id,
+              name,
+              author,
+              description,
+              category,
+              image_url,
+              file_url,
+              tags,
+              published_date,
+              edition
+            )
+          `)
+          .eq('user_id', session.user.id);
+
+        console.log('📚 Purchases query result:', { purchases, error });
+        
+        if (error) throw error;
+
+        const transformedBooks: LibraryBook[] = purchases?.map((purchase: any) => ({
+          id: purchase.books.id,
+          name: purchase.books.name,
+          fileName: `${purchase.books.name}.pdf`,
+          size: 'Unknown',
+          uploadDate: purchase.purchased_at,
+          file: null,
+          source: 'purchased',
+          fileUrl: purchase.books.file_url,
+          author: purchase.books.author,
+          description: purchase.books.description,
+          category: purchase.books.category,
+          imageUrl: purchase.books.image_url,
+          tags: purchase.books.tags || [],
+          purchasePrice: purchase.purchase_price,
+          purchaseDate: purchase.purchased_at
+        })) || [];
+
+        setBooks(transformedBooks);
+      } catch (error) {
+        console.error('Error loading purchased books:', error);
+        setError('Failed to load your purchased books. Please refresh the page.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadPurchasedBooks();
+  }, [session?.user?.id]);
+
+  return { books, isLoading, error };
 }
 
-export default function MyLibraryPage() {
+// Custom hook for book filtering and search
+function useBookFiltering(books: LibraryBook[]) {
+  const [filteredBooks, setFilteredBooks] = useState<LibraryBook[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('uploadDate');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    let filtered = [...books];
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(book => 
+        book.name.toLowerCase().includes(searchLower) ||
+        book.fileName.toLowerCase().includes(searchLower) ||
+        book.author?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(book => {
+        const fileExtension = book.fileName.split('.').pop()?.toLowerCase();
+        return fileExtension === filterType;
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'uploadDate':
+          aValue = new Date(a.uploadDate);
+          bValue = new Date(b.uploadDate);
+          break;
+        case 'author':
+          aValue = (a.author || '').toLowerCase();
+          bValue = (b.author || '').toLowerCase();
+          break;
+        default:
+          aValue = a.uploadDate;
+          bValue = b.uploadDate;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredBooks(filtered);
+  }, [books, searchTerm, filterType, sortBy, sortOrder]);
+
+  return {
+    filteredBooks,
+    searchTerm,
+    filterType,
+    sortBy,
+    sortOrder,
+    viewMode,
+    setSearchTerm,
+    setFilterType,
+    setSortBy,
+    setSortOrder,
+    setViewMode
+  };
+}
+
+// Header component
+function BookshelfHeader({ books, isMobile, theme }: { books: LibraryBook[], isMobile: boolean, theme: any }) {
+  const recentBooks = books.filter(b => 
+    new Date(b.purchaseDate || b.uploadDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  ).length;
+
+  return (
+    <Fade in={true} timeout={600}>
+      <Box sx={{ mb: 4 }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            justifyContent: 'space-between', 
+            alignItems: isMobile ? 'flex-start' : 'center',
+            mb: 2,
+            gap: 2,
+          }}
+        >
+          <Box>
+            <Typography 
+              variant="h2" 
+              sx={{ 
+                fontWeight: 900,
+                background: 'linear-gradient(45deg, #8B4513, #D2691E, #CD853F)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 1,
+                fontSize: isMobile ? '2.5rem' : '3.5rem',
+                textShadow: '0 4px 8px rgba(139, 69, 19, 0.3)',
+              }}
+            >
+              Bookshelf
+            </Typography>
+            <Typography 
+              variant="h6" 
+              color="text.secondary" 
+              sx={{ 
+                fontWeight: 400,
+                fontSize: isMobile ? '1rem' : '1.25rem',
+              }}
+            >
+              Your purchased books • {books.length} book{books.length !== 1 ? 's' : ''} owned
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {[
+              { icon: <AutoStories />, label: 'Total Books', value: books.length },
+              { icon: <TrendingUp />, label: 'This Month', value: recentBooks },
+            ].map((stat, index) => (
+              <Grow key={index} in={true} timeout={600 + index * 200}>
+                <Paper
+                  elevation={2}
+                  sx={{
+                    p: 2,
+                    minWidth: 120,
+                    textAlign: 'center',
+                    background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Box sx={{ color: theme.palette.primary.main, mb: 1 }}>
+                    {stat.icon}
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {stat.value}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {stat.label}
+                  </Typography>
+                </Paper>
+              </Grow>
+            ))}
+          </Box>
+        </Box>
+      </Box>
+    </Fade>
+  );
+}
+
+
+export default function BookshelfPage() {
   const session = useSession();
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [books, setBooks] = useState<LibraryBook[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  // Custom hooks
+  const { books, isLoading, error } = usePurchasedBooks(session);
+  const {
+    filteredBooks,
+    searchTerm,
+    filterType,
+    sortBy,
+    sortOrder,
+    viewMode,
+    setSearchTerm,
+    setFilterType,
+    setSortBy,
+    setSortOrder,
+    setViewMode
+  } = useBookFiltering(books);
 
-  // Ensure we're on the client side
+  // Session management
+  const [isClient, setIsClient] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+
   useEffect(() => {
     setIsClient(true);
+    const timer = setTimeout(() => setIsSessionLoading(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Load books from localStorage on component mount
   useEffect(() => {
-    if (!isClient) return;
-    
-    const savedBooks = localStorage.getItem('myLibraryBooks');
-    if (savedBooks) {
-      try {
-        const parsedBooks = JSON.parse(savedBooks);
-        // Note: We can't restore File objects from localStorage, so we'll need to handle this differently
-        // For now, we'll just show the book names and ask user to re-upload if they want to read
-        setBooks(parsedBooks.map((book: any) => ({
-          ...book,
-          file: null as any, // File objects can't be serialized
-        })));
-      } catch (error) {
-        console.error('Error loading books from localStorage:', error);
-      }
+    if (!isSessionLoading && !session) {
+      router.push('/login');
     }
-  }, [isClient]);
+  }, [session, router, isSessionLoading]);
 
-  // Redirect if not logged in
-  if (!session) {
-    router.push('/login');
-    return null;
-  }
+  // Event handlers
+  const handleReadBook = useCallback((bookId: string) => {
+    router.push(`/my-library/read?id=${bookId}`);
+  }, [router]);
 
-  // Don't render until we're on the client
-  if (!isClient) {
+  const handleDeleteBook = useCallback((bookId: string) => {
+    // For purchased books, this would be "hide from library" in a real app
+    if (window.confirm('Are you sure you want to remove this book from your library view?')) {
+      console.log(`Would remove book ${bookId} from library view`);
+    }
+  }, []);
+
+  const handleSearchChange = useCallback((newSearchTerm: string) => {
+    setSearchTerm(newSearchTerm);
+  }, [setSearchTerm]);
+
+  const handleFilterChange = useCallback((newFilterType: string) => {
+    setFilterType(newFilterType);
+  }, [setFilterType]);
+
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+  }, [setSortBy, setSortOrder]);
+
+  const handleViewModeChange = useCallback((newViewMode: 'grid' | 'list') => {
+    setViewMode(newViewMode);
+  }, [setViewMode]);
+
+  // Loading states
+  if (isSessionLoading || !isClient) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-          📚 My Library
+          Bookshelf
         </Typography>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
@@ -87,213 +375,74 @@ export default function MyLibraryPage() {
     );
   }
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Check file type
-      const allowedTypes = ['.txt', '.pdf', '.epub'];
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      
-      if (!allowedTypes.includes(fileExtension)) {
-        setError('Please select a .txt, .pdf, or .epub file');
-        return;
-      }
+  if (!session) {
+    return null;
+  }
 
-      // Check file size (50MB limit)
-      if (file.size > 50 * 1024 * 1024) {
-        setError('File size must be less than 50MB');
-        return;
-      }
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
+          Bookshelf
+        </Typography>
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Typography color="error" variant="h6">{error}</Typography>
+        </Box>
+      </Container>
+    );
+  }
 
-      setError(null);
-      
-      // Create book object
-      const newBook: LibraryBook = {
-        id: Date.now().toString(),
-        name: file.name.replace(/\.[^/.]+$/, ''), // Remove file extension for display
-        fileName: file.name, // Store original file name with extension
-        file: file,
-        size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-        uploadDate: new Date().toLocaleDateString(),
-      };
 
-      // Add to books list
-      setBooks(prev => {
-        const updatedBooks = [...prev, newBook];
-        // Save to localStorage (without the File object)
-        const booksToSave = updatedBooks.map(book => ({
-          id: book.id,
-          name: book.name,
-          fileName: book.fileName,
-          size: book.size,
-          uploadDate: book.uploadDate,
-        }));
-        localStorage.setItem('myLibraryBooks', JSON.stringify(booksToSave));
-        return updatedBooks;
-      });
-      
-      // Clear file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleReadBook = (book: LibraryBook) => {
-    if (!book.file) {
-      setError('This book was loaded from storage. Please re-upload the file to read it.');
-      return;
-    }
-    
-    // Create a temporary URL for the file
-    const fileUrl = URL.createObjectURL(book.file);
-    
-    // Pass fileName (with extension) to the reader
-    router.push(`/my-library/read?file=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(book.name)}&fileName=${encodeURIComponent(book.fileName)}`);
-  };
-
-  const handleDeleteBook = (bookId: string) => {
-    setBooks(prev => {
-      const updatedBooks = prev.filter(book => book.id !== bookId);
-      // Update localStorage
-      const booksToSave = updatedBooks.map(book => ({
-        id: book.id,
-        name: book.name,
-        fileName: book.fileName,
-        size: book.size,
-        uploadDate: book.uploadDate,
-      }));
-      localStorage.setItem('myLibraryBooks', JSON.stringify(booksToSave));
-      return updatedBooks;
-    });
-  };
-
-  const triggerFileUpload = () => {
-    fileInputRef.current?.click();
-  };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-        📚 My Library
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Upload and read your personal book collection. Your books are stored locally for privacy.
-      </Typography>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        position: 'relative',
+        overflow: 'hidden',
+        ...BACKGROUND_STYLES,
+      }}
+    >
+      <Container 
+        maxWidth="xl" 
+        sx={{ 
+          py: 4,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        <BookshelfHeader books={books} isMobile={isMobile} theme={theme} />
 
-      {/* Upload Section */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          Add New Book
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Supported formats: .txt, .pdf, .epub (max 50MB)
-        </Typography>
-        
-        <input
-          ref={fileInputRef}
-          accept=".txt,.pdf,.epub"
-          style={{ display: 'none' }}
-          type="file"
-          onChange={handleFileSelect}
-        />
-        
-        <Button
-          variant="contained"
-          startIcon={<CloudUpload />}
-          onClick={triggerFileUpload}
-          sx={{ 
-            bgcolor: '#641B2E',
-            '&:hover': { bgcolor: '#BE5B50' }
-          }}
-        >
-          Upload Book File
-        </Button>
+        {isLoading ? (
+          <LoadingBookshelf />
+        ) : books.length === 0 ? (
+          <EmptyBookshelf onUploadClick={() => router.push('/books')} />
+        ) : (
+          <>
+            <SearchAndFilter
+              books={books}
+              onSearchChange={handleSearchChange}
+              onFilterChange={handleFilterChange}
+              onSortChange={handleSortChange}
+              onViewModeChange={handleViewModeChange}
+              searchTerm={searchTerm}
+              filterType={filterType}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              viewMode={viewMode}
+            />
 
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
+            <BookshelfGrid
+              books={filteredBooks}
+              loading={false}
+              onReadBook={handleReadBook}
+              onDeleteBook={handleDeleteBook}
+              searchTerm={searchTerm}
+              filterType={filterType}
+            />
+          </>
         )}
-      </Paper>
-
-      {/* Books List */}
-      {books.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Book sx={{ fontSize: 64, color: '#ccc', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            Your library is empty
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Upload your first book to get started!
-          </Typography>
-        </Paper>
-      ) : (
-        <Grid container spacing={3}>
-          {books.map((book) => (
-            <Grid item xs={12} sm={6} md={4} key={book.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" gutterBottom>
-                    {book.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Size: {book.size}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Added: {book.uploadDate}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  {book.file ? (
-                    <Button
-                      size="small"
-                      startIcon={<Visibility />}
-                      onClick={() => handleReadBook(book)}
-                      sx={{ color: '#641B2E' }}
-                    >
-                      Read
-                    </Button>
-                  ) : (
-                    <Button
-                      size="small"
-                      startIcon={<CloudUpload />}
-                      onClick={() => {
-                        setError('Please re-upload this book file to read it.');
-                        triggerFileUpload();
-                      }}
-                      sx={{ color: '#f39c12' }}
-                    >
-                      Re-upload
-                    </Button>
-                  )}
-                  <Button
-                    size="small"
-                    startIcon={<Delete />}
-                    onClick={() => handleDeleteBook(book.id)}
-                    sx={{ color: '#e74c3c' }}
-                  >
-                    Delete
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-
-      {/* Info Box */}
-      <Paper sx={{ p: 3, mt: 4, bgcolor: '#f8f9fa' }}>
-        <Typography variant="h6" gutterBottom>
-          ℹ️ About My Library
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          • Books are stored locally in your browser for privacy<br/>
-          • Supported formats: TXT, PDF, EPUB<br/>
-          • Maximum file size: 50MB<br/>
-          • Your books will be cleared when you clear browser data
-        </Typography>
-      </Paper>
-    </Container>
+      </Container>
+    </Box>
   );
 } 
