@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from '@mui/icons-material';
 import supabaseClient from '@/lib/supabaseClient';
+import { useOfflineBooks } from '@/hooks/useOfflineBooks';
 
 // Import components
 import BookshelfGrid from './components/BookshelfGrid';
@@ -69,6 +70,7 @@ function usePurchasedBooks(session: any) {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { offlineBooks } = useOfflineBooks();
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -80,6 +82,70 @@ function usePurchasedBooks(session: any) {
       try {
         console.log('🔍 Loading books for user:', session.user.id);
         
+        // Check if we're offline
+        const isOffline = !navigator.onLine;
+        
+        // If offline, only show offline books
+        if (isOffline) {
+          console.log('🌐 Device is offline, loading offline books only');
+          if (offlineBooks && offlineBooks.length > 0) {
+            const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+              id: offlineBook.id,
+              name: offlineBook.title,
+              fileName: `${offlineBook.title}.pdf`,
+              size: 'Downloaded',
+              uploadDate: offlineBook.downloadDate,
+              file: null,
+              source: 'indexeddb',
+              fileUrl: 'offline',
+              author: offlineBook.author || 'Unknown Author',
+              description: 'Available offline',
+              category: '',
+              image_url: '',
+              tags: [],
+              published_date: offlineBook.downloadDate,
+              edition: '',
+            }));
+            
+            setBooks(libraryBooks);
+            setIsLoading(false);
+            return;
+          } else {
+            // No offline books available
+            setBooks([]);
+            setError('No books available offline. Download books when online to read them offline.');
+            setIsLoading(false);
+            return;
+          }
+        }
+        
+        // If online, first show offline books if available, then try to get online books
+        if (offlineBooks && offlineBooks.length > 0) {
+          console.log('📱 Found offline books:', offlineBooks.length);
+          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+            id: offlineBook.id,
+            name: offlineBook.title,
+            fileName: `${offlineBook.title}.pdf`,
+            size: 'Downloaded',
+            uploadDate: offlineBook.downloadDate,
+            file: null,
+            source: 'indexeddb',
+            fileUrl: 'offline',
+            author: offlineBook.author || 'Unknown Author',
+            description: 'Available offline',
+            category: '',
+            image_url: '',
+            tags: [],
+            published_date: offlineBook.downloadDate,
+            edition: '',
+          }));
+          
+          setBooks(libraryBooks);
+          setIsLoading(false);
+          return;
+        }
+        
+        // If online and no offline books, try online
         const { data: purchases, error } = await supabaseClient
           .from('purchases')
           .select(`
@@ -124,14 +190,39 @@ function usePurchasedBooks(session: any) {
         setBooks(transformedBooks);
       } catch (error) {
         console.error('Error loading purchased books:', error);
-        setError('Failed to load your purchased books. Please refresh the page.');
+        
+        // If we have offline books, show them as fallback
+        if (offlineBooks && offlineBooks.length > 0) {
+          console.log('📱 Falling back to offline books');
+          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+            id: offlineBook.id,
+            name: offlineBook.title,
+            fileName: `${offlineBook.title}.pdf`,
+            size: 'Downloaded',
+            uploadDate: offlineBook.downloadDate,
+            file: null,
+            source: 'indexeddb',
+            fileUrl: 'offline',
+            author: offlineBook.author || 'Unknown Author',
+            description: 'Available offline',
+            category: '',
+            image_url: '',
+            tags: [],
+            published_date: offlineBook.downloadDate,
+            edition: '',
+          }));
+          setBooks(libraryBooks);
+          setError(null); // Clear error since we have offline books
+        } else {
+          setError('Unable to load your library. Try going online or download books first.');
+        }
       } finally {
         setIsLoading(false);
       }
     };
     
     loadPurchasedBooks();
-  }, [session?.user?.id]);
+  }, [session?.user?.id, offlineBooks]);
 
   return { books, isLoading, error };
 }

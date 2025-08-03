@@ -1,0 +1,78 @@
+{
+  "name": "Myat Pwint Publishing House",
+  "short_name": "MyatPwint",
+  "description": "Digital Publishing Platform for Myanmar Literature",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#641B2E",
+  "theme_color": "#641B2E",
+  "categories": ["books", "education", "literature"],
+  "lang": "en-US",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Continue Reading",
+      "short_name": "Continue",
+      "description": "Resume your current book",
+      "url": "/my-library?continue=true",
+      "icons": [
+        {
+          "src": "/icons/shortcut-continue.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Browse Books",
+      "short_name": "Browse",
+      "description": "Explore our book collection",
+      "url": "/books",
+      "icons": [
+        {
+          "src": "/icons/shortcut-browse.svg",
+          "sizes": "96x96", 
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "My Library",
+      "short_name": "Library",
+      "description": "View your purchased books",
+      "url": "/my-library",
+      "icons": [
+        {
+          "src": "/icons/shortcut-library.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

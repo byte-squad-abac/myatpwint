@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 
 import { useCartStore } from '@/lib/store/cartStore';
+import { PWAProvider } from '@/components/PWA/PWAProvider';
 import type { CSSProperties } from 'react';
 
 /* ============================================================================
@@ -78,10 +79,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#641B2E" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Myat Pwint" />
+        <meta name="description" content="Digital Publishing Platform for Myanmar Literature" />
+        
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+        <link rel="icon" type="image/svg+xml" href="/icons/icon-192x192.svg" />
+        
+        {/* Preload critical resources */}
+        <link rel="preload" href="/sw.js" as="script" />
+      </head>
       <body>
         <SessionContextProvider supabaseClient={browserSupabaseClient}>
-          <HeaderWithRoleAwareNav />
-          <main style={mainStyle}>{children}</main>
+          <PWAProvider>
+            <HeaderWithRoleAwareNav />
+            <main style={mainStyle}>{children}</main>
+          </PWAProvider>
         </SessionContextProvider>
       </body>
     </html>
