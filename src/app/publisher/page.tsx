@@ -13,6 +13,7 @@ import './publisher.css';
 interface Book {
   id: string;
   manuscript_id: string | null;
+  file_url: string | null;
   name: string;
   price: number;
   author: string;
@@ -228,6 +229,21 @@ export default function PublisherPage() {
     e.preventDefault();
     setStatus('Uploading...');
     let imageUrl = preview ?? '';
+    let fileUrl = null;
+
+    if (form.manuscript_id) {
+      const { data: manuscriptData, error: manuscriptErr } = await supabase
+        .from('manuscripts')
+        .select('file_url')
+        .eq('id', form.manuscript_id)
+        .single();
+
+      if (manuscriptErr) {
+        console.error('❌ Failed to fetch manuscript file_url:', manuscriptErr.message);
+      } else {
+        fileUrl = manuscriptData?.file_url;
+      }
+    }
 
     if (form.image) {
       const file     = form.image;
@@ -241,6 +257,7 @@ export default function PublisherPage() {
 
     const bookData = {
       manuscript_id : form.manuscript_id || null,
+      file_url: fileUrl || null,
       name          : form.name,
       author        : form.author,
       price         : parseFloat(form.price),
@@ -457,10 +474,14 @@ if (isPublisher === null) {
               <button onClick={() => openEdit(book)} className="edit-button">✏️ Edit</button>
               <button onClick={() => handleDelete(book.id)} className="delete-button">🗑 Delete</button>
               {/* ---------- VIEW button ---------- */}
-              {book.manuscript_id && (
+              {book.manuscript_id && book.file_url && (
+                <div>
                 <button onClick={() => router.push(`/books/${book.id}`)} className="view-button">
                   🔍 View
                 </button>
+
+                <a href={book.file_url} target="_blank" rel="noopener noreferrer">View Finalized Manuscript</a>
+                </div>
               )}
             </div>
           </li>
