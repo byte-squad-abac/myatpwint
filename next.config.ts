@@ -103,10 +103,10 @@ export default withPWA({
       }
     },
     {
-      urlPattern: /^https:\/\/.*\//,
+      urlPattern: /^https:\/\/deploy-preview-\d+--myatpwint-pre\.netlify\.app\/(?!_next|api|favicon|icon|logo|manifest|sw\.js|workbox)/,
       handler: 'NetworkFirst',
       options: {
-        cacheName: 'html-cache',
+        cacheName: 'pages-cache',
         networkTimeoutSeconds: 3,
         expiration: {
           maxEntries: 50,
