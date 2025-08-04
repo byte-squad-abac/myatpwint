@@ -448,7 +448,11 @@ export default function BookshelfPage() {
 
   useEffect(() => {
     if (!isSessionLoading && !session) {
-      router.push('/login');
+      // Check if we're offline and have cached books before redirecting
+      const isOffline = !navigator.onLine;
+      if (!isOffline) {
+        router.push('/login');
+      }
     }
   }, [session, router, isSessionLoading]);
 
@@ -495,7 +499,9 @@ export default function BookshelfPage() {
     );
   }
 
-  if (!session) {
+  // Allow offline access even without session if we have cached books
+  const isOffline = !navigator.onLine;
+  if (!session && !isOffline) {
     return null;
   }
 
