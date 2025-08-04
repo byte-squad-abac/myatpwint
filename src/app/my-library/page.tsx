@@ -126,6 +126,8 @@ function usePurchasedBooks(session: any) {
               tags: [],
               published_date: offlineBook.downloadDate,
               edition: '',
+              price: 0,
+              created_at: offlineBook.downloadDate,
             }));
             
             setBooks(libraryBooks);
@@ -140,9 +142,10 @@ function usePurchasedBooks(session: any) {
           }
         }
         
-        // If online, first show offline books if available, then try to get online books
+        // Only reach here if online
+        // First show offline books if available to avoid loading delay
         if (offlineBooks && offlineBooks.length > 0) {
-          console.log('📱 Found offline books:', offlineBooks.length);
+          console.log('📱 Found offline books, showing immediately:', offlineBooks.length);
           const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
             id: offlineBook.id,
             name: offlineBook.title,
@@ -159,11 +162,13 @@ function usePurchasedBooks(session: any) {
             tags: [],
             published_date: offlineBook.downloadDate,
             edition: '',
+            price: 0,
+            created_at: offlineBook.downloadDate,
           }));
           
           setBooks(libraryBooks);
           setIsLoading(false);
-          return;
+          // Continue to also try loading online books
         }
         
         // If online, try to load from Supabase (requires session)
@@ -210,8 +215,13 @@ function usePurchasedBooks(session: any) {
           author: purchase.books.author,
           description: purchase.books.description,
           category: purchase.books.category,
+          image_url: purchase.books.image_url,
           imageUrl: purchase.books.image_url,
           tags: purchase.books.tags || [],
+          published_date: purchase.books.published_date || '',
+          edition: purchase.books.edition || '',
+          price: purchase.books.price || 0,
+          created_at: purchase.books.created_at || purchase.purchased_at,
           purchasePrice: purchase.purchase_price,
           purchaseDate: purchase.purchased_at
         })) || [];
@@ -239,6 +249,8 @@ function usePurchasedBooks(session: any) {
             tags: [],
             published_date: offlineBook.downloadDate,
             edition: '',
+            price: 0,
+            created_at: offlineBook.downloadDate,
           }));
           setBooks(libraryBooks);
           setError(null); // Clear error since we have offline books
