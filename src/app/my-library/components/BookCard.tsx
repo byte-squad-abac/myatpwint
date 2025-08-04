@@ -18,6 +18,11 @@ import {
   AutoStories,
 } from '@mui/icons-material';
 
+// Import centralized types and utilities
+import { LibraryBook, BookCardProps, FileType } from '@/lib/types';
+import { getFileExtension } from '@/lib/utils';
+import { APP_CONSTANTS } from '@/lib/config';
+
 // Constants
 const BOOK_COLOR_SETS = [
   { primary: '#8B4513', secondary: '#A0522D', spine: '#654321' },
@@ -69,30 +74,12 @@ const generatePlaceholderCover = (name: string) => {
 };
 
 const getFileType = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  const extension = getFileExtension(fileName);
   return FILE_TYPE_CONFIG[extension as keyof typeof FILE_TYPE_CONFIG] || FILE_TYPE_CONFIG.default;
 };
 
-export interface LibraryBook {
-  id: string;
-  name: string;
-  fileName: string;
-  file: File | null;
-  size: string;
-  uploadDate: string;
-  source: 'indexeddb' | 'supabase' | 'purchased';
-  fileUrl?: string;
-  author?: string;
-  description?: string;
-  category?: string;
-  imageUrl?: string;
-  tags?: string[];
-  purchasePrice?: number;
-  purchaseDate?: string;
-}
-
-interface BookCardProps {
-  book: LibraryBook;
+// Using centralized BookCardProps interface from types
+interface ExtendedBookCardProps extends BookCardProps {
   onRead: (bookId: string) => void;
   onDelete: (bookId: string) => void;
   loading?: boolean;
@@ -185,7 +172,7 @@ function ActionButtons({
   );
 }
 
-export default function BookCard({ book, onRead, onDelete, loading = false, index = 0 }: BookCardProps) {
+export default function BookCard({ book, onRead, onDelete, loading = false, index = 0 }: ExtendedBookCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
 
@@ -462,4 +449,3 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   );
 }
 
-export type { BookCardProps };

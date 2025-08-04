@@ -16,25 +16,12 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useSession } from '@supabase/auth-helpers-react';
 import supabaseClient from '@/lib/supabaseClient';
+import { Book } from '@/lib/types';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
-
-interface Book {
-  id: string;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
 
 interface BookDetailPageProps {
   book: Book;

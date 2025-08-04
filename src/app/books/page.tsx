@@ -2,22 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabaseClient';
+import { Book } from '@/lib/types';
 import './books.css';
-
-
-interface Book {
-  id: string;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
 
 export default function BooksPage() {
 

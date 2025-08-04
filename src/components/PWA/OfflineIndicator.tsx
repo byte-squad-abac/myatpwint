@@ -63,7 +63,7 @@ export default function OfflineIndicator() {
         >
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              You're offline
+              You&apos;re offline
             </Typography>
             <Typography variant="caption">
               You can still read downloaded books and browse cached content
@@ -94,7 +94,7 @@ export default function OfflineIndicator() {
           icon={<OnlineIcon sx={{ color: 'white' }} />}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            You're back online!
+            You&apos;re back online!
           </Typography>
         </Alert>
       </Snackbar>

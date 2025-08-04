@@ -2,21 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { offlineStorage } from '@/lib/pwa/offlineStorage';
-
-interface OfflineBook {
-  id: string;
-  title: string;
-  author: string;
-  fileUrl: string;
-  fileSize: number;
-  downloadDate: Date;
-  lastAccessed: Date;
-  progress?: {
-    currentPage: number;
-    totalPages: number;
-    percentage: number;
-  };
-}
+import { OfflineBook } from '@/lib/types';
 
 interface UseOfflineBooksReturn {
   offlineBooks: OfflineBook[];

@@ -1,19 +1,6 @@
 'use client';
 
-interface OfflineBook {
-  id: string;
-  title: string;
-  author: string;
-  fileUrl: string;
-  fileSize: number;
-  downloadDate: Date;
-  lastAccessed: Date;
-  progress?: {
-    currentPage: number;
-    totalPages: number;
-    percentage: number;
-  };
-}
+import { OfflineBook } from '../types';
 
 class OfflineStorageManager {
   private dbName = 'MyatPwintOfflineDB';

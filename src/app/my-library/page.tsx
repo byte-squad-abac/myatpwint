@@ -26,7 +26,8 @@ import BookshelfGrid from './components/BookshelfGrid';
 import SearchAndFilter from './components/SearchAndFilter';
 import EmptyBookshelf from './components/EmptyBookshelf';
 import LoadingBookshelf from './components/LoadingBookshelf';
-import { LibraryBook } from './components/BookCard';
+import { LibraryBook } from '@/lib/types';
+import { getFileExtension } from '@/lib/utils';
 
 // Constants
 const BACKGROUND_STYLES = {
@@ -252,7 +253,7 @@ function useBookFiltering(books: LibraryBook[]) {
     // Apply type filter
     if (filterType !== 'all') {
       filtered = filtered.filter(book => {
-        const fileExtension = book.fileName.split('.').pop()?.toLowerCase();
+        const fileExtension = getFileExtension(book.fileName);
         return fileExtension === filterType;
       });
     }

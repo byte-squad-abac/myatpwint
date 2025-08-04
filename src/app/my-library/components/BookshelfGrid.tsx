@@ -9,7 +9,9 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import BookCard, { LibraryBook } from './BookCard';
+import BookCard from './BookCard';
+import { LibraryBook } from '@/lib/types';
+import { getFileExtension } from '@/lib/utils';
 import EmptyBookshelf from './EmptyBookshelf';
 import LoadingBookshelf from './LoadingBookshelf';
 
@@ -48,7 +50,7 @@ export default function BookshelfGrid({
     };
 
     books.forEach(book => {
-      const extension = book.fileName.split('.').pop()?.toLowerCase();
+      const extension = getFileExtension(book.fileName);
       if (extension && groups[extension]) {
         groups[extension].push(book);
       } else {
