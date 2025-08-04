@@ -454,7 +454,10 @@ export default function BookshelfPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const timer = setTimeout(() => setIsSessionLoading(false), 1000);
+    // If offline, reduce session loading timeout to prioritize offline books
+    const isOffline = !navigator.onLine;
+    const timeout = isOffline ? 500 : 1000;
+    const timer = setTimeout(() => setIsSessionLoading(false), timeout);
     return () => clearTimeout(timer);
   }, []);
 
@@ -462,11 +465,12 @@ export default function BookshelfPage() {
     if (!isSessionLoading && !session) {
       // Check if we're offline and have cached books before redirecting
       const isOffline = !navigator.onLine;
-      if (!isOffline) {
+      console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length);
+      if (!isOffline && books.length === 0) {
         router.push('/login');
       }
     }
-  }, [session, router, isSessionLoading]);
+  }, [session, router, isSessionLoading, books.length]);
 
   // Event handlers
   const handleReadBook = useCallback((bookId: string) => {
@@ -497,8 +501,9 @@ export default function BookshelfPage() {
     setViewMode(newViewMode);
   }, [setViewMode]);
 
-  // Loading states
-  if (isSessionLoading || !isClient) {
+  // Loading states - allow offline books to load even during session loading
+  if ((isSessionLoading || !isClient) && books.length === 0) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
@@ -506,6 +511,11 @@ export default function BookshelfPage() {
         </Typography>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
+          {isOffline && (
+            <Typography sx={{ ml: 2 }}>
+              Loading offline books...
+            </Typography>
+          )}
         </Box>
       </Container>
     );
