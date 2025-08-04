@@ -15,6 +15,7 @@ export default function AuthorManagePage() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authors, setAuthors] = useState<any[]>([]);
+  
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -135,17 +136,30 @@ export default function AuthorManagePage() {
         <p>No approved authors.</p>
       ) : (
         authors.filter(a => a.role === 'author').map(author => (
-          <div key={author.id} style={{ border: '1px solid #ccc', padding: 12, marginBottom: 12 }} 
+          <div key={author.id} style={{ border: '1px solid #ccc', borderRadius: 10, padding: 16, marginBottom: 16, backgroundColor: '#fff',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05)', }} 
   >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div>
             <strong>{author.name}</strong><br />
             Email: {author.email}<br />
             Phone: {author.phone}
+            </div>
             <button 
-            style={{ right: 70, position: 'absolute' }}
+            style={{ padding: '6px 12px',
+        backgroundColor: '#1a73e8',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 6,
+        fontWeight: 600,
+        cursor: 'pointer',
+        height: 'fit-content' }}
             onClick={() => setActiveAuthorId(activeAuthorId === author.id ? null : author.id)}>Chat</button>
+            </div>
             {activeAuthorId === author.id && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 12  }}>
               <ConversationBox
+                room_id={`${author.id}-${publisherId}`}
                 myId={publisherId}
                 myRole="editor"
                 authorId={author.id}

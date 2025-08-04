@@ -30,6 +30,8 @@ export default function AuthorManuscripts() {
   const [statusMsg, setStatusMsg] = useState('');
   const [editTarget, setEditTarget] = useState<Manuscript | null>(null);
   const [editFile, setEditFile] = useState<File>();
+  const [selectedChat, setSelectedChat] = useState<Manuscript | null>(null);
+
 
 
   // Editor ID is hardcoded for now. Don't delete this line.
@@ -213,20 +215,7 @@ const secondaryButton: React.CSSProperties = {
     {statusMsg && <p style={{ color: '#1a237e' }}>{statusMsg}</p>}
   </form>
 
-  {manuscripts.length > 0 && (
-    <div style={{ marginTop: 48 }}>
-      <h2 style={{ fontSize: '22px', marginBottom: 12 }}>💬 Message with Editor</h2>
-      <ConversationBox
-        myId={uid}
-        myRole="author"
-        authorId={uid}
-        author_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'}
-        editor_name="Editor"
-        sender_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'}
-        editorId={EDITOR_ID}
-      />
-    </div>
-  )}
+  
 
   <h2 style={{ margin: '48px 0 16px', fontSize: '22px' }}>📂 Your Manuscripts</h2>
   <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -283,8 +272,47 @@ const secondaryButton: React.CSSProperties = {
             )}
           </>
         )}
+        <button
+          style={{ ...primaryButton, marginTop: 10 }}
+          onClick={() => setSelectedChat(m)}
+        >
+          💬 Chat
+        </button>
       </li>
+      
     ))}
+    
+    {selectedChat && (
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#fff',
+          border: '1px solid #ccc',
+          padding: 24,
+          borderRadius: 10,
+          zIndex: 2000,
+          width: 'min(520px,90%)',
+        }}
+      >
+        <h3>Chat with Editor (Manuscript: {selectedChat.title})</h3>
+        <ConversationBox
+          room_id={selectedChat.id} // ✅ use manuscript.id as room_id
+          myId={uid}
+          myRole="author"
+          authorId={uid}
+          author_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'}
+          editor_name="Editor"
+          sender_name={session?.user.user_metadata.full_name || session?.user.email || 'Unnamed'}
+          editorId={selectedChat.editor_id ?? EDITOR_ID}
+        />
+        <button onClick={() => setSelectedChat(null)} style={{ marginTop: 12 }}>
+          Close
+        </button>
+      </div>
+    )}
   </ul>
 </div>
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect, FormEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent, useCallback  } from 'react';
 import { useConversation, ChatMessage } from '@/lib/hooks/useConversation';
 
 type Props = {
+  room_id: string;
   authorId: string;
   editorId: string;
   author_name: string;
@@ -25,11 +26,12 @@ export default function ConversationBox(props: Props) {
     }
   }, [messages]);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
+    if (!text.trim()) return;
     sendMessage(text);
     setText('');
-  };
+}, [text, sendMessage]);
 
   if (loading) return <p style={{ padding: 8 }}>Loading chat…</p>;
   if (error) return <p style={{ padding: 8, color: 'red' }}>Chat error: {error.message}</p>;
