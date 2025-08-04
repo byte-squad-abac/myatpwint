@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
-import { TXTReaderProps } from '../types';
+import { TXTReaderProps } from '@/lib/types';
 import { TXTLoadError } from './ReaderErrorBoundary';
 
 // TXTReaderProps is now imported from types

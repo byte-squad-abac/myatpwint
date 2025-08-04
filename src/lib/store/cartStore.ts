@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Book } from '../types';
-
-type DeliveryType = 'physical' | 'digital';
+import { Book, DeliveryType } from '../types';
 
 export interface CartItem {
   book: Book;

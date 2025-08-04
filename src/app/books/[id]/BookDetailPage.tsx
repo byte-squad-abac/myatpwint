@@ -16,7 +16,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useSession } from '@supabase/auth-helpers-react';
 import supabaseClient from '@/lib/supabaseClient';
-import { Book } from '@/lib/types';
+import { Book, DeliveryType } from '@/lib/types';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
@@ -26,8 +26,6 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 interface BookDetailPageProps {
   book: Book;
 }
-
-type DeliveryType = 'physical' | 'digital';
 
 export default function BookDetailPage({ book }: BookDetailPageProps) {
   const router = useRouter();

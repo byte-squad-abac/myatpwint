@@ -138,6 +138,7 @@ export const ERROR_MESSAGES = {
   // Authentication
   INVALID_EMAIL: 'Please enter a valid email address',
   LOGIN_FAILED: 'Invalid email or password',
+  AUTH_ERROR: 'Authentication failed. Please sign in again.',
   
   // Network
   NETWORK_ERROR: 'Network connection error. Please check your internet connection.',
@@ -145,6 +146,7 @@ export const ERROR_MESSAGES = {
   
   // Books & Library
   BOOK_NOT_FOUND: 'Book not found in your library',
+  NOT_FOUND: 'The requested item could not be found',
   DOWNLOAD_FAILED: 'Failed to download book for offline reading',
   
   // PWA

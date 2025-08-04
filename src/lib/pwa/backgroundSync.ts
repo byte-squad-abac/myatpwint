@@ -1,7 +1,7 @@
 'use client';
 
 interface SyncItem {
-  id: string;
+  id: number;
   type: 'purchase' | 'cart' | 'reading-progress';
   data: any;
   timestamp: number;
@@ -62,10 +62,11 @@ class BackgroundSyncManager {
   }
 
   private async requestBackgroundSync(tag: string): Promise<void> {
-    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+    if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
       try {
         const registration = await navigator.serviceWorker.ready;
-        await registration.sync.register(`sync-${tag}`);
+        // TypeScript doesn't have types for Background Sync API yet
+        await (registration as any).sync.register(`sync-${tag}`);
         console.log(`Background sync registered for: ${tag}`);
       } catch (error) {
         console.error('Background sync registration failed:', error);

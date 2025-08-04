@@ -21,7 +21,6 @@ import {
 // Import centralized types and utilities
 import { LibraryBook, BookCardProps, FileType } from '@/lib/types';
 import { getFileExtension } from '@/lib/utils';
-import { APP_CONSTANTS } from '@/lib/config';
 
 // Constants
 const BOOK_COLOR_SETS = [

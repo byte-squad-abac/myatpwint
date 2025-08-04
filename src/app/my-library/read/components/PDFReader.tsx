@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Box, CircularProgress, Alert, Typography } from '@mui/material';
 import { useTheme } from '@/lib/contexts/ThemeContext';
-import { PDFReaderProps } from '../types';
+import { PDFReaderProps } from '@/lib/types';
 import { PDFLoadError } from './ReaderErrorBoundary';
 import { useScrollTouchGestures } from '../hooks/useTouchGestures';
 import styles from './PDFReader.module.css';

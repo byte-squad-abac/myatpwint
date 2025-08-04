@@ -180,6 +180,7 @@ export interface ReaderState {
   error: string | null;
   currentPage: number;
   totalPages: number;
+  progress: number;
   isFullscreen: boolean;
   zoomLevel: number;
 }
@@ -187,21 +188,6 @@ export interface ReaderState {
 // ============================================================================
 // PWA & OFFLINE TYPES
 // ============================================================================
-
-export interface OfflineBook {
-  id: string;
-  title: string;
-  author: string;
-  fileUrl: string;
-  fileSize: number;
-  downloadDate: Date;
-  lastAccessed: Date;
-  progress?: {
-    currentPage: number;
-    totalPages: number;
-    percentage: number;
-  };
-}
 
 export interface PWAState {
   isInstalled: boolean;
@@ -275,6 +261,36 @@ export interface PDFNavigationProps {
   onNavigateToPage?: (page: number) => void;
   onNavigateFirst?: () => void;
   onNavigateLast?: () => void;
+}
+
+// ============================================================================
+// READER COMPONENT TYPES
+// ============================================================================
+
+export interface ReaderStateChange {
+  currentPage?: number;
+  totalPages?: number;
+  progress?: number;
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+// Base props for all reader components
+export interface BaseReaderProps {
+  zoomLevel: number;
+  onStateChange: (state: ReaderStateChange) => void;
+}
+
+export interface PDFReaderProps extends BaseReaderProps {
+  fileData: ArrayBuffer;
+}
+
+export interface EPUBReaderProps extends BaseReaderProps {
+  fileData: ArrayBuffer;
+}
+
+export interface TXTReaderProps extends BaseReaderProps {
+  fileData: string;
 }
 
 // ============================================================================

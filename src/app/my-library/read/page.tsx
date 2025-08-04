@@ -27,7 +27,7 @@ import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { ReaderErrorBoundary } from './components/ReaderErrorBoundary';
 import PDFNavigationControls from './components/PDFNavigationControls';
 import { PDFNavigationProps } from './components/PDFReader';
-import { LibraryBook } from '@/lib/types';
+import { LibraryBook, ReaderState } from '@/lib/types';
 import { useOfflineBooks } from '@/hooks/useOfflineBooks';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
@@ -44,16 +44,6 @@ const TXTReader = dynamic(() => import('./components/TXTReader'), {
   ssr: false,
   loading: () => <CircularProgress />
 });
-
-
-interface ReaderState {
-  currentPage: number;
-  totalPages: number;
-  progress: number;
-  isLoading: boolean;
-  error: string | null;
-}
-
 
 function BookReaderContent() {
   const { theme } = useTheme();
@@ -74,6 +64,8 @@ function BookReaderContent() {
     progress: 0,
     isLoading: true,
     error: null,
+    isFullscreen: false,
+    zoomLevel: 150,
   });
   
   // PDF Navigation props ref
@@ -233,35 +225,6 @@ function BookReaderContent() {
     loadPurchasedBook();
   }, [bookId]);
 
-  const loadFileData = async (file: File, fileName: string) => {
-    try {
-      const extension = fileName.split('.').pop()?.toLowerCase();
-      
-      if (extension === 'pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        setFileData(arrayBuffer);
-        setFileType('pdf');
-      } else if (extension === 'epub') {
-        const arrayBuffer = await file.arrayBuffer();
-        setFileData(arrayBuffer);
-        setFileType('epub');
-      } else if (extension === 'txt') {
-        const text = await file.text();
-        setFileData(text);
-        setFileType('txt');
-      } else {
-        throw new Error('Unsupported file format');
-      }
-      
-      setReaderState(prev => ({ ...prev, isLoading: false }));
-    } catch (error) {
-      setReaderState(prev => ({ 
-        ...prev, 
-        error: 'Error loading file data', 
-        isLoading: false 
-      }));
-    }
-  };
 
   const loadFileDataFromUrl = async (url: string, fileName: string) => {
     try {
