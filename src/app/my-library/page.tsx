@@ -71,17 +71,37 @@ function usePurchasedBooks(session: any) {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
   const { offlineBooks } = useOfflineBooks();
 
+  // Listen for network status changes
   useEffect(() => {
-    if (!session?.user?.id) return;
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    setIsOnline(navigator.onLine);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Check if we're offline first - if offline, we can show offline books without session
+    const isOffline = !navigator.onLine;
+    
+    if (!isOffline && !session?.user?.id) return;
     
     const loadPurchasedBooks = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        console.log('🔍 Loading books for user:', session.user.id);
+        console.log('🔍 Loading books for user:', session?.user?.id || 'offline');
         
         // Check if we're offline
         const isOffline = !navigator.onLine;
@@ -146,7 +166,15 @@ function usePurchasedBooks(session: any) {
           return;
         }
         
-        // If online and no offline books, try online
+        // If online, try to load from Supabase (requires session)
+        if (!session?.user?.id) {
+          console.log('📱 No session available, only showing offline books');
+          setBooks([]);
+          setError('Please sign in to see your purchased books online.');
+          setIsLoading(false);
+          return;
+        }
+        
         const { data: purchases, error } = await supabaseClient
           .from('purchases')
           .select(`
@@ -223,7 +251,7 @@ function usePurchasedBooks(session: any) {
     };
     
     loadPurchasedBooks();
-  }, [session?.user?.id, offlineBooks]);
+  }, [session?.user?.id, offlineBooks, isOnline]);
 
   return { books, isLoading, error };
 }
