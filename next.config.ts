@@ -103,11 +103,10 @@ export default withPWA({
       }
     },
     {
-      urlPattern: /^https:\/\/deploy-preview-\d+--myatpwint-pre\.netlify\.app\/(?!_next|api|favicon|icon|logo|manifest|sw\.js|workbox)/,
-      handler: 'NetworkFirst',
+      urlPattern: /^https:\/\/.*\.netlify\.app\/(my-library|books|author|editor|publisher|profile|checkout).*$/,
+      handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'pages-cache',
-        networkTimeoutSeconds: 3,
         expiration: {
           maxEntries: 50,
           maxAgeSeconds: 24 * 60 * 60 // 24 hours
