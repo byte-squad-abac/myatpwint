@@ -3,74 +3,29 @@
 import { useEffect, useState } from 'react';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import supabase from '@/lib/supabaseClient';               // ← server-side singleton
-import Link     from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import supabase from '@/lib/supabaseClient';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import {
-  Badge, Popover, IconButton, List, ListItem, ListItemText,
-  ListItemAvatar, Avatar, Divider, Button, Typography,
-} from '@mui/material';
+import HomeIcon from '@mui/icons-material/Home';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import PersonIcon from '@mui/icons-material/Person';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
+import { Badge } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
 import type { CSSProperties } from 'react';
 
-/* ============================================================================
-   •••  CONSTANTS / STYLES •••
-   ========================================================================== */
 const HEADER_HEIGHT = 64;
-const HEADER_BG     = '#641B2E';
-const HEADER_COLOR  = '#FBDB93';
-const HEADER_RADIUS = 16;
-const NAV_MAX_WIDTH = 1200;
+const SIDEBAR_WIDTH = 220;
+const COLLAPSED_WIDTH = 64;
+const HEADER_BG = '#5B2C3B';
+const HEADER_COLOR = '#FCEBD5';
 
-const headerStyle: CSSProperties = {
-  position : 'fixed',
-  top      : 0,
-  left     : 0,
-  right    : 0,
-  width    : '100%',
-  height   : HEADER_HEIGHT,
-  background: HEADER_BG,
-  color    : HEADER_COLOR,
-  borderBottomLeftRadius : HEADER_RADIUS,
-  borderBottomRightRadius: HEADER_RADIUS,
-  zIndex   : 1000,
-  padding  : '0',
-  boxSizing: 'border-box',
-  margin   : 0,
-};
-
-const navContainerStyle: CSSProperties = {
-  width   : '100%',
-  display : 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  height  : HEADER_HEIGHT,
-  boxSizing: 'border-box',
-  paddingLeft: '20px',
-  paddingRight: '20px',
-};
-
-const linkBarStyle: CSSProperties = { display: 'flex', gap: 20, alignItems: 'center' };
-
-const mainStyle: CSSProperties = {
-  width     : '100%',
-  paddingTop: HEADER_HEIGHT,
-  minHeight : '100vh',
-  boxSizing : 'border-box',
-  margin    : 0,
-  paddingLeft: 0,
-  paddingRight: 0,
-  paddingBottom: 0,
-};
-
-/* ============================================================================
-   •••  ROOT LAYOUT •••
-   ========================================================================== */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  /* A client-side Supabase instance for auth-helpers */
   const [browserSupabaseClient] = useState(() => createPagesBrowserClient({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL as string,
     supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
@@ -78,193 +33,155 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body>
+      <body style={{ margin: 0 }}>
         <SessionContextProvider supabaseClient={browserSupabaseClient}>
-          <HeaderWithRoleAwareNav />
-          <main style={mainStyle}>{children}</main>
+          <SidebarLayout>{children}</SidebarLayout>
         </SessionContextProvider>
       </body>
     </html>
   );
 }
 
-/* ============================================================================
-   •••  HEADER COMPONENT (with role-aware nav) •••
-   ========================================================================== */
-function HeaderWithRoleAwareNav() {
-  const session  = useSession();           // comes from <SessionContextProvider/>
-  const pathname = usePathname();
-  const router   = useRouter();
-
-  const [isPublisher, setIsPublisher] = useState<boolean>(false);
-  const [isEditor   , setIsEditor   ] = useState<boolean>(false);
-
-  /* -- Lookup role once we know the user is signed-in -------------------- */
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!session?.user?.email) {
-        setIsPublisher(false);
-        setIsEditor(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')           // <-- your table that stores roles
-        .select('role')
-        .eq('email', session.user.email)
-        .single();
-
-      if (error || !data) {
-        setIsPublisher(false);
-        setIsEditor(false);
-        return;
-      }
-
-      setIsPublisher(data.role === 'publisher');
-      setIsEditor   (data.role === 'editor');
-    };
-
-    fetchRole();
-  }, [session]);
+function SidebarLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const sidebarWidth = collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    <header style={headerStyle}>
-      <div style={navContainerStyle}>
-        {/* -------- LEFT LINKS -------- */}
-        <nav style={linkBarStyle}>
-          <Link href="/"       style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Home</Link>
-          <Link href="/books"  style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Books</Link>
-          <Link href="/author" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Author</Link>
-
-          {isPublisher && (
-            <Link href="/publisher" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>
-              Publisher Dashboard
-            </Link>
-          )}
-
-          {isEditor && (
-            <Link href="/editor" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>
-              Editor Dashboard
-            </Link>
-          )}
-        </nav>
-
-        {/* -------- RIGHT LINKS -------- */}
-        <div style={linkBarStyle}>
-          {pathname.startsWith('/books') && <CartPopover />}
-          {session && (
-            <Link href="/my-library" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 16 }}>
-              BookShelf
-            </Link>
-          )}
-          {!session && (
-            <Link href="/login" style={{ color: HEADER_COLOR, textDecoration: 'none' }}>Login</Link>
-          )}
-          {session && (
-            <Link href="/profile" style={{ color: HEADER_COLOR, textDecoration: 'none', fontSize: 18 }}>
-              Profile
-            </Link>
-          )}
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <div style={{ marginLeft: sidebarWidth, flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div style={{
+          height: HEADER_HEIGHT,
+          background: HEADER_BG,
+          color: HEADER_COLOR,
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+          fontSize: 20,
+          fontWeight: 'bold',
+          borderBottom: `2px solid #C97E7E`,
+          transition: 'margin-left 0.3s ease',
+          marginLeft: `-${sidebarWidth}px`
+        }}>
+          <HeaderWithTitleOnly />
         </div>
+        <main style={{ padding: 24, boxSizing: 'border-box', flex: 1, overflowY: 'auto' }}>{children}</main>
       </div>
-    </header>
+    </div>
   );
 }
 
-/* ============================================================================
-   •••  CART POPOVER •••
-   ========================================================================== */
-function CartPopover() {
-  const { items, getTotal, removeItem } = useCartStore();
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const router = useRouter();
+function HeaderWithTitleOnly() {
+  const pathname = usePathname();
 
-  const totalCount = items.reduce(
-    (sum, item) => sum + (item.deliveryType === 'physical' ? item.quantity : 1),
-    0,
-  );
+  const getTitle = () => {
+    if (pathname.startsWith('/books')) return 'Books';
+    if (pathname.startsWith('/author')) return 'Author';
+    if (pathname.startsWith('/publisher')) return 'Publisher Dashboard';
+    if (pathname.startsWith('/editor')) return 'Editor Dashboard';
+    if (pathname.startsWith('/profile')) return 'Profile';
+    if (pathname.startsWith('/my-library')) return 'My Library';
+    return 'Welcome to Myat Pwint Publishing House';
+  };
 
-  const open   = Boolean(anchorEl);
-  const handleOpen  = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
-  const handleClose = () => setAnchorEl(null);
+  return <div style={{ paddingLeft: 12 }}>{getTitle()}</div>;
+}
+
+function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
+  const session = useSession();
+  const pathname = usePathname();
+  const { items } = useCartStore();
+
+  const [isPublisher, setIsPublisher] = useState(false);
+  const [isEditor, setIsEditor] = useState(false);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!session?.user?.email) return;
+      const { data } = await supabase.from('profiles').select('role').eq('email', session.user.email).single();
+      setIsPublisher(data?.role === 'publisher');
+      setIsEditor(data?.role === 'editor');
+    };
+    fetchRole();
+  }, [session]);
+
+  const totalCount = items.reduce((sum, item) => sum + (item.deliveryType === 'physical' ? item.quantity : 1), 0);
+
+  const navItems = [
+    { href: '/', icon: <HomeIcon />, label: 'Home' },
+    { href: '/books', icon: <MenuBookIcon />, label: 'Books' },
+    { href: '/author', icon: <PersonIcon />, label: 'Author' },
+    ...(isPublisher ? [{ href: '/publisher', icon: <DashboardIcon />, label: 'Publisher Dashboard' }] : []),
+    ...(isEditor ? [{ href: '/editor', icon: <DashboardIcon />, label: 'Editor Dashboard' }] : []),
+    ...(session ? [{ href: '/my-library', icon: <LibraryBooksIcon />, label: 'BookShelf' }] : []),
+    ...(session ? [{ href: '/profile', icon: <AccountCircleIcon />, label: 'Profile' }] : []),
+  ];
 
   return (
-    <>
-      <IconButton onClick={handleOpen} sx={{ color: HEADER_COLOR, ml: 2 }}>
-        <Badge badgeContent={totalCount} color="error" overlap="circular">
-          <ShoppingCartIcon sx={{ fontSize: 28 }} />
-        </Badge>
-      </IconButton>
-
-      <Popover
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top'   , horizontal: 'right' }}
-        PaperProps={{ sx: { minWidth: 320, p: 2 } }}
-      >
-        <Typography variant="h6" sx={{ mb: 1 }}>Cart</Typography>
-        <Divider sx={{ mb: 1 }} />
-
-        {items.length === 0 ? (
-          <Typography color="text.secondary">Your cart is empty.</Typography>
-        ) : (
-          <>
-            <List dense>
-              {items.map((item, idx) => (
-                <ListItem
-                  key={`${item.book.id}-${item.deliveryType}-${idx}`}
-                  secondaryAction={
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => removeItem(item.book.id, item.deliveryType)}
-                    >
-                      Remove
-                    </Button>
-                  }
-                >
-                  <ListItemAvatar>
-                    <Avatar src={item.book.image_url} alt={item.book.name} variant="rounded" />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={item.book.name}
-                    secondary={
-                      <>
-                        <span>
-                          {item.deliveryType === 'physical'
-                            ? `Physical x${item.quantity}`
-                            : 'Digital'}
-                        </span>
-                        <br />
-                        <span>{item.book.price.toLocaleString()} MMK</span>
-                      </>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-
-            <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontWeight: 600, mb: 1 }}>
-              Total: {getTotal().toLocaleString()} MMK
-            </Typography>
-
-            <Button
-              fullWidth
-              variant="contained"
-              sx={{ mb: 1 }}
-              onClick={() => {
-                handleClose();
-                router.push('/checkout');
-              }}
-            >
-              Checkout
-            </Button>
-          </>
+    <nav style={{
+      width: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+      background: '#2C1B28',
+      color: '#FCEBD5',
+      height: '100vh',
+      paddingTop: 20,
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      overflowY: 'auto',
+      borderRight: '2px solid #C97E7E',
+      zIndex: 999,
+      transition: 'width 0.3s ease',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', marginBottom: 24 }}>
+        <img src="/logo.jpg" alt="Logo" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+        {!collapsed && (
+          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.2, marginLeft: 12 }}>
+            Myat Pwint<br />Publishing House
+          </div>
         )}
-      </Popover>
-    </>
+      </div>
+      <button onClick={() => setCollapsed(!collapsed)} style={{
+        margin: '0 16px 16px',
+        padding: '4px 8px',
+        background: 'transparent',
+        color: '#FCEBD5',
+        border: '1px solid #C97E7E',
+        borderRadius: 4,
+        cursor: 'pointer'
+      }}>
+        {collapsed ? '›' : '‹'}
+      </button>
+      {navItems.map(({ href, icon, label }) => (
+        <Link
+          key={href}
+          href={href}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            color: '#FCEBD5',
+            textDecoration: 'none',
+            fontSize: 16
+          }}
+        >
+          {icon}
+          {!collapsed && label}
+        </Link>
+      ))}
+      {pathname.startsWith('/books') && (
+        <Link href="/checkout" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          color: '#FCEBD5',
+          textDecoration: 'none',
+          fontSize: 16
+        }}>
+          Cart <Badge badgeContent={totalCount} color="error"><ShoppingCartIcon /></Badge>
+        </Link>
+      )}
+    </nav>
   );
 }
