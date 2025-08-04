@@ -72,6 +72,28 @@ export default withPWA({
           maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
         }
       }
+    },
+    {
+      urlPattern: /\.(?:js|mjs)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-js-assets',
+        expiration: {
+          maxEntries: 32,
+          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+        }
+      }
+    },
+    {
+      urlPattern: /\/pdf\.worker\.min\.mjs$/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'pdf-worker',
+        expiration: {
+          maxEntries: 1,
+          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+        }
+      }
     }
   ]
 })(nextConfig);

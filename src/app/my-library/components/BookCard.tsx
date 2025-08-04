@@ -47,6 +47,17 @@ const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=400&fit=crop&crop=center',
 ];
 
+// Local fallback patterns for offline use
+const LOCAL_PLACEHOLDER_PATTERNS = [
+  'book-pattern-1',
+  'book-pattern-2', 
+  'book-pattern-3',
+  'book-pattern-4',
+  'book-pattern-5',
+  'book-pattern-6',
+  'book-pattern-7',
+];
+
 const FILE_TYPE_CONFIG = {
   pdf: { type: 'PDF', icon: MenuBook, color: '#FF6B6B' },
   epub: { type: 'EPUB', icon: AutoStories, color: '#4ECDC4' },
@@ -68,14 +79,53 @@ const generateBookColor = (name: string) => {
   return BOOK_COLOR_SETS[hash % BOOK_COLOR_SETS.length];
 };
 
-const generatePlaceholderCover = (name: string) => {
+const generatePlaceholderCover = (name: string): {
+  type: 'pattern';
+  pattern: string;
+  colors: { primary: string; secondary: string; spine: string };
+} | {
+  type: 'image';
+  url: string;
+} => {
   const hash = generateHash(name);
-  return PLACEHOLDER_IMAGES[hash % PLACEHOLDER_IMAGES.length];
+  
+  // Check if we're offline
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+  
+  if (isOffline) {
+    // Use local pattern-based placeholder when offline
+    const pattern = LOCAL_PLACEHOLDER_PATTERNS[hash % LOCAL_PLACEHOLDER_PATTERNS.length];
+    const colors = generateBookColor(name);
+    return {
+      type: 'pattern' as const,
+      pattern,
+      colors
+    };
+  }
+  
+  return {
+    type: 'image' as const,
+    url: PLACEHOLDER_IMAGES[hash % PLACEHOLDER_IMAGES.length]
+  };
 };
 
 const getFileType = (fileName: string) => {
   const extension = getFileExtension(fileName);
   return FILE_TYPE_CONFIG[extension as keyof typeof FILE_TYPE_CONFIG] || FILE_TYPE_CONFIG.default;
+};
+
+const generatePatternBackground = (pattern: string, colors: any) => {
+  const patterns = {
+    'book-pattern-1': `linear-gradient(45deg, ${colors.primary} 25%, transparent 25%, transparent 75%, ${colors.primary} 75%), linear-gradient(45deg, ${colors.primary} 25%, transparent 25%, transparent 75%, ${colors.primary} 75%)`,
+    'book-pattern-2': `radial-gradient(circle at 25% 25%, ${colors.secondary} 50%, transparent 50%), linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+    'book-pattern-3': `linear-gradient(90deg, ${colors.primary} 50%, ${colors.secondary} 50%)`,
+    'book-pattern-4': `repeating-linear-gradient(45deg, ${colors.primary}, ${colors.primary} 10px, ${colors.secondary} 10px, ${colors.secondary} 20px)`,
+    'book-pattern-5': `conic-gradient(from 0deg, ${colors.primary}, ${colors.secondary}, ${colors.spine}, ${colors.primary})`,
+    'book-pattern-6': `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 50%, ${colors.spine} 100%)`,
+    'book-pattern-7': `radial-gradient(ellipse at center, ${colors.secondary} 0%, ${colors.primary} 70%, ${colors.spine} 100%)`,
+  };
+  
+  return patterns[pattern as keyof typeof patterns] || patterns['book-pattern-1'];
 };
 
 // Using centralized BookCardProps interface from types
@@ -180,6 +230,33 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
   const bookColors = useMemo(() => generateBookColor(book.name), [book.name]);
   const fileInfo = useMemo(() => getFileType(book.fileName), [book.fileName]);
   const placeholderCover = useMemo(() => generatePlaceholderCover(book.name), [book.name]);
+  
+  // Generate background based on placeholder type
+  const getBackgroundStyle = useMemo(() => {
+    if (book.imageUrl) {
+      return {
+        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%), url(${book.imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    
+    if (placeholderCover.type === 'pattern') {
+      return {
+        background: generatePatternBackground(placeholderCover.pattern, placeholderCover.colors),
+        backgroundSize: 'cover',
+      };
+    }
+    
+    // placeholderCover.type === 'image'
+    return {
+      backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%), url(${placeholderCover.url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    };
+  }, [book.imageUrl, placeholderCover]);
 
   const handleRead = () => {
     setIsOpening(true);
@@ -264,10 +341,7 @@ export default function BookCard({ book, onRead, onDelete, loading = false, inde
                 boxShadow: isHovered 
                   ? '0 30px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
                   : '0 20px 40px rgba(0,0,0,0.2)',
-                backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%), url(${book.imageUrl || placeholderCover})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
+                ...getBackgroundStyle,
                 '&::before': {
                   content: '""',
                   position: 'absolute',
