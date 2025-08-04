@@ -72,6 +72,7 @@ function usePurchasedBooks(session: any) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [offlineBooksLoaded, setOfflineBooksLoaded] = useState(false);
   const { offlineBooks } = useOfflineBooks();
 
   // Listen for network status changes
@@ -90,9 +91,22 @@ function usePurchasedBooks(session: any) {
     };
   }, []);
 
+  // Track when offline books are loaded
+  useEffect(() => {
+    if (offlineBooks !== undefined) {
+      setOfflineBooksLoaded(true);
+    }
+  }, [offlineBooks]);
+
   useEffect(() => {
     // Check if we're offline first - if offline, we can show offline books without session
     const isOffline = !navigator.onLine;
+    
+    // If offline, wait for offline books to load before proceeding
+    if (isOffline && !offlineBooksLoaded) {
+      console.log('📱 Waiting for offline books to load...');
+      return;
+    }
     
     if (!isOffline && !session?.user?.id) return;
     
@@ -263,9 +277,9 @@ function usePurchasedBooks(session: any) {
     };
     
     loadPurchasedBooks();
-  }, [session?.user?.id, offlineBooks, isOnline]);
+  }, [session?.user?.id, offlineBooks, isOnline, offlineBooksLoaded]);
 
-  return { books, isLoading, error };
+  return { books, isLoading, error, offlineBooksLoaded };
 }
 
 // Custom hook for book filtering and search
@@ -433,7 +447,7 @@ export default function BookshelfPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Custom hooks
-  const { books, isLoading, error } = usePurchasedBooks(session);
+  const { books, isLoading, error, offlineBooksLoaded } = usePurchasedBooks(session);
   const {
     filteredBooks,
     searchTerm,
@@ -465,12 +479,19 @@ export default function BookshelfPage() {
     if (!isSessionLoading && !session) {
       // Check if we're offline and have cached books before redirecting
       const isOffline = !navigator.onLine;
-      console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length);
+      console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length, 'Offline books loaded:', offlineBooksLoaded);
+      
+      // If offline, wait for offline books to load before making redirect decision
+      if (isOffline && !offlineBooksLoaded) {
+        console.log('📱 Waiting for offline books to load before redirect decision...');
+        return;
+      }
+      
       if (!isOffline && books.length === 0) {
         router.push('/login');
       }
     }
-  }, [session, router, isSessionLoading, books.length]);
+  }, [session, router, isSessionLoading, books.length, offlineBooksLoaded]);
 
   // Event handlers
   const handleReadBook = useCallback((bookId: string) => {
@@ -504,6 +525,25 @@ export default function BookshelfPage() {
   // Loading states - allow offline books to load even during session loading
   if ((isSessionLoading || !isClient) && books.length === 0) {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    
+    // If offline and offline books haven't loaded yet, show loading
+    if (isOffline && !offlineBooksLoaded) {
+      return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
+            Bookshelf
+          </Typography>
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>
+              Loading offline books...
+            </Typography>
+          </Box>
+        </Container>
+      );
+    }
+    
+    // For online or when offline books are loaded but empty
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
@@ -511,11 +551,6 @@ export default function BookshelfPage() {
         </Typography>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
-          {isOffline && (
-            <Typography sx={{ ml: 2 }}>
-              Loading offline books...
-            </Typography>
-          )}
         </Box>
       </Container>
     );
