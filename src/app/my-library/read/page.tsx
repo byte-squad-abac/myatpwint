@@ -441,8 +441,8 @@ function BookReaderContent() {
             onClick={() => downloadBook({
               id: bookId!,
               title: book?.name || 'Unknown Book',
-              author: 'Unknown Author', // You might want to add author field to your book data
-              fileUrl: book?.source || ''
+              author: book?.author || 'Unknown Author',
+              fileUrl: book?.fileUrl || ''
             })}
             disabled={isDownloading === bookId || isBookOffline(bookId!)}
             sx={{ 
