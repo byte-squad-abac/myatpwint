@@ -103,7 +103,7 @@ export default withPWA({
       }
     },
     {
-      urlPattern: /^https:\/\/.*\.netlify\.app\/(my-library|books|author|editor|publisher|profile|checkout).*$/,
+      urlPattern: /^https:\/\/.*\.netlify\.app\/(my-library|books|author|editor|publisher|profile|checkout|login)(\/.*)?(\?.*)?$/,
       handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'pages-cache',
