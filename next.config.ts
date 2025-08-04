@@ -16,7 +16,9 @@ export default withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: false, // Enable PWA in development for testing
+  disable: process.env.NODE_ENV === 'development' ? false : false, // Enable PWA in all environments
+  buildExcludes: [/app-build-manifest\.json$/],
+  publicExcludes: ['!robots.txt', '!sitemap.xml'],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -92,6 +94,21 @@ export default withPWA({
         expiration: {
           maxEntries: 1,
           maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+        }
+      }
+    },
+    {
+      urlPattern: /^https:\/\/.*\//,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'html-cache',
+        networkTimeoutSeconds: 3,
+        expiration: {
+          maxEntries: 50,
+          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+        },
+        cacheableResponse: {
+          statuses: [0, 200]
         }
       }
     }
