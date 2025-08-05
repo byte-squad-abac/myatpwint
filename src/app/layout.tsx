@@ -170,18 +170,25 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
         </Link>
       ))}
       {pathname.startsWith('/books') && (
-        <Link href="/checkout" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          color: '#FCEBD5',
-          textDecoration: 'none',
-          fontSize: 16
-        }}>
-          Cart <Badge badgeContent={totalCount} color="error"><ShoppingCartIcon /></Badge>
+        <Link
+          href="/checkout"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            color: '#FCEBD5',
+            textDecoration: 'none',
+            fontSize: 16
+          }}
+        >
+          <Badge badgeContent={totalCount} color="error">
+            <ShoppingCartIcon />
+          </Badge>
+          {!collapsed && 'Cart'}
         </Link>
       )}
+
     </nav>
   );
 }
