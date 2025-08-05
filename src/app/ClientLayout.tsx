@@ -17,7 +17,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { Badge } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
-import type { CSSProperties } from 'react';
+import { useSearchStore } from '@/lib/store/searchStore';
 
 const HEADER_HEIGHT = 64;
 const SIDEBAR_WIDTH = 220;
@@ -69,6 +69,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
 
 function HeaderWithTitleOnly() {
   const pathname = usePathname();
+  const { search, setSearch } = useSearchStore();
 
   const getTitle = () => {
     if (pathname.startsWith('/books')) return 'Books';
@@ -80,12 +81,49 @@ function HeaderWithTitleOnly() {
     return 'Welcome to Myat Pwint Publishing House';
   };
 
-  return <div style={{ paddingLeft: 12 }}>{getTitle()}</div>;
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ fontWeight: 'bold', fontSize: 20, paddingLeft: 12 }}>
+        {getTitle()}
+      </div>
+
+      {pathname.startsWith('/books') && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '60%',
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search by title or author..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: 4,
+              border: '1px solid #ccc',
+              fontSize: 14,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
   const session = useSession();
-  const pathname = usePathname();
   const { items } = useCartStore();
 
   const [isPublisher, setIsPublisher] = useState(false);
@@ -94,216 +132,78 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
   useEffect(() => {
     const fetchRole = async () => {
       if (!session?.user?.email) return;
-
-      try {
-        const { data: publisherData } = await supabase
-          .from('publishers')
-          .select('id')
-          .eq('email', session.user.email)
-          .single();
-
-        setIsPublisher(!!publisherData);
-
-        const { data: editorData } = await supabase
-          .from('editors')
-          .select('id')
-          .eq('email', session.user.email)
-          .single();
-
-        setIsEditor(!!editorData);
-      } catch (error) {
-        console.error('Error fetching role:', error);
-      }
+      const { data } = await supabase.from('profiles').select('role').eq('email', session.user.email).single();
+      setIsPublisher(data?.role === 'publisher');
+      setIsEditor(data?.role === 'editor');
     };
-
     fetchRole();
   }, [session]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+  const totalCount = items.reduce((sum, item) => sum + (item.deliveryType === 'physical' ? item.quantity : 1), 0);
 
-  const totalItems = items.reduce((total, item) => total + item.quantity, 0);
-
-  const menuItems = [
-    { label: 'Home', icon: HomeIcon, href: '/' },
-    { label: 'Books', icon: MenuBookIcon, href: '/books' },
-    { label: 'My Library', icon: LibraryBooksIcon, href: '/my-library' },
-    { label: 'Cart', icon: ShoppingCartIcon, href: '/cart', badge: totalItems },
+  const navItems = [
+    { href: '/', icon: <HomeIcon />, label: 'Home' },
+    { href: '/books', icon: <MenuBookIcon />, label: 'Books' },
+    { href: '/author', icon: <PersonIcon />, label: 'Author' },
+    ...(isPublisher ? [{ href: '/publisher', icon: <DashboardIcon />, label: 'Publisher Dashboard' }] : []),
+    ...(isEditor ? [{ href: '/editor', icon: <DashboardIcon />, label: 'Editor Dashboard' }] : []),
+    ...(session ? [{ href: '/my-library', icon: <LibraryBooksIcon />, label: 'BookShelf' }] : []),
+    ...(session ? [{ href: '/profile', icon: <AccountCircleIcon />, label: 'Profile' }] : []),
+    { href: '/checkout', icon: <Badge badgeContent={totalCount} color="error"><ShoppingCartIcon /></Badge>, label: 'Cart' }
   ];
 
-  if (session?.user) {
-    menuItems.push(
-      { label: 'Author Portal', icon: PersonIcon, href: '/author' },
-    );
-
-    if (isPublisher) {
-      menuItems.push(
-        { label: 'Publisher', icon: DashboardIcon, href: '/publisher' },
-      );
-    }
-
-    if (isEditor) {
-      menuItems.push(
-        { label: 'Editor', icon: DashboardIcon, href: '/editor' },
-      );
-    }
-
-    menuItems.push(
-      { label: 'Profile', icon: AccountCircleIcon, href: '/profile' },
-    );
-  }
-
-  const sidebarStyle: CSSProperties = {
-    width: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
-    height: '100vh',
-    background: '#4A1220',
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    zIndex: 1000,
-    transition: 'width 0.3s ease',
-    display: 'flex',
-    flexDirection: 'column',
-    borderRight: '2px solid #8B2C42',
-    overflowX: 'hidden',
-  };
-
-  const logoStyle: CSSProperties = {
-    height: HEADER_HEIGHT,
-    background: '#641B2E',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: collapsed ? 'center' : 'flex-start',
-    paddingLeft: collapsed ? 0 : 12,
-    color: '#FCEBD5',
-    fontSize: collapsed ? 14 : 18,
-    fontWeight: 'bold',
-    borderBottom: '2px solid #8B2C42',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-  };
-
-  const menuStyle: CSSProperties = {
-    flex: 1,
-    paddingTop: 16,
-    overflowY: 'auto',
-  };
-
-  const menuItemStyle = (isActive: boolean): CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    padding: '12px 16px',
-    color: isActive ? '#FCEBD5' : '#D4AF37',
-    textDecoration: 'none',
-    backgroundColor: isActive ? '#641B2E' : 'transparent',
-    borderRight: isActive ? '3px solid #D4AF37' : '3px solid transparent',
-    transition: 'all 0.2s ease',
-    cursor: 'pointer',
-    fontSize: 14,
-    fontWeight: isActive ? 600 : 400,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-  });
-
-  const iconStyle: CSSProperties = {
-    marginRight: collapsed ? 0 : 12,
-    fontSize: 20,
-    minWidth: 24,
-  };
-
-  const labelStyle: CSSProperties = {
-    opacity: collapsed ? 0 : 1,
-    transition: 'opacity 0.3s ease',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-  };
-
-  const badgeStyle: CSSProperties = {
-    marginLeft: 'auto',
-    backgroundColor: '#D4AF37',
-    color: '#4A1220',
-    borderRadius: '12px',
-    padding: '2px 8px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    minWidth: '20px',
-    textAlign: 'center',
-    opacity: collapsed ? 0 : 1,
-    transition: 'opacity 0.3s ease',
-  };
-
-  const footerStyle: CSSProperties = {
-    padding: '16px',
-    borderTop: '1px solid #8B2C42',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  };
-
-  const toggleButtonStyle: CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: '#D4AF37',
-    cursor: 'pointer',
-    padding: '8px',
-    borderRadius: '4px',
-    transition: 'background-color 0.2s ease',
-    alignSelf: collapsed ? 'center' : 'flex-start',
-    fontSize: '12px',
-  };
-
-  const logoutButtonStyle: CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: '#D4AF37',
-    cursor: 'pointer',
-    padding: '8px',
-    borderRadius: '4px',
-    transition: 'background-color 0.2s ease, opacity 0.3s ease',
-    alignSelf: collapsed ? 'center' : 'flex-start',
-    fontSize: '12px',
-    opacity: collapsed ? 0 : 1,
-  };
-
   return (
-    <div style={sidebarStyle}>
-      <div style={logoStyle} onClick={() => setCollapsed(!collapsed)}>
-        {collapsed ? 'MP' : 'Myat Pwint Publishing'}
-      </div>
-      
-      <div style={menuStyle}>
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-          
-          return (
-            <Link key={item.href} href={item.href} style={menuItemStyle(isActive)}>
-              <Icon style={iconStyle} />
-              <span style={labelStyle}>{item.label}</span>
-              {item.badge && item.badge > 0 && (
-                <Badge 
-                  badgeContent={item.badge} 
-                  style={badgeStyle}
-                />
-              )}
-            </Link>
-          );
-        })}
-      </div>
-
-      <div style={footerStyle}>
-        <button style={toggleButtonStyle} onClick={() => setCollapsed(!collapsed)}>
-          {collapsed ? '→' : '← Collapse'}
-        </button>
-        
-        {session?.user && (
-          <button style={logoutButtonStyle} onClick={handleLogout}>
-            {collapsed ? '' : 'Sign Out'}
-          </button>
+    <nav style={{
+      width: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+      background: '#2C1B28',
+      color: '#FCEBD5',
+      height: '100vh',
+      paddingTop: 20,
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      overflowY: 'auto',
+      borderRight: '2px solid #C97E7E',
+      zIndex: 999,
+      transition: 'width 0.3s ease',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', marginBottom: 24 }}>
+        <img src="/logo.jpg" alt="Logo" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+        {!collapsed && (
+          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.2, marginLeft: 12 }}>
+            Myat Pwint<br />Publishing House
+          </div>
         )}
       </div>
-    </div>
+      <button onClick={() => setCollapsed(!collapsed)} style={{
+        margin: '0 16px 16px',
+        padding: '4px 8px',
+        background: 'transparent',
+        color: '#FCEBD5',
+        border: '1px solid #C97E7E',
+        borderRadius: 4,
+        cursor: 'pointer'
+      }}>
+        {collapsed ? '›' : '‹'}
+      </button>
+      {navItems.map(({ href, icon, label }) => (
+        <Link
+          key={href}
+          href={href}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            color: '#FCEBD5',
+            textDecoration: 'none',
+            fontSize: 16
+          }}
+        >
+          {icon}
+          {!collapsed && label}
+        </Link>
+      ))}
+    </nav>
   );
 }
