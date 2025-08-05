@@ -17,6 +17,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { Badge } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
+import { useSearchStore } from '@/lib/store/searchStore';
 import type { CSSProperties } from 'react';
 
 const HEADER_HEIGHT = 64;
@@ -73,6 +74,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
 
 function HeaderWithTitleOnly() {
   const pathname = usePathname();
+  const { search, setSearch } = useSearchStore();
 
   const getTitle = () => {
     if (pathname.startsWith('/books')) return 'Books';
@@ -84,8 +86,48 @@ function HeaderWithTitleOnly() {
     return 'Welcome to Myat Pwint Publishing House';
   };
 
-  return <div style={{ paddingLeft: 12 }}>{getTitle()}</div>;
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ fontWeight: 'bold', fontSize: 20, paddingLeft: 12 }}>
+        {getTitle()}
+      </div>
+
+      {pathname.startsWith('/books') && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '60%',
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search by title or author..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: 4,
+              border: '1px solid #ccc',
+              fontSize: 14,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
+
+
 
 function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
   const session = useSession();
@@ -115,6 +157,7 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
     ...(isEditor ? [{ href: '/editor', icon: <DashboardIcon />, label: 'Editor Dashboard' }] : []),
     ...(session ? [{ href: '/my-library', icon: <LibraryBooksIcon />, label: 'BookShelf' }] : []),
     ...(session ? [{ href: '/profile', icon: <AccountCircleIcon />, label: 'Profile' }] : []),
+    { href: '/checkout', icon: <Badge badgeContent={totalCount} color="error"><ShoppingCartIcon /></Badge>, label: 'Cart' }
   ];
 
   return (
@@ -169,26 +212,6 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
           {!collapsed && label}
         </Link>
       ))}
-      {pathname.startsWith('/books') && (
-        <Link
-          href="/checkout"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 16px',
-            color: '#FCEBD5',
-            textDecoration: 'none',
-            fontSize: 16
-          }}
-        >
-          <Badge badgeContent={totalCount} color="error">
-            <ShoppingCartIcon />
-          </Badge>
-          {!collapsed && 'Cart'}
-        </Link>
-      )}
-
     </nav>
   );
 }
