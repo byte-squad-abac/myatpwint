@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabaseClient';
+import { useSearchStore } from '@/lib/store/searchStore';
 import './books.css';
 
 
@@ -22,7 +23,7 @@ interface Book {
 export default function BooksPage() {
 
   const [books, setBooks] = useState<Book[]>([]);
-  const [search, setSearch] = useState('');
+  const { search } = useSearchStore();
   const filteredBooks = books.filter(
     (book) =>
       book.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,18 +49,9 @@ export default function BooksPage() {
   }, []);
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'sans-serif', background: '#f7f8fa', minHeight: '100vh' }}>
-      <h1 style={{ fontWeight: 700, fontSize: '2.2rem', marginBottom: 8 }}>📚 Book Listings</h1>
-      <p style={{ color: '#666', marginBottom: 32 }}>Browse our collection of books. More features coming soon!</p>
-      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'center' }}>
-        <input
-          type="text"
-          placeholder="Search by title or author..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="book-search-bar"
-        />
-      </div>
+    <main style={{ padding: '0 20px 20px', fontFamily: 'sans-serif', background: '#fff', minHeight: '100vh' }}>
+      {/* <h1 style={{ fontWeight: 700, fontSize: '2.2rem', marginBottom: 8 }}>Browse our collection of books. More features coming soon!</h1> */}
+      <p style={{ fontSize: '1.5rem', color: '#666', marginBottom: 32 }}>Browse our collection of books. More features coming soon!</p>
 
       <div style={{ 
         display: 'grid', 
