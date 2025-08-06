@@ -11,7 +11,14 @@ import {
   Divider,
   Alert,
   CircularProgress,
+  Card,
+  CardContent,
+  IconButton,
+  Chip,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { useCartStore, CartItem } from '@/lib/store/cartStore';
 import { redirectToCheckout } from '@/lib/stripe/client';
 import { useSession } from '@supabase/auth-helpers-react';
@@ -21,7 +28,7 @@ export default function StripeCheckoutPage() {
   const session = useSession();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { items, getTotal, clearCart } = useCartStore();
+  const { items, getTotal, clearCart, removeItem, updateQuantity } = useCartStore();
 
   const handleStripeCheckout = async () => {
     if (!session?.user?.id) {
@@ -47,6 +54,18 @@ export default function StripeCheckoutPage() {
       setError(err.message || 'Failed to process checkout. Please try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleRemoveItem = (bookId: string, deliveryType: 'physical' | 'digital') => {
+    removeItem(bookId, deliveryType);
+  };
+
+  const handleUpdateQuantity = (bookId: string, deliveryType: 'physical' | 'digital', newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeItem(bookId, deliveryType);
+    } else {
+      updateQuantity(bookId, deliveryType, newQuantity);
     }
   };
 
@@ -88,43 +107,75 @@ export default function StripeCheckoutPage() {
           </Alert>
         )}
 
-        {/* Order Summary */}
+        {/* Order Summary with Edit Controls */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom>
-            Order Summary
+            Order Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
           </Typography>
           
-          {items.map((item: CartItem, idx: number) => (
-            <Box key={item.book.id ?? idx} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    {item.book.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    by {item.book.author}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Delivery: {item.deliveryType === 'physical' ? 'Physical Book' : 'Digital Download'}
-                  </Typography>
-                  {item.quantity > 1 && (
-                    <Typography variant="body2" color="text.secondary">
-                      Quantity: {item.quantity}
-                    </Typography>
+          {items.map((item: CartItem) => (
+            <Card key={`${item.book.id}-${item.deliveryType}`} variant="outlined" sx={{ mb: 2 }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {item.book.image_url && (
+                    <img 
+                      src={item.book.image_url} 
+                      alt={item.book.name}
+                      style={{ width: 60, height: 80, objectFit: 'cover', borderRadius: 4 }}
+                    />
                   )}
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    {(item.book.price * item.quantity).toLocaleString()} MMK
-                  </Typography>
-                  {item.quantity > 1 && (
-                    <Typography variant="body2" color="text.secondary">
-                      {item.book.price.toLocaleString()} MMK each
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      {item.book.name}
                     </Typography>
-                  )}
+                    <Typography variant="body2" color="text.secondary">
+                      by {item.book.author}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                      <Chip 
+                        label={item.deliveryType === 'physical' ? 'Physical' : 'Digital'} 
+                        size="small"
+                        color={item.deliveryType === 'physical' ? 'primary' : 'secondary'}
+                      />
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {item.book.price.toLocaleString()} MMK each
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleUpdateQuantity(item.book.id, item.deliveryType, item.quantity - 1)}
+                      disabled={item.quantity <= 1}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                    <Typography variant="body1" sx={{ minWidth: 20, textAlign: 'center' }}>
+                      {item.quantity}
+                    </Typography>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleUpdateQuantity(item.book.id, item.deliveryType, item.quantity + 1)}
+                    >
+                      <AddIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      color="error"
+                      onClick={() => handleRemoveItem(item.book.id, item.deliveryType)}
+                      sx={{ ml: 1 }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
                 </Box>
-              </Box>
-            </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Subtotal: {(item.book.price * item.quantity).toLocaleString()} MMK
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
           ))}
 
           <Divider sx={{ my: 2 }} />
