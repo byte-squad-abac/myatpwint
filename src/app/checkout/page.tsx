@@ -206,46 +206,97 @@ export default function CheckoutPage() {
         {/* Payment Details Step */}
         {activeStep === 1 && (
           <Box sx={{ display: 'grid', gap: 3 }}>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              This is a fake payment system for demonstration. No real payment is processed.
-            </Alert>
-            
             <Typography variant="h6" gutterBottom>
-              Payment Information
+              Choose Payment Method
             </Typography>
-            
-            <TextField
-              fullWidth
-              label="Card Number"
-              placeholder="1234 5678 9012 3456"
-              value={paymentInfo.cardNumber}
-              onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
-            />
-            
-            <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+
+            {/* Payment Method Selection */}
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => router.push('/checkout/stripe')}
+                sx={{ 
+                  p: 3,
+                  bgcolor: '#635bff',
+                  '&:hover': { bgcolor: '#5248e8' },
+                  textTransform: 'none'
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
+                    🔒 Pay with Stripe (Recommended)
+                  </Typography>
+                  <Typography variant="body2">
+                    Secure payment with cards, digital wallets, and more
+                  </Typography>
+                </Box>
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => setActiveStep(2)} // Skip to fake payment flow
+                sx={{ 
+                  p: 3,
+                  textTransform: 'none',
+                  borderStyle: 'dashed'
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
+                    💳 Demo Payment (Testing Only)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Fake payment system for demonstration
+                  </Typography>
+                </Box>
+              </Button>
+            </Box>
+
+            {/* Legacy fake payment form (hidden by default) */}
+            <Box sx={{ display: 'none' }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                This is a fake payment system for demonstration. No real payment is processed.
+              </Alert>
+              
+              <Typography variant="h6" gutterBottom>
+                Payment Information
+              </Typography>
+              
               <TextField
                 fullWidth
-                label="Cardholder Name"
-                value={paymentInfo.cardName}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+                label="Card Number"
+                placeholder="1234 5678 9012 3456"
+                value={paymentInfo.cardNumber}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
               />
+              
+              <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Cardholder Name"
+                  value={paymentInfo.cardName}
+                  onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Expiry Date"
+                  placeholder="MM/YY"
+                  value={paymentInfo.expiryDate}
+                  onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+                />
+              </Box>
+              
               <TextField
                 fullWidth
-                label="Expiry Date"
-                placeholder="MM/YY"
-                value={paymentInfo.expiryDate}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+                label="CVV"
+                placeholder="123"
+                value={paymentInfo.cvv}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
+                sx={{ maxWidth: 120 }}
               />
             </Box>
-            
-            <TextField
-              fullWidth
-              label="CVV"
-              placeholder="123"
-              value={paymentInfo.cvv}
-              onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
-              sx={{ maxWidth: 120 }}
-            />
           </Box>
         )}
 

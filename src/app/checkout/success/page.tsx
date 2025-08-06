@@ -16,8 +16,13 @@ function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transactionId = searchParams.get('transaction');
+  const sessionId = searchParams.get('session_id');
+  const isStripePayment = !!sessionId;
 
   useEffect(() => {
+    // Clear cart on successful payment
+    // Note: This will be cleared automatically by webhook for Stripe payments
+    
     // Redirect to home if accessed directly
     const timeout = setTimeout(() => {
       router.push('/');
@@ -32,7 +37,7 @@ function CheckoutSuccessContent() {
         <CheckCircleOutlineIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
         
         <Typography variant="h4" gutterBottom>
-          Order Placed Successfully!
+          {isStripePayment ? 'Payment Successful!' : 'Order Placed Successfully!'}
         </Typography>
         
         <Typography variant="body1" color="text.secondary" paragraph>
@@ -40,10 +45,24 @@ function CheckoutSuccessContent() {
         </Typography>
 
         <Typography variant="body2" color="text.secondary" paragraph>
-          You will receive an email confirmation shortly with your order details.
+          {isStripePayment 
+            ? 'Your payment has been processed securely by Stripe. You will receive an email confirmation shortly.'
+            : 'You will receive an email confirmation shortly with your order details.'
+          }
         </Typography>
 
-        {transactionId && (
+        {isStripePayment && (
+          <Box sx={{ p: 2, bgcolor: 'success.50', borderRadius: 1, mb: 2 }}>
+            <Typography variant="body2" color="success.dark" sx={{ fontWeight: 'medium' }}>
+              ✅ Payment processed by Stripe
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Session ID: {sessionId}
+            </Typography>
+          </Box>
+        )}
+
+        {transactionId && !isStripePayment && (
           <Typography variant="body2" color="text.secondary" paragraph sx={{ fontFamily: 'monospace', backgroundColor: 'grey.100', p: 1, borderRadius: 1 }}>
             Transaction ID: {transactionId}
           </Typography>
