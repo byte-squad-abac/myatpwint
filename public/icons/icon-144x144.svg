@@ -1,0 +1,17 @@
+<svg width="144" height="144" viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg">
+  <rect width="144" height="144" fill="#641B2E" rx="21.599999999999998"/>
+  <g transform="translate(28.8, 28.8)">
+    <!-- Book icon -->
+    <rect x="14.4" y="14.4" width="57.6" height="72" fill="#FBDB93" rx="2.88"/>
+    <rect x="21.599999999999998" y="21.599999999999998" width="43.199999999999996" height="57.6" fill="#FFF" rx="1.44"/>
+    <!-- Book pages lines -->
+    <line x1="28.8" y1="36" x2="57.6" y2="36" stroke="#641B2E" stroke-width="1.44"/>
+    <line x1="28.8" y1="43.199999999999996" x2="57.6" y2="43.199999999999996" stroke="#641B2E" stroke-width="1.44"/>
+    <line x1="28.8" y1="50.4" x2="57.6" y2="50.4" stroke="#641B2E" stroke-width="1.44"/>
+  </g>
+  <!-- App name for larger icons -->
+  
+  <text x="72" y="122.39999999999999" text-anchor="middle" fill="#FBDB93" font-family="Arial, sans-serif" font-size="11.52" font-weight="bold">
+    MyatPwint
+  </text>
+</svg>

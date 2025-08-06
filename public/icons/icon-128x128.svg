@@ -1,0 +1,14 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" fill="#641B2E" rx="19.2"/>
+  <g transform="translate(25.6, 25.6)">
+    <!-- Book icon -->
+    <rect x="12.8" y="12.8" width="51.2" height="64" fill="#FBDB93" rx="2.56"/>
+    <rect x="19.2" y="19.2" width="38.4" height="51.2" fill="#FFF" rx="1.28"/>
+    <!-- Book pages lines -->
+    <line x1="25.6" y1="32" x2="51.2" y2="32" stroke="#641B2E" stroke-width="1.28"/>
+    <line x1="25.6" y1="38.4" x2="51.2" y2="38.4" stroke="#641B2E" stroke-width="1.28"/>
+    <line x1="25.6" y1="44.8" x2="51.2" y2="44.8" stroke="#641B2E" stroke-width="1.28"/>
+  </g>
+  <!-- App name for larger icons -->
+  
+</svg>

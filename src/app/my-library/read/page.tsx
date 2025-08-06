@@ -17,6 +17,8 @@ import {
   FullscreenExit,
   DarkMode,
   LightMode,
+  CloudDownload,
+  CheckCircle,
 } from '@mui/icons-material';
 
 import dynamic from 'next/dynamic';
@@ -25,7 +27,8 @@ import { ThemeProvider, useTheme } from '@/lib/contexts/ThemeContext';
 import { ReaderErrorBoundary } from './components/ReaderErrorBoundary';
 import PDFNavigationControls from './components/PDFNavigationControls';
 import { PDFNavigationProps } from './components/PDFReader';
-import { LibraryBook } from '../components/BookCard';
+import { LibraryBook, ReaderState } from '@/lib/types';
+import { useOfflineBooks } from '@/hooks/useOfflineBooks';
 
 const PDFReader = dynamic(() => import('./components/PDFReader'), {
   ssr: false,
@@ -41,16 +44,6 @@ const TXTReader = dynamic(() => import('./components/TXTReader'), {
   ssr: false,
   loading: () => <CircularProgress />
 });
-
-
-interface ReaderState {
-  currentPage: number;
-  totalPages: number;
-  progress: number;
-  isLoading: boolean;
-  error: string | null;
-}
-
 
 function BookReaderContent() {
   const { theme } = useTheme();
@@ -71,6 +64,8 @@ function BookReaderContent() {
     progress: 0,
     isLoading: true,
     error: null,
+    isFullscreen: false,
+    zoomLevel: 150,
   });
   
   // PDF Navigation props ref
@@ -85,6 +80,13 @@ function BookReaderContent() {
   // Track window size for responsive navigation controls
   const [isMobile, setIsMobile] = useState(false);
   
+  // Offline functionality
+  const { 
+    downloadBook, 
+    isBookOffline, 
+    isDownloading
+  } = useOfflineBooks();
+  
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -97,14 +99,71 @@ function BookReaderContent() {
 
   // Load book from Supabase or IndexedDB
   useEffect(() => {
-    if (!bookId || !session) {
+    if (!bookId) {
       setReaderState(prev => ({ ...prev, error: 'No book selected', isLoading: false }));
       return;
     }
 
+    // If no session but we have a bookId, still try to load from offline storage
+    console.log('🔍 Loading book:', bookId, 'Session:', !!session);
+
     const loadPurchasedBook = async () => {
       try {
-        // Check if user has purchased this book
+        // First check if we have this book offline
+        const offlineStorage = (await import('@/lib/pwa/offlineStorage')).offlineStorage;
+        
+        const offlineBook = await offlineStorage.getOfflineBook(bookId!);
+        console.log('📚 Offline book found:', !!offlineBook);
+        
+        if (offlineBook) {
+          // Load from offline storage
+          const book: LibraryBook = {
+            id: offlineBook.id,
+            name: offlineBook.title,
+            author: 'Unknown Author',
+            price: 0,
+            description: '',
+            category: '',
+            published_date: '',
+            edition: '',
+            tags: [],
+            image_url: '',
+            created_at: '',
+            fileName: `${offlineBook.title}.pdf`,
+            file: null,
+            size: 'Unknown',
+            uploadDate: offlineBook.downloadDate.toString(),
+            source: 'indexeddb',
+          };
+          
+          setBook(book);
+          
+          // Load file from IndexedDB
+          const offlineFile = await offlineStorage.getOfflineBookFile(bookId!);
+          console.log('📁 Offline file found:', !!offlineFile);
+          
+          if (offlineFile) {
+            // Convert blob to ArrayBuffer for the reader
+            const arrayBuffer = await offlineFile.arrayBuffer();
+            setFileData(arrayBuffer);
+            setFileType('pdf'); // Assume PDF for now
+            setReaderState(prev => ({ ...prev, isLoading: false }));
+            console.log('✅ Book loaded from offline storage');
+            return;
+          }
+        }
+
+        // If no session, we can't load from Supabase
+        if (!session) {
+          setReaderState(prev => ({ 
+            ...prev, 
+            error: 'Book not available offline. Please connect to internet and download it first.', 
+            isLoading: false 
+          }));
+          return;
+        }
+
+        // If no offline book, try to load from Supabase
         const { data: purchase, error: purchaseError } = await supabaseClient
           .from('purchases')
           .select(`
@@ -121,17 +180,28 @@ function BookReaderContent() {
           .single();
 
         if (purchaseError || !purchase) {
-          setReaderState(prev => ({ ...prev, error: 'Book not found in your library', isLoading: false }));
+          setReaderState(prev => ({ ...prev, error: 'Book not found in your library. Try going online or download it first.', isLoading: false }));
           return;
         }
 
         const book: LibraryBook = {
           id: purchase.books.id,
           name: purchase.books.name,
+          author: purchase.books.author || 'Unknown Author',
+          price: purchase.books.price || 0,
+          description: purchase.books.description || '',
+          category: purchase.books.category || '',
+          published_date: purchase.books.published_date || '',
+          edition: purchase.books.edition || '',
+          tags: purchase.books.tags || [],
+          image_url: purchase.books.image_url || '',
+          created_at: purchase.books.created_at || '',
           fileName: `${purchase.books.name}.pdf`,
           file: null,
           size: 'Unknown',
           uploadDate: purchase.purchased_at,
+          source: 'supabase',
+          fileUrl: purchase.books.file_url,
         };
 
         setBook(book);
@@ -143,47 +213,18 @@ function BookReaderContent() {
           setReaderState(prev => ({ ...prev, error: 'Book file not available', isLoading: false }));
         }
       } catch (error) {
-        console.error('Error loading purchased book:', error);
+        console.error('❌ Error loading purchased book:', error);
         setReaderState(prev => ({ 
           ...prev, 
-          error: 'Failed to load book. Please try again.', 
+          error: `Failed to load book: ${error instanceof Error ? error.message : 'Unknown error'}`, 
           isLoading: false 
         }));
       }
     };
 
     loadPurchasedBook();
-  }, [bookId, session]);
+  }, [bookId]);
 
-  const loadFileData = async (file: File, fileName: string) => {
-    try {
-      const extension = fileName.split('.').pop()?.toLowerCase();
-      
-      if (extension === 'pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        setFileData(arrayBuffer);
-        setFileType('pdf');
-      } else if (extension === 'epub') {
-        const arrayBuffer = await file.arrayBuffer();
-        setFileData(arrayBuffer);
-        setFileType('epub');
-      } else if (extension === 'txt') {
-        const text = await file.text();
-        setFileData(text);
-        setFileType('txt');
-      } else {
-        throw new Error('Unsupported file format');
-      }
-      
-      setReaderState(prev => ({ ...prev, isLoading: false }));
-    } catch (error) {
-      setReaderState(prev => ({ 
-        ...prev, 
-        error: 'Error loading file data', 
-        isLoading: false 
-      }));
-    }
-  };
 
   const loadFileDataFromUrl = async (url: string, fileName: string) => {
     try {
@@ -356,6 +397,31 @@ function BookReaderContent() {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
+          </IconButton>
+          
+          {/* Offline Download Button */}
+          <IconButton 
+            onClick={() => downloadBook({
+              id: bookId!,
+              title: book?.name || 'Unknown Book',
+              author: book?.author || 'Unknown Author',
+              fileUrl: book?.fileUrl || ''
+            })}
+            disabled={isDownloading === bookId || isBookOffline(bookId!)}
+            sx={{ 
+              color: isBookOffline(bookId!) ? '#4caf50' : (theme === 'dark' ? '#cccccc' : '#666666'), 
+              p: 1 
+            }}
+            aria-label={isBookOffline(bookId!) ? "Book downloaded" : "Download for offline reading"}
+            title={isBookOffline(bookId!) ? "Book downloaded for offline reading" : "Download for offline reading"}
+          >
+            {isDownloading === bookId ? (
+              <CircularProgress size={20} />
+            ) : isBookOffline(bookId!) ? (
+              <CheckCircle sx={{ fontSize: 24 }} />
+            ) : (
+              <CloudDownload sx={{ fontSize: 24 }} />
+            )}
           </IconButton>
           
           {/* PDF Navigation Controls */}

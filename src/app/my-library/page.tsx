@@ -19,13 +19,15 @@ import {
   TrendingUp,
 } from '@mui/icons-material';
 import supabaseClient from '@/lib/supabaseClient';
+import { useOfflineBooks } from '@/hooks/useOfflineBooks';
 
 // Import components
 import BookshelfGrid from './components/BookshelfGrid';
 import SearchAndFilter from './components/SearchAndFilter';
 import EmptyBookshelf from './components/EmptyBookshelf';
 import LoadingBookshelf from './components/LoadingBookshelf';
-import { LibraryBook } from './components/BookCard';
+import { LibraryBook } from '@/lib/types';
+import { getFileExtension } from '@/lib/utils';
 
 // Constants
 const BACKGROUND_STYLES = {
@@ -69,16 +71,128 @@ function usePurchasedBooks(session: any) {
   const [books, setBooks] = useState<LibraryBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineBooksLoaded, setOfflineBooksLoaded] = useState(false);
+  const { offlineBooks } = useOfflineBooks();
+
+  // Listen for network status changes
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    setIsOnline(navigator.onLine);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Track when offline books are loaded
+  useEffect(() => {
+    if (offlineBooks !== undefined) {
+      setOfflineBooksLoaded(true);
+    }
+  }, [offlineBooks]);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    // Check if we're offline first - if offline, we can show offline books without session
+    const isOffline = !navigator.onLine;
+    
+    // If offline, wait for offline books to load before proceeding
+    if (isOffline && !offlineBooksLoaded) {
+      console.log('📱 Waiting for offline books to load...');
+      return;
+    }
+    
+    if (!isOffline && !session?.user?.id) return;
     
     const loadPurchasedBooks = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        console.log('🔍 Loading books for user:', session.user.id);
+        console.log('🔍 Loading books for user:', session?.user?.id || 'offline');
+        
+        // Check if we're offline
+        const isOffline = !navigator.onLine;
+        
+        // If offline, only show offline books
+        if (isOffline) {
+          console.log('🌐 Device is offline, loading offline books only');
+          if (offlineBooks && offlineBooks.length > 0) {
+            const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+              id: offlineBook.id,
+              name: offlineBook.title,
+              fileName: `${offlineBook.title}.pdf`,
+              size: 'Downloaded',
+              uploadDate: offlineBook.downloadDate,
+              file: null,
+              source: 'indexeddb',
+              fileUrl: 'offline',
+              author: offlineBook.author || 'Unknown Author',
+              description: 'Available offline',
+              category: '',
+              image_url: '',
+              tags: [],
+              published_date: offlineBook.downloadDate,
+              edition: '',
+              price: 0,
+              created_at: offlineBook.downloadDate,
+            }));
+            
+            setBooks(libraryBooks);
+            setIsLoading(false);
+            return;
+          } else {
+            // No offline books available
+            setBooks([]);
+            setError('No books available offline. Download books when online to read them offline.');
+            setIsLoading(false);
+            return;
+          }
+        }
+        
+        // Only reach here if online
+        // First show offline books if available to avoid loading delay
+        if (offlineBooks && offlineBooks.length > 0) {
+          console.log('📱 Found offline books, showing immediately:', offlineBooks.length);
+          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+            id: offlineBook.id,
+            name: offlineBook.title,
+            fileName: `${offlineBook.title}.pdf`,
+            size: 'Downloaded',
+            uploadDate: offlineBook.downloadDate,
+            file: null,
+            source: 'indexeddb',
+            fileUrl: 'offline',
+            author: offlineBook.author || 'Unknown Author',
+            description: 'Available offline',
+            category: '',
+            image_url: '',
+            tags: [],
+            published_date: offlineBook.downloadDate,
+            edition: '',
+            price: 0,
+            created_at: offlineBook.downloadDate,
+          }));
+          
+          setBooks(libraryBooks);
+          setIsLoading(false);
+          // Continue to also try loading online books
+        }
+        
+        // If online, try to load from Supabase (requires session)
+        if (!session?.user?.id) {
+          console.log('📱 No session available, only showing offline books');
+          setBooks([]);
+          setError('Please sign in to see your purchased books online.');
+          setIsLoading(false);
+          return;
+        }
         
         const { data: purchases, error } = await supabaseClient
           .from('purchases')
@@ -115,8 +229,13 @@ function usePurchasedBooks(session: any) {
           author: purchase.books.author,
           description: purchase.books.description,
           category: purchase.books.category,
+          image_url: purchase.books.image_url,
           imageUrl: purchase.books.image_url,
           tags: purchase.books.tags || [],
+          published_date: purchase.books.published_date || '',
+          edition: purchase.books.edition || '',
+          price: purchase.books.price || 0,
+          created_at: purchase.books.created_at || purchase.purchased_at,
           purchasePrice: purchase.purchase_price,
           purchaseDate: purchase.purchased_at
         })) || [];
@@ -124,16 +243,43 @@ function usePurchasedBooks(session: any) {
         setBooks(transformedBooks);
       } catch (error) {
         console.error('Error loading purchased books:', error);
-        setError('Failed to load your purchased books. Please refresh the page.');
+        
+        // If we have offline books, show them as fallback
+        if (offlineBooks && offlineBooks.length > 0) {
+          console.log('📱 Falling back to offline books');
+          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
+            id: offlineBook.id,
+            name: offlineBook.title,
+            fileName: `${offlineBook.title}.pdf`,
+            size: 'Downloaded',
+            uploadDate: offlineBook.downloadDate,
+            file: null,
+            source: 'indexeddb',
+            fileUrl: 'offline',
+            author: offlineBook.author || 'Unknown Author',
+            description: 'Available offline',
+            category: '',
+            image_url: '',
+            tags: [],
+            published_date: offlineBook.downloadDate,
+            edition: '',
+            price: 0,
+            created_at: offlineBook.downloadDate,
+          }));
+          setBooks(libraryBooks);
+          setError(null); // Clear error since we have offline books
+        } else {
+          setError('Unable to load your library. Try going online or download books first.');
+        }
       } finally {
         setIsLoading(false);
       }
     };
     
     loadPurchasedBooks();
-  }, [session?.user?.id]);
+  }, [session?.user?.id, offlineBooks, isOnline, offlineBooksLoaded]);
 
-  return { books, isLoading, error };
+  return { books, isLoading, error, offlineBooksLoaded };
 }
 
 // Custom hook for book filtering and search
@@ -161,7 +307,7 @@ function useBookFiltering(books: LibraryBook[]) {
     // Apply type filter
     if (filterType !== 'all') {
       filtered = filtered.filter(book => {
-        const fileExtension = book.fileName.split('.').pop()?.toLowerCase();
+        const fileExtension = getFileExtension(book.fileName);
         return fileExtension === filterType;
       });
     }
@@ -301,7 +447,7 @@ export default function BookshelfPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Custom hooks
-  const { books, isLoading, error } = usePurchasedBooks(session);
+  const { books, isLoading, error, offlineBooksLoaded } = usePurchasedBooks(session);
   const {
     filteredBooks,
     searchTerm,
@@ -322,15 +468,30 @@ export default function BookshelfPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const timer = setTimeout(() => setIsSessionLoading(false), 1000);
+    // If offline, reduce session loading timeout to prioritize offline books
+    const isOffline = !navigator.onLine;
+    const timeout = isOffline ? 500 : 1000;
+    const timer = setTimeout(() => setIsSessionLoading(false), timeout);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!isSessionLoading && !session) {
-      router.push('/login');
+      // Check if we're offline and have cached books before redirecting
+      const isOffline = !navigator.onLine;
+      console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length, 'Offline books loaded:', offlineBooksLoaded);
+      
+      // If offline, wait for offline books to load before making redirect decision
+      if (isOffline && !offlineBooksLoaded) {
+        console.log('📱 Waiting for offline books to load before redirect decision...');
+        return;
+      }
+      
+      if (!isOffline && books.length === 0) {
+        router.push('/login');
+      }
     }
-  }, [session, router, isSessionLoading]);
+  }, [session, router, isSessionLoading, books.length, offlineBooksLoaded]);
 
   // Event handlers
   const handleReadBook = useCallback((bookId: string) => {
@@ -361,8 +522,28 @@ export default function BookshelfPage() {
     setViewMode(newViewMode);
   }, [setViewMode]);
 
-  // Loading states
-  if (isSessionLoading || !isClient) {
+  // Loading states - allow offline books to load even during session loading
+  if ((isSessionLoading || !isClient) && books.length === 0) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    
+    // If offline and offline books haven't loaded yet, show loading
+    if (isOffline && !offlineBooksLoaded) {
+      return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
+            Bookshelf
+          </Typography>
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>
+              Loading offline books...
+            </Typography>
+          </Box>
+        </Container>
+      );
+    }
+    
+    // For online or when offline books are loaded but empty
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
@@ -375,7 +556,9 @@ export default function BookshelfPage() {
     );
   }
 
-  if (!session) {
+  // Allow offline access even without session if we have cached books
+  const isOffline = !navigator.onLine;
+  if (!session && !isOffline) {
     return null;
   }
 

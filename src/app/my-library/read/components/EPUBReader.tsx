@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import ePub from 'epubjs';
-import { EPUBReaderProps } from '../types';
+import { EPUBReaderProps } from '@/lib/types';
 import { EPUBLoadError } from './ReaderErrorBoundary';
 
 // EPUBReaderProps is now imported from types
