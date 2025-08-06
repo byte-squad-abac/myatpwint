@@ -30,7 +30,8 @@ import {
   CloudDownload,
   Storage,
 } from '@mui/icons-material';
-import { LibraryBook } from './BookCard';
+import { LibraryBook } from '@/lib/types';
+import { getFileExtension } from '@/lib/utils';
 
 interface SearchAndFilterProps {
   books: LibraryBook[];
@@ -75,7 +76,7 @@ export default function SearchAndFilter({
   const stats = React.useMemo(() => {
     const totalBooks = books.length;
     const fileTypes = books.reduce((acc, book) => {
-      const ext = book.fileName.split('.').pop()?.toLowerCase() || 'unknown';
+      const ext = getFileExtension(book.fileName) || 'unknown';
       acc[ext] = (acc[ext] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

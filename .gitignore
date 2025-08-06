@@ -139,3 +139,11 @@ dist
 # Claude Code session data
 .claude/
 .mcp.json
+
+# PWA generated files - DO NOT COMMIT
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/fallback-*.js

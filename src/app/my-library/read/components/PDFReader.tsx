@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Box, CircularProgress, Alert, Typography } from '@mui/material';
 import { useTheme } from '@/lib/contexts/ThemeContext';
-import { PDFReaderProps } from '../types';
+import { PDFReaderProps } from '@/lib/types';
 import { PDFLoadError } from './ReaderErrorBoundary';
 import { useScrollTouchGestures } from '../hooks/useTouchGestures';
 import styles from './PDFReader.module.css';
@@ -12,10 +12,10 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker - use the bundled version to avoid version mismatches
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString();
+if (typeof window !== 'undefined') {
+  // Use the worker file in public directory that works with any port
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+}
 
 // Suppress TextLayer cancellation warnings (they're harmless)
 const originalConsoleError = console.error;
@@ -264,10 +264,11 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
 
   // Handle document load success
   const onDocumentLoadSuccess = useCallback((pdfDoc: any) => {
-    const { numPages } = pdfDoc;
-    setNumPages(numPages);
-    setError(null);
-    pdfDocumentRef.current = pdfDoc;
+    try {
+      const { numPages } = pdfDoc;
+      setNumPages(numPages);
+      setError(null);
+      pdfDocumentRef.current = pdfDoc;
     
     // Reset visible range for new document
     const initialRange = Math.max(1, Math.min(10, numPages));
@@ -298,12 +299,26 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
         setIsPreloading(false);
       });
     }
+    } catch (error) {
+      console.error('Error in onDocumentLoadSuccess:', error);
+      setError('Failed to initialize PDF document');
+    }
   }, [memoizedOnStateChange, pageManager, pageWidth]);
 
   // Handle document load error
   const onDocumentLoadError = useCallback((_error: Error) => {
     const errorMessage = 'Failed to load PDF document';
     const pdfError = new PDFLoadError(errorMessage);
+    
+    // Cleanup any existing document reference
+    if (pdfDocumentRef.current) {
+      try {
+        pdfDocumentRef.current.destroy();
+      } catch (cleanupError) {
+        console.warn('Error cleaning up PDF document after load error:', cleanupError);
+      }
+      pdfDocumentRef.current = null;
+    }
     
     setError(errorMessage);
     memoizedOnStateChange({
@@ -321,11 +336,17 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
 
   // Handle page load success with caching
   const onPageLoadSuccess = useCallback((page: any, pageNumber: number) => {
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = pageWidth / viewport.width;
-    const scaledHeight = viewport.height * scale;
-    
-    pageManager?.setPageHeight(pageNumber, scaledHeight);
+    try {
+      if (!page || !pageManager) return;
+      
+      const viewport = page.getViewport({ scale: 1 });
+      const scale = pageWidth / viewport.width;
+      const scaledHeight = viewport.height * scale;
+      
+      pageManager.setPageHeight(pageNumber, scaledHeight);
+    } catch (error) {
+      console.warn('Error in onPageLoadSuccess:', error);
+    }
   }, [pageWidth, pageManager]);
 
   // Calculate scroll position and update current page
@@ -568,6 +589,14 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
       if (intersectionObserverRef.current) {
         intersectionObserverRef.current.disconnect();
       }
+      if (pdfDocumentRef.current) {
+        try {
+          pdfDocumentRef.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying PDF document:', error);
+        }
+        pdfDocumentRef.current = null;
+      }
       if (pageManagerRef.current) {
         pageManagerRef.current.cleanup();
       }
@@ -686,7 +715,9 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
             
             return Array.from(new Array(rangeLength), (_, index) => {
               const pageNumber = start + index;
-              const shouldRender = pageManager?.shouldRenderPage(pageNumber, [start, end]) ?? true;
+              const shouldRender = (pageManager?.shouldRenderPage(pageNumber, [start, end]) ?? true) && 
+                                   pdfDocumentRef.current && 
+                                   numPages > 0;
               const pagePosition = pageManager?.getPagePosition(pageNumber) || 0;
             const pageHeight = pageManager?.getPageHeight(pageNumber) || 600;
             
@@ -711,11 +742,15 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
                   touchAction: 'pan-y pinch-zoom',
                 }}
               >
-                {shouldRender ? (
+                {shouldRender && pdfDocumentRef.current ? (
                   <Page
                     pageNumber={pageNumber}
                     width={pageWidth}
                     onLoadSuccess={(page) => onPageLoadSuccess(page, pageNumber)}
+                    onLoadError={(error) => {
+                      console.warn(`Error loading page ${pageNumber}:`, error);
+                      // Don't render this page if there's an error
+                    }}
                     loading={
                       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         <CircularProgress size={24} />

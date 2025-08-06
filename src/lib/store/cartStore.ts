@@ -1,21 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface Book {
-  id: string;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
-
-type DeliveryType = 'physical' | 'digital';
+import { Book, DeliveryType } from '../types';
 
 export interface CartItem {
   book: Book;
