@@ -233,6 +233,7 @@ export default function AuthorPage() {
         <h2>📨 Message the Publisher</h2>
         
         <ConversationBox
+          room_id={`${session.user.id}-${publisherId}`}
           myId={session.user.id}
           myRole="author"
           authorId={session.user.id}
