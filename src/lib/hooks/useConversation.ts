@@ -17,6 +17,7 @@ export type ChatMessage = {
 };
 
 type Options = {
+  room_id: string;
   authorId: string;
   editorId: string;
   author_name: string; 
@@ -27,6 +28,7 @@ type Options = {
 };
 
 export function useConversation ({
+  room_id,
   authorId,
   editorId,
   author_name,
@@ -36,7 +38,7 @@ export function useConversation ({
   myRole,
 }: Options) {
   const supabase = createClientComponentClient();
-  const roomId   = [authorId, editorId].sort().join('-'); // Shared room ID
+  const roomId = room_id; // Shared room ID
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -56,8 +58,7 @@ export function useConversation ({
       setLoading(false);
     };
     fetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authorId, editorId]);
+  }, [roomId]);
 
   /* ───── realtime subscription ───── */
   useEffect(() => {
@@ -81,7 +82,6 @@ export function useConversation ({
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   /* ───── send helper ───── */
@@ -97,6 +97,7 @@ export function useConversation ({
       editor_id   : editorId,
       sender_role : myRole,
       content,
+      created_at  : new Date().toISOString(),
     });
 
     if (error) {
