@@ -39,12 +39,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 }
 
 function SidebarLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const sidebarWidth = collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH;
+  const [collapsed, setCollapsed] = useState(true);
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const isExpanded = !collapsed || hoverExpanded;
+  const sidebarWidth = isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH;
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar 
+        collapsed={collapsed} 
+        setCollapsed={setCollapsed}
+        onMouseEnter={() => setHoverExpanded(true)}
+        onMouseLeave={() => setHoverExpanded(false)}
+        isExpanded={isExpanded}
+      />
       <div style={{ marginLeft: sidebarWidth, flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div style={{
           height: HEADER_HEIGHT,
@@ -52,7 +60,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
           color: HEADER_COLOR,
           display: 'flex',
           alignItems: 'center',
-          paddingLeft: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+          paddingLeft: isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH,
           fontSize: 20,
           fontWeight: 'bold',
           borderBottom: `2px solid #C97E7E`,
@@ -122,7 +130,19 @@ function HeaderWithTitleOnly() {
   );
 }
 
-function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
+function Sidebar({ 
+  collapsed, 
+  setCollapsed, 
+  onMouseEnter, 
+  onMouseLeave, 
+  isExpanded 
+}: { 
+  collapsed: boolean; 
+  setCollapsed: (val: boolean) => void; 
+  onMouseEnter: () => void; 
+  onMouseLeave: () => void; 
+  isExpanded: boolean; 
+}) {
   const session = useSession();
   const { items } = useCartStore();
 
@@ -153,23 +173,26 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
   ];
 
   return (
-    <nav style={{
-      width: collapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH,
-      background: '#2C1B28',
-      color: '#FCEBD5',
-      height: '100vh',
-      paddingTop: 20,
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      overflowY: 'auto',
-      borderRight: '2px solid #C97E7E',
-      zIndex: 999,
-      transition: 'width 0.3s ease',
-    }}>
+    <nav 
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        width: isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH,
+        background: '#2C1B28',
+        color: '#FCEBD5',
+        height: '100vh',
+        paddingTop: 20,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        overflowY: 'auto',
+        borderRight: '2px solid #C97E7E',
+        zIndex: 999,
+        transition: 'width 0.3s ease',
+      }}>
       <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', marginBottom: 24 }}>
         <img src="/logo.jpg" alt="Logo" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-        {!collapsed && (
+        {isExpanded && (
           <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.2, marginLeft: 12 }}>
             Myat Pwint<br />Publishing House
           </div>
@@ -201,7 +224,7 @@ function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed
           }}
         >
           {icon}
-          {!collapsed && label}
+          {isExpanded && label}
         </Link>
       ))}
     </nav>
