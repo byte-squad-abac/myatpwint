@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useCartStore } from '@/lib/store/cartStore';
 import {
   Container,
   Paper,
@@ -15,13 +16,14 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { clearCart } = useCartStore();
   const transactionId = searchParams.get('transaction');
   const sessionId = searchParams.get('session_id');
   const isStripePayment = !!sessionId;
 
   useEffect(() => {
     // Clear cart on successful payment
-    // Note: This will be cleared automatically by webhook for Stripe payments
+    clearCart();
     
     // Redirect to home if accessed directly
     const timeout = setTimeout(() => {
@@ -29,7 +31,7 @@ function CheckoutSuccessContent() {
     }, 10000); // Redirect after 10 seconds
 
     return () => clearTimeout(timeout);
-  }, [router]);
+  }, [router, clearCart]);
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
