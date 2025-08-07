@@ -44,31 +44,149 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get auth token from cookies manually to avoid Next.js issue
-    const cookieHeader = request.headers.get('cookie');
+    // Create authenticated Supabase client to get current user
+    const supabaseAuthClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Get user from request (simplified approach)
     let userId = null;
+    let userEmail = 'test@example.com';
+
+    // For testing, let's use the authorization header or cookie
+    const authHeader = request.headers.get('authorization');
+    const cookieHeader = request.headers.get('cookie');
     
-    if (cookieHeader) {
-      // Extract user from session (simplified for testing)
+    console.log('🍪 Cookie header:', cookieHeader);
+    console.log('🔑 Auth header:', authHeader);
+    
+    // Extract real user from auth token
+    if (cookieHeader?.includes('sb-zuzzlrxxmrrovmlopdiy-auth-token')) {
       try {
-        const authCookie = cookieHeader
-          .split(';')
-          .find(c => c.trim().startsWith('sb-zuzzlrxxmrrovmlopdiy-auth-token'));
-        
-        if (authCookie) {
-          // For now, use a test user ID - in production, decode the JWT properly
-          userId = 'test-user-id'; // This is temporary for testing
+        // Parse the auth token cookie
+        const authTokenMatch = cookieHeader.match(/sb-zuzzlrxxmrrovmlopdiy-auth-token=([^;]*)/);
+        if (authTokenMatch) {
+          const authTokenString = decodeURIComponent(authTokenMatch[1]);
+          const authToken = JSON.parse(authTokenString);
+          
+          // Handle array format: [jwt_token, refresh_token, null, null, null]
+          if (Array.isArray(authToken) && authToken[0]) {
+            const jwt = authToken[0];
+            const { data: { user }, error } = await supabaseAuthClient.auth.getUser(jwt);
+            
+            if (!error && user) {
+              userId = user.id;
+              userEmail = user.email || 'user@example.com';
+              console.log('✅ Authenticated user for checkout (array format):', { userId, userEmail });
+            } else {
+              console.error('❌ Auth verification failed:', error);
+            }
+          }
+          // Handle object format
+          else if (authToken.access_token) {
+            // Verify the token with Supabase and get real user
+            const { data: { user }, error } = await supabaseAuthClient.auth.getUser(authToken.access_token);
+            
+            if (!error && user) {
+              userId = user.id;
+              userEmail = user.email || 'user@example.com';
+              console.log('✅ Authenticated user for checkout (object format):', { userId, userEmail });
+            } else {
+              console.error('❌ Auth verification failed:', error);
+            }
+          }
         }
       } catch (e) {
-        console.log('Could not extract user from cookie:', e);
+        console.error('❌ Error parsing auth token:', e);
       }
     }
 
-    // Create fake Stripe customer for testing
+    // Fallback: try different cookie patterns
+    if (!userId && cookieHeader) {
+      console.log('🔍 Trying alternative cookie patterns...');
+      
+      // Try to find any Supabase-related auth cookies
+      const supabaseCookiePatterns = [
+        /sb-[^-]+-auth-token[^=]*=([^;]+)/,
+        /supabase[^=]*=([^;]+)/,
+        /_supabase_session=([^;]+)/
+      ];
+      
+      for (const pattern of supabaseCookiePatterns) {
+        const match = cookieHeader.match(pattern);
+        if (match) {
+          console.log('📍 Found potential auth cookie:', pattern.source);
+          try {
+            const tokenData = JSON.parse(decodeURIComponent(match[1]));
+            console.log('📍 Token data keys:', Object.keys(tokenData));
+            console.log('📍 Token data type:', Array.isArray(tokenData) ? 'array' : 'object');
+            
+            // Handle Supabase array format: [jwt_token, refresh_token, null, null, null]
+            if (Array.isArray(tokenData) && tokenData[0]) {
+              const jwt = tokenData[0];
+              console.log('📍 Found JWT in array format');
+              
+              try {
+                const { data: { user: authUser }, error } = await supabaseAuthClient.auth.getUser(jwt);
+                if (!error && authUser) {
+                  userId = authUser.id;
+                  userEmail = authUser.email || 'user@example.com';
+                  console.log('✅ Got user from JWT array format:', { userId, userEmail });
+                  break;
+                }
+              } catch (jwtError) {
+                console.log('❌ JWT verification failed:', jwtError.message);
+              }
+            }
+            // Handle object format: { access_token: "...", user: {...} }
+            else if (tokenData.access_token || tokenData.user) {
+              const token = tokenData.access_token;
+              const user = tokenData.user;
+              
+              if (token) {
+                const { data: { user: authUser }, error } = await supabaseAuthClient.auth.getUser(token);
+                if (!error && authUser) {
+                  userId = authUser.id;
+                  userEmail = authUser.email || 'user@example.com';
+                  console.log('✅ Got user from object access_token:', { userId, userEmail });
+                  break;
+                }
+              } else if (user?.id) {
+                // Direct user object
+                userId = user.id;
+                userEmail = user.email || 'user@example.com';
+                console.log('✅ Got user from direct user object:', { userId, userEmail });
+                break;
+              }
+            }
+          } catch (e) {
+            console.log('❌ Failed to parse alternative cookie:', e.message);
+          }
+        }
+      }
+    }
+
+    if (!userId) {
+      console.log('❌ Could not authenticate user - no valid session found');
+      return NextResponse.json(
+        { 
+          error: 'Authentication required - please log in first',
+          debug: {
+            hasCookie: !!cookieHeader,
+            hasAuthHeader: !!authHeader,
+            cookieContainsSupabase: cookieHeader?.includes('supabase') || false
+          }
+        },
+        { status: 401 }
+      );
+    }
+
+    // Create Stripe customer 
     const stripeCustomer = await stripe.customers.create({
-      email: 'test@example.com',
+      email: userEmail,
       metadata: {
-        supabase_user_id: userId || 'anonymous',
+        supabase_user_id: userId,
       },
     });
 
@@ -120,7 +238,7 @@ export async function POST(request: NextRequest) {
         allowed_countries: ['US', 'MM'], // Allow both US and Myanmar
       } : undefined,
       metadata: {
-        user_id: userId || 'anonymous',
+        user_id: userId,
         has_physical_items: hasPhysicalItems.toString(),
         item_count: items.length.toString(),
         ...metadata,

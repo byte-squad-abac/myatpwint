@@ -5,18 +5,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, stripeConfig, STRIPE_EVENTS } from '@/lib/stripe/config';
 import { pyaToMmk } from '@/lib/stripe/products';
-import supabase from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
+
+// Create service role client to bypass RLS
+const supabaseServiceRole = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Disable body parsing for webhook signature verification
 export const dynamic = 'force-dynamic';
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   try {
-    console.log('Processing checkout session completed:', session.id);
+    console.log('🚀 Processing checkout session completed:', session.id);
+    console.log('Session metadata:', session.metadata);
 
     const userId = session.metadata?.user_id;
     if (!userId) {
+      console.error('❌ No user_id in session metadata:', session.metadata);
       throw new Error('No user_id in session metadata');
     }
 
@@ -44,11 +52,20 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         continue;
       }
 
+      // Get the original MMK price from book
+      const { data: bookData } = await supabaseServiceRole
+        .from('books')
+        .select('price')
+        .eq('id', bookId)
+        .single();
+      
+      const originalPrice = bookData?.price || (price?.unit_amount || 0) / 100;
+
       // Create purchase record
       const purchaseData = {
         user_id: userId,
         book_id: bookId,
-        purchase_price: pyaToMmk(price?.unit_amount || 0),
+        purchase_price: originalPrice, // Store original MMK price
         purchase_type: 'purchase',
         payment_method: 'stripe',
         payment_status: 'succeeded',
@@ -62,17 +79,19 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     }
 
     if (purchases.length > 0) {
-      const { error } = await supabase
+      console.log('💾 Saving purchases:', purchases);
+      const { error } = await supabaseServiceRole
         .from('purchases')
         .insert(purchases);
 
       if (error) {
+        console.error('❌ Failed to save purchases:', error);
         throw new Error(`Failed to save purchases: ${error.message}`);
       }
 
       console.log(`✅ Successfully processed ${purchases.length} purchases for session ${session.id}`);
     } else {
-      console.warn('No valid purchases found in session:', session.id);
+      console.warn('⚠️ No valid purchases found in session:', session.id);
     }
 
   } catch (error) {
@@ -86,7 +105,7 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(session: Stripe.Checko
     console.log('Processing async payment succeeded:', session.id);
 
     // Update payment status for existing purchases
-    const { error } = await supabase
+    const { error } = await supabaseServiceRole
       .from('purchases')
       .update({
         payment_status: 'succeeded',
@@ -112,7 +131,7 @@ async function handleCheckoutSessionAsyncPaymentFailed(session: Stripe.Checkout.
     console.log('Processing async payment failed:', session.id);
 
     // Update payment status for existing purchases
-    const { error } = await supabase
+    const { error } = await supabaseServiceRole
       .from('purchases')
       .update({
         payment_status: 'failed',

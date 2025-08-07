@@ -93,6 +93,23 @@ npm run lint         # Run Next.js linting
 - **Type Safety**: Centralized LibraryBook interface, no duplicate type definitions
 - **Performance**: Memoized calculations, debounced search, optimized component structure
 
+### Stripe Payment System Architecture
+- **Full Integration**: Complete Stripe Checkout + Webhooks implementation
+- **Currency Support**: USD (Stripe) with MMK display (Myanmar Kyat not supported by Stripe)
+- **Product Sync**: Books automatically synced to Stripe as products/prices
+- **Authentication**: Real user session parsing from Supabase auth cookies (array format)
+- **Webhook Handling**: Service role client bypasses RLS for purchase record creation
+- **Development**: Stripe CLI webhook forwarding required for local testing
+- **Payment Flow**: Cart → Stripe Checkout → Webhook → Purchase Record → Bookshelf
+- **Database**: Extended purchases table with Stripe fields, separate stripe_products mapping table
+
+### Critical Implementation Notes
+1. **Supabase Auth Cookie Format**: Array format `["jwt_token", "refresh_token", null, null, null]` not object
+2. **Webhook Authentication**: Must use service role client to bypass RLS policies  
+3. **Local Development**: Requires `stripe listen --forward-to localhost:3000/api/stripe/webhooks`
+4. **User Matching**: JWT token verification via `supabaseAuthClient.auth.getUser(jwt)`
+5. **Currency Conversion**: MMK to USD at 0.00048 rate for Stripe, display as MMK to users
+
 ## Development Guidelines
 
 ### Environment Variables
@@ -100,6 +117,15 @@ Required in `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Stripe Configuration
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# Application Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### TypeScript Configuration

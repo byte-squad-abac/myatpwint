@@ -80,14 +80,17 @@ function usePurchasedBooks(session: any) {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     
-    setIsOnline(navigator.onLine);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
     
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      }
     };
   }, []);
 
@@ -100,7 +103,7 @@ function usePurchasedBooks(session: any) {
 
   useEffect(() => {
     // Check if we're offline first - if offline, we can show offline books without session
-    const isOffline = !navigator.onLine;
+    const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
     
     // If offline, wait for offline books to load before proceeding
     if (isOffline && !offlineBooksLoaded) {
@@ -118,7 +121,7 @@ function usePurchasedBooks(session: any) {
         console.log('🔍 Loading books for user:', session?.user?.id || 'offline');
         
         // Check if we're offline
-        const isOffline = !navigator.onLine;
+        const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
         
         // If offline, only show offline books
         if (isOffline) {
@@ -194,6 +197,9 @@ function usePurchasedBooks(session: any) {
           return;
         }
         
+        console.log('🔍 Querying purchases for user_id:', session.user.id);
+        console.log('🔍 User email:', session.user.email);
+        
         const { data: purchases, error } = await supabaseClient
           .from('purchases')
           .select(`
@@ -213,7 +219,12 @@ function usePurchasedBooks(session: any) {
           `)
           .eq('user_id', session.user.id);
 
-        console.log('📚 Purchases query result:', { purchases, error });
+        console.log('📚 Purchases query result:', { 
+          user_id: session.user.id,
+          purchases_count: purchases?.length || 0,
+          purchases, 
+          error 
+        });
         
         if (error) throw error;
 
@@ -448,6 +459,9 @@ export default function BookshelfPage() {
   
   // Custom hooks
   const { books, isLoading, error, offlineBooksLoaded } = usePurchasedBooks(session);
+  
+  // Client-only state to prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
   const {
     filteredBooks,
     searchTerm,
@@ -467,9 +481,10 @@ export default function BookshelfPage() {
   const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
     setIsClient(true);
     // If offline, reduce session loading timeout to prioritize offline books
-    const isOffline = !navigator.onLine;
+    const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
     const timeout = isOffline ? 500 : 1000;
     const timer = setTimeout(() => setIsSessionLoading(false), timeout);
     return () => clearTimeout(timer);
@@ -478,7 +493,7 @@ export default function BookshelfPage() {
   useEffect(() => {
     if (!isSessionLoading && !session) {
       // Check if we're offline and have cached books before redirecting
-      const isOffline = !navigator.onLine;
+      const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
       console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length, 'Offline books loaded:', offlineBooksLoaded);
       
       // If offline, wait for offline books to load before making redirect decision
@@ -522,6 +537,20 @@ export default function BookshelfPage() {
     setViewMode(newViewMode);
   }, [setViewMode]);
 
+  // Prevent hydration mismatch by waiting for client mount
+  if (!mounted) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
+          Bookshelf
+        </Typography>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
   // Loading states - allow offline books to load even during session loading
   if ((isSessionLoading || !isClient) && books.length === 0) {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -557,7 +586,7 @@ export default function BookshelfPage() {
   }
 
   // Allow offline access even without session if we have cached books
-  const isOffline = !navigator.onLine;
+  const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
   if (!session && !isOffline) {
     return null;
   }
