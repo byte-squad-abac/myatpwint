@@ -17,6 +17,7 @@ import { useCartStore } from '@/lib/store/cartStore';
 import { useSession } from '@supabase/auth-helpers-react';
 import supabaseClient from '@/lib/supabaseClient';
 import { Book, DeliveryType } from '@/lib/types';
+import BookRecommendations from '../../../../components/BookRecommendations';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
@@ -293,6 +294,12 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
           </Box>
         </Box>
       </Paper>
+
+      {/* AI Recommendations Section */}
+      <BookRecommendations 
+        bookId={book.id} 
+        bookTitle={book.name} 
+      />
     </Container>
   );
 }
