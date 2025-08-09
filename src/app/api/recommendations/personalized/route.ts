@@ -4,33 +4,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PineconeService } from '@/lib/services/pinecone.service';
 import { createClient } from '@supabase/supabase-js';
-
-// Initialize services
-const pineconeService = new PineconeService();
-let pineconeInitialized = false;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function initializePinecone() {
-  if (!pineconeInitialized) {
-    try {
-      await pineconeService.initialize();
-      pineconeInitialized = true;
-    } catch (error) {
-      console.error('Failed to initialize Pinecone:', error);
-      throw error;
-    }
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    await initializePinecone();
     
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -46,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user exists
-    const { data: user, error: userError } = await supabase
+    const { error: userError } = await supabase
       .from('auth.users')
       .select('id')
       .eq('id', userId)
@@ -113,55 +95,10 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (pythonError) {
-      console.warn('Python service unavailable, falling back to Pinecone:', pythonError);
-    }
-
-    // Fallback to Pinecone personalized recommendations
-    try {
-      const personalizedResults = await pineconeService.getPersonalizedRecommendations(userId, limit);
+      console.warn('Python service unavailable, falling back to database:', pythonError);
       
-      // Get full book data for results
-      const recommendations = await Promise.all(
-        personalizedResults.map(async (result) => {
-          const { data: bookData } = await supabase
-            .from('books')
-            .select('*')
-            .eq('id', result.bookId)
-            .single();
-
-          return {
-            ...bookData,
-            similarity_score: result.score,
-            recommendation_reason: result.metadata?.recommendationReason || 'Based on your interests',
-            algorithm: 'collaborative_filtering',
-            user_affinity: result.score
-          };
-        })
-      );
-
-      // Filter out null results and apply category filter if needed
-      const filteredRecommendations = recommendations
-        .filter(Boolean)
-        .filter(rec => !category || rec.category === category);
-
-      // Track recommendation request
-      await trackRecommendationRequest(userId, 'personalized', filteredRecommendations.length);
-
-      return NextResponse.json({
-        success: true,
-        user_id: userId,
-        recommendations: filteredRecommendations,
-        algorithm: 'collaborative_filtering',
-        model_version: 'pinecone',
-        total: filteredRecommendations.length,
-        cached: false
-      });
-
-    } catch (pineconeError) {
-      console.error('Pinecone personalized query failed:', pineconeError);
-      
-      // Final fallback to user history-based recommendations
-      return await getFallbackPersonalizedBooks(userId, limit, category, excludePurchased);
+      // Fallback to user history-based recommendations
+      return await getFallbackPersonalizedBooks(userId, limit, category || undefined, excludePurchased);
     }
 
   } catch (error) {
@@ -204,10 +141,11 @@ async function getFallbackPersonalizedBooks(
       `)
       .eq('user_id', userId);
 
+    // Type the book data correctly - books property contains the actual book data
     const userBooks = [
       ...(purchaseHistory || []).map(p => p.books),
       ...(cartItems || []).map(c => c.books)
-    ].filter(Boolean);
+    ].filter(Boolean) as any[];
 
     if (userBooks.length === 0) {
       // New user - recommend popular books

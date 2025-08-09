@@ -4,39 +4,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PineconeService } from '@/lib/services/pinecone.service';
 import { createClient } from '@supabase/supabase-js';
-
-// Initialize services
-const pineconeService = new PineconeService();
-let pineconeInitialized = false;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function initializePinecone() {
-  if (!pineconeInitialized) {
-    try {
-      await pineconeService.initialize();
-      pineconeInitialized = true;
-    } catch (error) {
-      console.error('Failed to initialize Pinecone:', error);
-      throw error;
-    }
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    await initializePinecone();
     
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
     const limit = parseInt(searchParams.get('limit') || '20');
     const category = searchParams.get('category');
-    const minSimilarity = parseFloat(searchParams.get('minSimilarity') || '0.2');
     
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
@@ -52,60 +33,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Try semantic search using Pinecone first
-    try {
-      // Build filter for Pinecone query
-      const filter: any = {};
-      if (category) {
-        filter.category = { $eq: category };
-      }
-
-      const searchResults = await pineconeService.searchBooks(query, limit + 10, filter);
-      
-      // Filter by minimum similarity and get full book data
-      const filteredResults = searchResults.filter(result => result.score >= minSimilarity);
-
-      const searchRecommendations = await Promise.all(
-        filteredResults.slice(0, limit).map(async (result) => {
-          const { data: bookData } = await supabase
-            .from('books')
-            .select('*')
-            .eq('id', result.bookId)
-            .single();
-
-          if (!bookData) return null;
-
-          return {
-            ...bookData,
-            similarity_score: result.score,
-            recommendation_reason: generateSearchReason(query, bookData, result.score),
-            algorithm: 'semantic_search',
-            search_query: query
-          };
-        })
-      );
-
-      const validResults = searchRecommendations.filter(Boolean);
-
-      // Track search request
-      await trackSearchRequest(query, validResults.length, 'semantic_search');
-
-      return NextResponse.json({
-        success: true,
-        query: query,
-        recommendations: validResults,
-        algorithm: 'semantic_search',
-        model_version: 'pinecone_embeddings',
-        total: validResults.length,
-        cached: false
-      });
-
-    } catch (pineconeError) {
-      console.warn('Pinecone search failed, falling back to database search:', pineconeError);
-      
-      // Fallback to traditional database search
-      return await getFallbackSearchResults(query, limit, category);
-    }
+    // Use traditional database search as primary method
+    return await getFallbackSearchResults(query, limit, category || undefined);
 
   } catch (error) {
     console.error('Error in search API:', error);
@@ -132,8 +61,6 @@ async function getFallbackSearchResults(query: string, limit: number, category?:
       });
     }
 
-    // Build PostgreSQL full-text search query
-    const tsQuery = searchTerms.join(' | '); // OR operator for broader matching
     
     let baseQuery = supabase
       .from('books')

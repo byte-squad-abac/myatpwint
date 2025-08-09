@@ -4,40 +4,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-// import { PineconeService } from '@/lib/services/pinecone.service'; // Disabled for now
 import { createClient } from '@supabase/supabase-js';
-
-// Initialize services - Pinecone disabled for now
-// const pineconeService = new PineconeService();
-// let pineconeInitialized = false;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Pinecone initialization disabled
-// async function initializePinecone() {
-//   if (!pineconeInitialized) {
-//     try {
-//       await pineconeService.initialize();
-//       pineconeInitialized = true;
-//     } catch (error) {
-//       console.error('Failed to initialize Pinecone:', error);
-//       throw error;
-//     }
-//   }
-// }
-
 export async function GET(request: NextRequest) {
   try {
-    // await initializePinecone(); // Disabled
-    
     const { searchParams } = new URL(request.url);
     const bookId = searchParams.get('bookId');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const minSimilarity = parseFloat(searchParams.get('minSimilarity') || '0.3');
-    const category = searchParams.get('category');
     
     if (!bookId) {
       return NextResponse.json(
@@ -97,7 +75,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate similarity scores
-      const similarities = allEmbeddings.map(item => {
+      const similarities = (allEmbeddings || []).map(item => {
         const otherEmbedding = item.embedding_vector;
         const similarity = calculateCosineSimilarity(targetEmbedding, otherEmbedding);
         
@@ -142,48 +120,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in similar books API:', error);
     return NextResponse.json(
-      { error: 'Failed to get similar books', details: error.message },
+      { error: 'Failed to get similar books', details: String(error) },
       { status: 500 }
     );
   }
 }
 
-async function generateBookEmbedding(book: any): Promise<number[] | null> {
-  try {
-    const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
-    
-    const response = await fetch(`${pythonServiceUrl}/books/process`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        book: {
-          id: book.id,
-          name: book.name,
-          author: book.author,
-          description: book.description,
-          category: book.category,
-          tags: book.tags,
-          price: book.price,
-        },
-        generate_embedding: true,
-        update_cache: false,
-      }),
-      signal: AbortSignal.timeout(15000), // 15 second timeout
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    return result.embedding;
-  } catch (error) {
-    console.error('Error generating embedding:', error);
-    return null;
-  }
-}
+// Unused function - removed for cleanup
 
 async function getFallbackSimilarBooks(targetBook: any, limit: number) {
   try {
@@ -198,7 +141,7 @@ async function getFallbackSimilarBooks(targetBook: any, limit: number) {
       query = query.eq('category', targetBook.category);
     }
 
-    const { data: categoryMatches } = await query.limit(limit * 2).execute();
+    const { data: categoryMatches } = await query.limit(limit * 2);
     
     if (categoryMatches && categoryMatches.length >= limit) {
       const recommendations = categoryMatches.slice(0, limit).map(book => ({
@@ -228,11 +171,10 @@ async function getFallbackSimilarBooks(targetBook: any, limit: number) {
         .select('*')
         .eq('author', targetBook.author)
         .neq('id', targetBook.id)
-        .limit(limit)
-        .execute();
+        .limit(limit);
 
       if (authorMatches && authorMatches.length > 0) {
-        const recommendations = authorMatches.map(book => ({
+        const recommendations = authorMatches.map((book: any) => ({
           ...book,
           similarity_score: 0.9, // Very high score for same author
           recommendation_reason: `Same author: ${targetBook.author}`,
@@ -258,10 +200,9 @@ async function getFallbackSimilarBooks(targetBook: any, limit: number) {
       .from('books')
       .select('*')
       .neq('id', targetBook.id)
-      .limit(limit)
-      .execute();
+      .limit(limit);
 
-    const recommendations = (randomBooks || []).map(book => ({
+    const recommendations = (randomBooks || []).map((book: any) => ({
       ...book,
       similarity_score: 0.5,
       recommendation_reason: 'Popular book you might like',
@@ -306,7 +247,7 @@ function generateSimilarityReason(targetBook: any, similarBook: any): string {
   const similarTags = Array.isArray(similarBook.tags) ? similarBook.tags : 
                      (typeof similarBook.tags === 'string' ? JSON.parse(similarBook.tags || '[]') : []);
   
-  const commonTags = targetTags.filter(tag => similarTags.includes(tag));
+  const commonTags = targetTags.filter((tag: any) => similarTags.includes(tag));
   if (commonTags.length > 0) {
     reasons.push(`similar topics (${commonTags.slice(0, 2).join(', ')})`);
   }

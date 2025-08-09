@@ -15,14 +15,9 @@ import {
   Divider,
 } from '@mui/material';
 import { AutoAwesome, TrendingUp } from '@mui/icons-material';
+import { Book } from '@/lib/types';
 
-interface Book {
-  id: string;
-  name: string;
-  author: string;
-  category: string;
-  price: number;
-  image_url?: string;
+interface RecommendedBook extends Book {
   similarity_score: number;
 }
 
@@ -32,7 +27,7 @@ interface BookRecommendationsProps {
 }
 
 export default function BookRecommendations({ bookId, bookTitle }: BookRecommendationsProps) {
-  const [recommendations, setRecommendations] = useState<Book[]>([]);
+  const [recommendations, setRecommendations] = useState<RecommendedBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

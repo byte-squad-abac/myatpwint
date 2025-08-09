@@ -8,29 +8,9 @@ import {
   Container, Typography, Grid, TextField, Select, MenuItem,
   Button, Box, InputLabel, FormControl, Chip,
 } from '@mui/material';
+import { Book, Manuscript } from '@/lib/types';
 import './publisher.css';
 
-interface Book {
-  id: string;
-  manuscript_id: string | null;
-  file_url: string | null;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
-
-interface Manuscript {
-  id: string;
-  title: string;
-  author: string;
-}
 
 const categories = [
   'Information technology', 'astrology', 'horoscope', 'music', 'programming',

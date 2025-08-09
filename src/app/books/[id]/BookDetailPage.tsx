@@ -17,7 +17,7 @@ import { useCartStore } from '@/lib/store/cartStore';
 import { useSession } from '@supabase/auth-helpers-react';
 import supabaseClient from '@/lib/supabaseClient';
 import { Book, DeliveryType } from '@/lib/types';
-import BookRecommendations from '../../../../components/BookRecommendations';
+import BookRecommendations from '../../../components/books/BookRecommendations';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
