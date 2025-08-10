@@ -67,7 +67,14 @@ export interface Purchase {
   user_id: string;
   book_id: string;
   purchase_price: number;
-  delivery_type: DeliveryType;
+  purchase_type: 'purchase' | 'rent';
+  delivery_type?: DeliveryType;
+  payment_method: string;
+  payment_status: PaymentStatus;
+  transaction_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_customer_id: string | null;
+  rental_expires_at: string | null;
   purchased_at: string;
   books?: Book;
 }
@@ -106,6 +113,10 @@ export type UserRole = 'reader' | 'author' | 'editor' | 'publisher' | 'admin';
 export type BookSource = 'indexeddb' | 'supabase' | 'purchased';
 
 export type FileType = 'pdf' | 'epub' | 'txt';
+
+export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'requires_action' | 'canceled';
+
+export type PaymentMethod = 'stripe' | 'fake_payment';
 
 // ============================================================================
 // API RESPONSE TYPES
@@ -202,6 +213,42 @@ export interface SyncItem {
   data: any;
   timestamp: number;
   attempts: number;
+}
+
+// ============================================================================
+// STRIPE TYPES
+// ============================================================================
+
+export interface StripeProduct {
+  id: string;
+  book_id: string;
+  stripe_product_id: string;
+  stripe_price_id: string;
+  currency: string;
+  unit_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StripeCheckoutItem {
+  bookId: string;
+  quantity: number;
+  deliveryType: DeliveryType;
+}
+
+export interface PaymentRecord {
+  id: string;
+  user_id: string;
+  book_id: string;
+  purchase_price: number;
+  purchase_type: 'purchase' | 'rent';
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  transaction_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_customer_id: string | null;
+  purchased_at: string;
+  books?: Book;
 }
 
 // ============================================================================

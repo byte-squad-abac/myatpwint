@@ -14,7 +14,14 @@ import {
   TextField,
   Divider,
   Alert,
+  Card,
+  CardContent,
+  IconButton,
+  Chip,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { useCartStore, CartItem } from '@/lib/store/cartStore';
 import supabaseClient from '@/lib/supabaseClient';
 import { useSession } from '@supabase/auth-helpers-react';
@@ -27,7 +34,7 @@ export default function CheckoutPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { items, getTotal, clearCart } = useCartStore();
+  const { items, getTotal, clearCart, removeItem, updateQuantity } = useCartStore();
 
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -107,6 +114,96 @@ export default function CheckoutPage() {
     setActiveStep((prevStep) => prevStep - 1);
   };
 
+  const handleRemoveItem = (bookId: string, deliveryType: 'physical' | 'digital') => {
+    removeItem(bookId, deliveryType);
+  };
+
+  const handleUpdateQuantity = (bookId: string, deliveryType: 'physical' | 'digital', newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeItem(bookId, deliveryType);
+    } else {
+      updateQuantity(bookId, deliveryType, newQuantity);
+    }
+  };
+
+  const CartSummary = () => (
+    <Card sx={{ mb: 4 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Cart Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
+        </Typography>
+        {items.map((item: CartItem, idx: number) => (
+          <Card key={`${item.book.id}-${item.deliveryType}`} variant="outlined" sx={{ mb: 2 }}>
+            <CardContent sx={{ p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {item.book.image_url && (
+                  <img 
+                    src={item.book.image_url} 
+                    alt={item.book.name}
+                    style={{ width: 60, height: 80, objectFit: 'cover', borderRadius: 4 }}
+                  />
+                )}
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    {item.book.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    by {item.book.author}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <Chip 
+                      label={item.deliveryType === 'physical' ? 'Physical' : 'Digital'} 
+                      size="small"
+                      color={item.deliveryType === 'physical' ? 'primary' : 'secondary'}
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {item.book.price.toLocaleString()} MMK
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleUpdateQuantity(item.book.id, item.deliveryType, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                  >
+                    <RemoveIcon />
+                  </IconButton>
+                  <Typography variant="body1" sx={{ minWidth: 20, textAlign: 'center' }}>
+                    {item.quantity}
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleUpdateQuantity(item.book.id, item.deliveryType, item.quantity + 1)}
+                  >
+                    <AddIcon />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    color="error"
+                    onClick={() => handleRemoveItem(item.book.id, item.deliveryType)}
+                    sx={{ ml: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+        <Divider sx={{ my: 2 }} />
+        {items.some((item: CartItem) => item.deliveryType === 'physical') && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Shipping Fee: 5,000 MMK
+          </Typography>
+        )}
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+          Total: {getTotal().toLocaleString()} MMK
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+
   if (items.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 8 }}>
@@ -137,6 +234,9 @@ export default function CheckoutPage() {
             {error}
           </Alert>
         )}
+
+        {/* Cart Summary - shown on all steps */}
+        <CartSummary />
 
         {/* Shipping Information Step */}
         {activeStep === 0 && (
@@ -206,46 +306,97 @@ export default function CheckoutPage() {
         {/* Payment Details Step */}
         {activeStep === 1 && (
           <Box sx={{ display: 'grid', gap: 3 }}>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              This is a fake payment system for demonstration. No real payment is processed.
-            </Alert>
-            
             <Typography variant="h6" gutterBottom>
-              Payment Information
+              Choose Payment Method
             </Typography>
-            
-            <TextField
-              fullWidth
-              label="Card Number"
-              placeholder="1234 5678 9012 3456"
-              value={paymentInfo.cardNumber}
-              onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
-            />
-            
-            <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+
+            {/* Payment Method Selection */}
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => router.push('/checkout/stripe')}
+                sx={{ 
+                  p: 3,
+                  bgcolor: '#635bff',
+                  '&:hover': { bgcolor: '#5248e8' },
+                  textTransform: 'none'
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
+                    🔒 Pay with Stripe (Recommended)
+                  </Typography>
+                  <Typography variant="body2">
+                    Secure payment with cards, digital wallets, and more
+                  </Typography>
+                </Box>
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => setActiveStep(2)} // Skip to fake payment flow
+                sx={{ 
+                  p: 3,
+                  textTransform: 'none',
+                  borderStyle: 'dashed'
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
+                    💳 Demo Payment (Testing Only)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Fake payment system for demonstration
+                  </Typography>
+                </Box>
+              </Button>
+            </Box>
+
+            {/* Legacy fake payment form (hidden by default) */}
+            <Box sx={{ display: 'none' }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                This is a fake payment system for demonstration. No real payment is processed.
+              </Alert>
+              
+              <Typography variant="h6" gutterBottom>
+                Payment Information
+              </Typography>
+              
               <TextField
                 fullWidth
-                label="Cardholder Name"
-                value={paymentInfo.cardName}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+                label="Card Number"
+                placeholder="1234 5678 9012 3456"
+                value={paymentInfo.cardNumber}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, cardNumber: e.target.value })}
               />
+              
+              <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Cardholder Name"
+                  value={paymentInfo.cardName}
+                  onChange={(e) => setPaymentInfo({ ...paymentInfo, cardName: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Expiry Date"
+                  placeholder="MM/YY"
+                  value={paymentInfo.expiryDate}
+                  onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+                />
+              </Box>
+              
               <TextField
                 fullWidth
-                label="Expiry Date"
-                placeholder="MM/YY"
-                value={paymentInfo.expiryDate}
-                onChange={(e) => setPaymentInfo({ ...paymentInfo, expiryDate: e.target.value })}
+                label="CVV"
+                placeholder="123"
+                value={paymentInfo.cvv}
+                onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
+                sx={{ maxWidth: 120 }}
               />
             </Box>
-            
-            <TextField
-              fullWidth
-              label="CVV"
-              placeholder="123"
-              value={paymentInfo.cvv}
-              onChange={(e) => setPaymentInfo({ ...paymentInfo, cvv: e.target.value })}
-              sx={{ maxWidth: 120 }}
-            />
           </Box>
         )}
 
@@ -253,28 +404,13 @@ export default function CheckoutPage() {
         {activeStep === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              Order Summary
+              Review Your Order
             </Typography>
-            {items.map((item: CartItem, idx: number) => (
-              <Box key={item.book.id ?? idx} sx={{ mb: 2 }}>
-                <Typography variant="subtitle1">{item.book.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {typeof item.book.price === 'number' ? item.book.price.toLocaleString() : 'N/A'} MMK
-                </Typography>
-              </Box>
-            ))}
-            <Divider sx={{ my: 2 }} />
-            {/* Show shipping fee if any item is physical */}
-            {items.some((item: CartItem) => item.deliveryType === 'physical') && (
-              <Typography variant="body2" color="error" sx={{ mb: 1 }}>
-                Shipping Fee: 5,000 MMK
-              </Typography>
-            )}
-            <Typography variant="h6" sx={{ mt: 2 }}>
-              Total: {(() => {
-                let total = getTotal() || 0;
-                return total ? total.toLocaleString() : 'N/A';
-              })()} MMK
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Please review your order details above. You can still modify quantities or remove items before proceeding to payment.
+            </Alert>
+            <Typography variant="body1" color="text.secondary">
+              Your order summary is displayed above. Click "Place Order" to proceed with the Demo Payment, or go back to choose Stripe Payment.
             </Typography>
           </Box>
         )}
