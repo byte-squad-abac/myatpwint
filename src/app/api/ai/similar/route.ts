@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import AISearchService from '@/lib/ai/search-service';
+import { RecommendationResult } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +24,15 @@ export async function POST(request: NextRequest) {
       threshold
     });
 
-    return NextResponse.json({
+    const response: RecommendationResult = {
       bookId,
       recommendations,
       recommendationCount: recommendations.length,
       method: 'content-similarity',
       model: 'multilingual-e5-base'
-    });
+    };
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Recommendations API error:', error);

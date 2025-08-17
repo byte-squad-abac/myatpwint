@@ -1,33 +1,17 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabaseClient';
-import { useSearchStore } from '@/lib/store/searchStore';
 import SemanticSearch from '@/components/SemanticSearch';
+import { Book, BookWithSearchMetadata } from '@/lib/types';
 import './books.css';
-
-
-interface Book {
-  id: string;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
 
 export default function BooksPage() {
 
   const [books, setBooks] = useState<Book[]>([]);
-  const [searchResults, setSearchResults] = useState<Book[] | null>(null);
+  const [searchResults, setSearchResults] = useState<BookWithSearchMetadata[] | null>(null);
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [hasActiveSearch, setHasActiveSearch] = useState(false);
-  const { search } = useSearchStore();
   
   // Use search results if there's an active search, otherwise show all books
   const displayBooks = hasActiveSearch && searchResults !== null ? searchResults : books;
@@ -52,10 +36,10 @@ export default function BooksPage() {
     fetchBooks();
   }, []);
 
-  const handleSearchResults = (results: Book[], isSearchActive: boolean = false) => {
+  const handleSearchResults = useCallback((results: BookWithSearchMetadata[], isSearchActive: boolean = false) => {
     setSearchResults(results);
     setHasActiveSearch(isSearchActive);
-  };
+  }, []);
 
   return (
     <main style={{ padding: '0 20px 20px', fontFamily: 'sans-serif', background: '#fff', minHeight: '100vh' }}>

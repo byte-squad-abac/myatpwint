@@ -4,6 +4,13 @@
 
 import EmbeddingService from './embedding-service';
 import { createClient } from '@supabase/supabase-js';
+import { 
+  Book,
+  BookWithSearchMetadata, 
+  BookWithRecommendationMetadata,
+  SemanticSearchOptions,
+  EmbeddingBatchResult 
+} from '@/lib/types';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,12 +23,8 @@ export class AISearchService {
    */
   static async semanticSearch(
     query: string, 
-    options: {
-      limit?: number;
-      threshold?: number;
-      category?: string;
-    } = {}
-  ): Promise<any[]> {
+    options: SemanticSearchOptions = {}
+  ): Promise<BookWithSearchMetadata[]> {
     const { limit = 10, threshold = 0.7, category } = options;
 
     try {
@@ -46,17 +49,17 @@ export class AISearchService {
       // Post-filter by category if specified
       let results = data || [];
       if (category && category !== 'all') {
-        results = results.filter((book: any) => 
+        results = results.filter((book: Book) => 
           book.category?.toLowerCase().includes(category.toLowerCase())
         );
       }
 
       // Add search metadata
-      return results.map((book: any) => ({
+      return results.map((book: any): BookWithSearchMetadata => ({
         ...book,
         searchMetadata: {
           similarity: book.similarity,
-          searchMethod: 'semantic',
+          searchMethod: 'semantic' as const,
           model: 'multilingual-e5-base'
         }
       }));
@@ -76,7 +79,7 @@ export class AISearchService {
       limit?: number;
       threshold?: number;
     } = {}
-  ): Promise<any[]> {
+  ): Promise<BookWithRecommendationMetadata[]> {
     const { limit = 5, threshold = 0.8 } = options;
 
     try {
@@ -111,11 +114,11 @@ export class AISearchService {
       }
 
       // Limit results and add metadata
-      return (data || []).slice(0, limit).map((book: any) => ({
+      return (data || []).slice(0, limit).map((book: any): BookWithRecommendationMetadata => ({
         ...book,
         recommendationMetadata: {
           similarity: book.similarity,
-          reason: 'content-similarity',
+          reason: 'content-similarity' as const,
           model: 'multilingual-e5-base'
         }
       }));
@@ -169,11 +172,7 @@ export class AISearchService {
   /**
    * Batch generate embeddings for all books
    */
-  static async generateAllBookEmbeddings(): Promise<{
-    success: number;
-    failed: number;
-    errors: string[];
-  }> {
+  static async generateAllBookEmbeddings(): Promise<EmbeddingBatchResult> {
     const results = { success: 0, failed: 0, errors: [] as string[] };
 
     try {

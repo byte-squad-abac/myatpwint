@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Book } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-
-interface SemanticSearchProps {
-  onResults?: (results: Book[], isSearchActive?: boolean) => void;
-  placeholder?: string;
-  category?: string;
-  autoNavigate?: boolean;
-}
+import { 
+  BookWithSearchMetadata, 
+  SemanticSearchProps,
+  SemanticSearchResult 
+} from '@/lib/types';
 
 export default function SemanticSearch({ 
   onResults, 
@@ -18,28 +15,13 @@ export default function SemanticSearch({
   autoNavigate = false
 }: SemanticSearchProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Book[]>([]);
+  const [results, setResults] = useState<BookWithSearchMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchMethod, setSearchMethod] = useState<'semantic' | 'traditional'>('semantic');
   const [showDropdown, setShowDropdown] = useState(false);
   const router = useRouter();
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query.length >= 2) {
-        handleSearch();
-      } else {
-        setResults([]);
-        setShowDropdown(false);
-        onResults?.([], false); // Indicate search is not active
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [query, category]);
-
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (query.trim().length < 2) return;
 
     setLoading(true);
@@ -61,7 +43,7 @@ export default function SemanticSearch({
         throw new Error('Search failed');
       }
 
-      const data = await response.json();
+      const data: SemanticSearchResult = await response.json();
       setResults(data.results || []);
       setSearchMethod(data.searchMethod);
       setShowDropdown(true);
@@ -75,7 +57,22 @@ export default function SemanticSearch({
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, category, onResults]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (query.length >= 2) {
+        handleSearch();
+      } else {
+        setResults([]);
+        setShowDropdown(false);
+        onResults?.([], false); // Indicate search is not active
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [query, category, handleSearch, onResults]);
 
   const handleResultClick = useCallback((bookId: string) => {
     setShowDropdown(false);

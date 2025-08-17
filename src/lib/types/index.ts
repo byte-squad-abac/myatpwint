@@ -380,6 +380,71 @@ export interface AppConfig {
 }
 
 // ============================================================================
+// AI & SEMANTIC SEARCH TYPES
+// ============================================================================
+
+export interface SemanticSearchOptions {
+  limit?: number;
+  threshold?: number;
+  category?: string;
+}
+
+export interface SearchMetadata {
+  similarity: number;
+  searchMethod: 'semantic' | 'traditional';
+  model: string;
+}
+
+export interface RecommendationMetadata {
+  similarity: number;
+  reason: 'content-similarity' | 'collaborative-filtering';
+  model: string;
+}
+
+export interface BookWithSearchMetadata extends Book {
+  searchMetadata?: SearchMetadata;
+}
+
+export interface BookWithRecommendationMetadata extends Book {
+  recommendationMetadata?: RecommendationMetadata;
+}
+
+export interface EmbeddingResult {
+  id: string;
+  embedding: number[];
+  searchText: string;
+}
+
+export interface EmbeddingBatchResult {
+  success: number;
+  failed: number;
+  errors: string[];
+}
+
+export interface SemanticSearchResult {
+  query: string;
+  results: BookWithSearchMetadata[];
+  resultCount: number;
+  searchMethod: 'semantic';
+  model: string;
+}
+
+export interface RecommendationResult {
+  bookId: string;
+  recommendations: BookWithRecommendationMetadata[];
+  recommendationCount: number;
+  method: 'content-similarity';
+  model: string;
+}
+
+export interface SemanticSearchProps {
+  onResults?: (results: BookWithSearchMetadata[], isSearchActive?: boolean) => void;
+  placeholder?: string;
+  category?: string;
+  autoNavigate?: boolean;
+}
+
+// ============================================================================
 // EXPORT ALL TYPES
 // ============================================================================
 

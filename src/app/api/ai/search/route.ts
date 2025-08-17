@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import AISearchService from '@/lib/ai/search-service';
+import { SemanticSearchResult } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,13 +25,15 @@ export async function POST(request: NextRequest) {
       category
     });
 
-    return NextResponse.json({
+    const response: SemanticSearchResult = {
       query,
       results,
       resultCount: results.length,
       searchMethod: 'semantic',
       model: 'multilingual-e5-base'
-    });
+    };
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Search API error:', error);

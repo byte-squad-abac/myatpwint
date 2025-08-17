@@ -1,7 +1,9 @@
 /**
  * E5 Multilingual Embedding Service for Myanmar NLP
- * Using the E5 model via feature-extraction pipeline
+ * Using the E5 model via HuggingFace Inference Providers
  */
+
+import { Book, EmbeddingResult } from '@/lib/types';
 
 class EmbeddingService {
   // E5 model - excellent for multilingual embeddings including Myanmar
@@ -23,7 +25,7 @@ class EmbeddingService {
   /**
    * Build search text from book data
    */
-  static buildBookSearchText(book: any): string {
+  static buildBookSearchText(book: Book): string {
     const parts = [
       book.name || '',
       book.author || '',
@@ -51,8 +53,11 @@ class EmbeddingService {
     const prefixedText = isQuery ? `query: ${processedText}` : `passage: ${processedText}`;
     const url = `${this.HF_API_URL}/${this.E5_MODEL}/pipeline/feature-extraction`;
     
-    console.log('Calling HuggingFace API:', url);
-    console.log('Token exists:', !!this.HF_TOKEN);
+    // Remove console logs in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Calling HuggingFace API:', url);
+      console.log('Token exists:', !!this.HF_TOKEN);
+    }
 
     try {
       const response = await fetch(url, {
@@ -86,12 +91,8 @@ class EmbeddingService {
   /**
    * Batch generate embeddings for multiple books
    */
-  static async batchGenerateEmbeddings(books: any[]): Promise<Array<{
-    id: string;
-    embedding: number[];
-    searchText: string;
-  }>> {
-    const results: Array<{ id: string; embedding: number[]; searchText: string }> = [];
+  static async batchGenerateEmbeddings(books: Book[]): Promise<EmbeddingResult[]> {
+    const results: EmbeddingResult[] = [];
     const batchSize = 5;
 
     for (let i = 0; i < books.length; i += batchSize) {
