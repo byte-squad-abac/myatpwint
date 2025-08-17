@@ -22,6 +22,7 @@ import Tab from '@mui/material/Tab';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import BookRecommendations from '@/components/BookRecommendations';
 
 interface BookDetailPageProps {
   book: Book;
@@ -293,6 +294,13 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
           </Box>
         </Box>
       </Paper>
+      
+      {/* AI-Powered Recommendations */}
+      <BookRecommendations 
+        currentBookId={book.id}
+        title="Similar Books You Might Like"
+        limit={5}
+      />
     </Container>
   );
 }

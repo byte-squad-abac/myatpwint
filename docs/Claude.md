@@ -41,8 +41,10 @@ npm run lint         # Run Next.js linting
   /checkout/        # Cart and payment flow
 /src/components/    # Shared UI components
 /src/lib/          # Core utilities
+  /ai/             # AI semantic search services
   /hooks/          # Custom React hooks
   /store/          # Zustand stores
+  /types/          # Centralized TypeScript types
   /supabaseClient.ts # Supabase initialization
 ```
 
@@ -103,12 +105,21 @@ npm run lint         # Run Next.js linting
 - **Payment Flow**: Cart → Stripe Checkout → Webhook → Purchase Record → Bookshelf
 - **Database**: Extended purchases table with Stripe fields, separate stripe_products mapping table
 
+### AI-Powered Semantic Search System
+- **Multilingual Embeddings**: E5 model (`intfloat/multilingual-e5-base`) with Myanmar language support
+- **Vector Database**: Supabase pgvector extension for semantic similarity search
+- **Search Architecture**: Query embeddings → Vector similarity → Ranked results
+- **API Endpoints**: `/api/ai/search` for semantic search, `/api/ai/similar` for recommendations
+- **Performance**: HuggingFace Inference Providers for reliable embedding generation
+- **Type Safety**: Comprehensive TypeScript interfaces for all AI components
+
 ### Critical Implementation Notes
 1. **Supabase Auth Cookie Format**: Array format `["jwt_token", "refresh_token", null, null, null]` not object
 2. **Webhook Authentication**: Must use service role client to bypass RLS policies  
 3. **Local Development**: Requires `stripe listen --forward-to localhost:3000/api/stripe/webhooks`
 4. **User Matching**: JWT token verification via `supabaseAuthClient.auth.getUser(jwt)`
 5. **Currency Conversion**: MMK to USD at 0.00048 rate for Stripe, display as MMK to users
+6. **AI Search Function**: PostgreSQL function `match_books_semantic` requires proper UUID casting for book IDs
 
 ## Development Guidelines
 
@@ -123,6 +134,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+
+# AI Configuration
+HUGGING_FACE_TOKEN=
 
 # Application Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000

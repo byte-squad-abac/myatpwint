@@ -1,44 +1,32 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabaseClient';
-import { useSearchStore } from '@/lib/store/searchStore';
+import SemanticSearch from '@/components/SemanticSearch';
+import { Book, BookWithSearchMetadata } from '@/lib/types';
 import './books.css';
-
-
-interface Book {
-  id: string;
-  name: string;
-  price: number;
-  author: string;
-  description: string;
-  category: string;
-  published_date: string;
-  edition: string;
-  tags: string[];
-  image_url: string;
-  created_at: string;
-}
 
 export default function BooksPage() {
 
   const [books, setBooks] = useState<Book[]>([]);
-  const { search } = useSearchStore();
-  const filteredBooks = books.filter(
-    (book) =>
-      book.name.toLowerCase().includes(search.toLowerCase()) ||
-      book.author.toLowerCase().includes(search.toLowerCase())
-  );
+  const [searchResults, setSearchResults] = useState<BookWithSearchMetadata[] | null>(null);
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [hasActiveSearch, setHasActiveSearch] = useState(false);
+  
+  // Use search results if there's an active search, otherwise show all books
+  const displayBooks = hasActiveSearch && searchResults !== null ? searchResults : books;
 
   const fetchBooks = async () => {
     const { data, error } = await supabase
       .from('books')
       .select('*')
-      .ilike('name', `%${search}%`)
       .order('created_at', { ascending: false });
 
     if (!error) {
-      setBooks(data || []);
+      // Shuffle books for random display
+      const shuffledBooks = (data || []).sort(() => Math.random() - 0.5);
+      setBooks(shuffledBooks);
+      setAllBooks(data || []);
     } else {
       console.error('Error fetching books:', error.message);
     }
@@ -48,10 +36,27 @@ export default function BooksPage() {
     fetchBooks();
   }, []);
 
+  const handleSearchResults = useCallback((results: BookWithSearchMetadata[], isSearchActive: boolean = false) => {
+    setSearchResults(results);
+    setHasActiveSearch(isSearchActive);
+  }, []);
+
   return (
     <main style={{ padding: '0 20px 20px', fontFamily: 'sans-serif', background: '#fff', minHeight: '100vh' }}>
-      {/* <h1 style={{ fontWeight: 700, fontSize: '2.2rem', marginBottom: 8 }}>Browse our collection of books. More features coming soon!</h1> */}
-      <p style={{ fontSize: '1.5rem', color: '#666', marginBottom: 32 }}>Browse our collection of books. More features coming soon!</p>
+      {/* AI-Powered Semantic Search */}
+      <div style={{ marginBottom: '32px', maxWidth: '600px', margin: '0 auto 32px' }}>
+        <SemanticSearch 
+          onResults={handleSearchResults}
+          placeholder="Search books in Myanmar or English with AI..."
+          autoNavigate={true}
+        />
+      </div>
+      
+      <p style={{ fontSize: '1.5rem', color: '#666', marginBottom: 32, textAlign: 'center' }}>
+        {hasActiveSearch 
+          ? `Found ${searchResults?.length || 0} books matching your search`
+          : 'Browse our collection of books'}
+      </p>
 
       <div style={{ 
         display: 'grid', 
@@ -59,8 +64,8 @@ export default function BooksPage() {
         gap: '20px',
         padding: '20px'
       }}>
-        {filteredBooks.length > 0 ? (
-          filteredBooks.map((book) => (
+        {displayBooks.length > 0 ? (
+          displayBooks.map((book) => (
             <Link key={book.id} href={`/books/${book.id}`} passHref style={{ textDecoration: 'none' }}>
               <div className="book-card">
                 <img 
