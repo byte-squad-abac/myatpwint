@@ -60,7 +60,7 @@ export default function BooksPage() {
         <SemanticSearch 
           onResults={handleSearchResults}
           placeholder="Search books in Myanmar or English with AI..."
-          autoNavigate={false}
+          autoNavigate={true}
         />
       </div>
       
