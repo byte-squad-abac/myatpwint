@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext, useCallback } from 'react';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import supabase from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import SemanticSearch from '@/components/SemanticSearch';
+import { BookWithSearchMetadata } from '@/lib/types';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import HomeIcon from '@mui/icons-material/Home';
@@ -24,6 +26,24 @@ const COLLAPSED_WIDTH = 64;
 const HEADER_BG = '#5B2C3B';
 const HEADER_COLOR = '#FCEBD5';
 
+// Search Results Context
+interface SearchContextType {
+  searchResults: BookWithSearchMetadata[] | null;
+  hasActiveSearch: boolean;
+  setSearchResults: (results: BookWithSearchMetadata[], isActive: boolean) => void;
+  clearSearch: () => void;
+}
+
+const SearchContext = createContext<SearchContextType | undefined>(undefined);
+
+export const useSearchContext = () => {
+  const context = useContext(SearchContext);
+  if (!context) {
+    throw new Error('useSearchContext must be used within SearchProvider');
+  }
+  return context;
+};
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [browserSupabaseClient] = useState(() => createPagesBrowserClient({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -32,8 +52,36 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <SessionContextProvider supabaseClient={browserSupabaseClient}>
-      <SidebarLayout>{children}</SidebarLayout>
+      <SearchProvider>
+        <SidebarLayout>{children}</SidebarLayout>
+      </SearchProvider>
     </SessionContextProvider>
+  );
+}
+
+function SearchProvider({ children }: { children: React.ReactNode }) {
+  const [searchResults, setSearchResultsState] = useState<BookWithSearchMetadata[] | null>(null);
+  const [hasActiveSearch, setHasActiveSearch] = useState(false);
+
+  const setSearchResults = useCallback((results: BookWithSearchMetadata[], isActive: boolean) => {
+    setSearchResultsState(results);
+    setHasActiveSearch(isActive);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchResultsState(null);
+    setHasActiveSearch(false);
+  }, []);
+
+  return (
+    <SearchContext.Provider value={{
+      searchResults,
+      hasActiveSearch,
+      setSearchResults,
+      clearSearch
+    }}>
+      {children}
+    </SearchContext.Provider>
   );
 }
 
@@ -59,12 +107,12 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
           color: HEADER_COLOR,
           display: 'flex',
           alignItems: 'center',
-          paddingLeft: isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH,
+          paddingLeft: '20px',
           fontSize: 20,
           fontWeight: 'bold',
           borderBottom: `2px solid #C97E7E`,
-          transition: 'margin-left 0.3s ease',
-          marginLeft: `-${sidebarWidth}px`
+          position: 'relative',
+          zIndex: 100
         }}>
           <HeaderWithTitleOnly />
         </div>
@@ -76,6 +124,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
 
 function HeaderWithTitleOnly() {
   const pathname = usePathname();
+  const { setSearchResults } = useSearchContext();
 
   const getTitle = () => {
     if (pathname.startsWith('/books')) return 'Books';
@@ -87,6 +136,8 @@ function HeaderWithTitleOnly() {
     return 'Welcome to Myat Pwint Publishing House';
   };
 
+  const isOnBooksPage = pathname.startsWith('/books');
+
   return (
     <div
       style={{
@@ -94,11 +145,31 @@ function HeaderWithTitleOnly() {
         width: '100%',
         display: 'flex',
         alignItems: 'center',
+        paddingRight: '20px'
       }}
     >
-      <div style={{ fontWeight: 'bold', fontSize: 20, paddingLeft: 12 }}>
+      <div style={{ fontWeight: 'bold', fontSize: 20, paddingLeft: 12, minWidth: '120px' }}>
         {getTitle()}
       </div>
+
+      {/* AI Search - only show on books page */}
+      {isOnBooksPage && (
+        <div style={{ 
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'calc(100% - 160px)',
+          maxWidth: '700px',
+          minWidth: '500px'
+        }}>
+          <SemanticSearch 
+            placeholder="Search books in Myanmar or English with AI..."
+            autoNavigate={true}
+            headerMode={true}
+            onResults={setSearchResults}
+          />
+        </div>
+      )}
 
     </div>
   );
