@@ -5,7 +5,7 @@ import { Book } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 interface SemanticSearchProps {
-  onResults?: (results: Book[]) => void;
+  onResults?: (results: Book[], isSearchActive?: boolean) => void;
   placeholder?: string;
   category?: string;
   autoNavigate?: boolean;
@@ -32,7 +32,7 @@ export default function SemanticSearch({
       } else {
         setResults([]);
         setShowDropdown(false);
-        onResults?.([]);
+        onResults?.([], false); // Indicate search is not active
       }
     }, 500);
 
@@ -65,13 +65,13 @@ export default function SemanticSearch({
       setResults(data.results || []);
       setSearchMethod(data.searchMethod);
       setShowDropdown(true);
-      onResults?.(data.results || []);
+      onResults?.(data.results || [], true); // Indicate search is active
 
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
       setShowDropdown(false);
-      onResults?.([]);
+      onResults?.([], true); // Still active search, just failed
     } finally {
       setLoading(false);
     }

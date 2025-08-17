@@ -26,10 +26,11 @@ export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [searchResults, setSearchResults] = useState<Book[] | null>(null);
   const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [hasActiveSearch, setHasActiveSearch] = useState(false);
   const { search } = useSearchStore();
   
-  // Use search results if available, otherwise show all books
-  const displayBooks = searchResults !== null ? searchResults : books;
+  // Use search results if there's an active search, otherwise show all books
+  const displayBooks = hasActiveSearch && searchResults !== null ? searchResults : books;
 
   const fetchBooks = async () => {
     const { data, error } = await supabase
@@ -38,7 +39,9 @@ export default function BooksPage() {
       .order('created_at', { ascending: false });
 
     if (!error) {
-      setBooks(data || []);
+      // Shuffle books for random display
+      const shuffledBooks = (data || []).sort(() => Math.random() - 0.5);
+      setBooks(shuffledBooks);
       setAllBooks(data || []);
     } else {
       console.error('Error fetching books:', error.message);
@@ -49,8 +52,9 @@ export default function BooksPage() {
     fetchBooks();
   }, []);
 
-  const handleSearchResults = (results: Book[]) => {
+  const handleSearchResults = (results: Book[], isSearchActive: boolean = false) => {
     setSearchResults(results);
+    setHasActiveSearch(isSearchActive);
   };
 
   return (
@@ -65,8 +69,8 @@ export default function BooksPage() {
       </div>
       
       <p style={{ fontSize: '1.5rem', color: '#666', marginBottom: 32, textAlign: 'center' }}>
-        {searchResults !== null 
-          ? `Found ${searchResults.length} books matching your search`
+        {hasActiveSearch 
+          ? `Found ${searchResults?.length || 0} books matching your search`
           : 'Browse our collection of books'}
       </p>
 
