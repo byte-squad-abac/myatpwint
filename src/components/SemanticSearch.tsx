@@ -209,7 +209,7 @@ export default function SemanticSearch({
   // Header mode for integration into existing navigation
   if (headerMode) {
     return (
-      <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+      <div style={{ position: 'relative', width: '100%' }}>
         <div style={{
           position: 'relative',
           background: 'rgba(252, 235, 213, 0.95)',
@@ -249,7 +249,7 @@ export default function SemanticSearch({
           {!query && !isFocused && (
             <span style={{
               position: 'absolute',
-              left: `${16 + (currentPlaceholder.length * 7.5)}px`,
+              left: `${16 + (currentPlaceholder.length * 6.8)}px`,
               top: '50%',
               transform: 'translateY(-50%)',
               width: '1px',

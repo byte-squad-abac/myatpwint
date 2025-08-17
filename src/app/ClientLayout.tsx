@@ -158,9 +158,9 @@ function HeaderWithTitleOnly() {
           position: 'absolute',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'calc(100% - 240px)',
-          maxWidth: '450px',
-          minWidth: '280px'
+          width: 'calc(100% - 160px)',
+          maxWidth: '700px',
+          minWidth: '500px'
         }}>
           <SemanticSearch 
             placeholder="Search books in Myanmar or English with AI..."
