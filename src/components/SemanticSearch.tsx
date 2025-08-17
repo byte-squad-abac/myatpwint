@@ -2,18 +2,62 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
+// CSS animations
+const styleSheet = `
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+  }
+  
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+  
+  @keyframes slideInUp {
+    from { 
+      opacity: 0; 
+      transform: translateY(20px) scale(0.95); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0) scale(1); 
+    }
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined' && !document.querySelector('#semantic-search-styles')) {
+  const style = document.createElement('style');
+  style.id = 'semantic-search-styles';
+  style.textContent = styleSheet;
+  document.head.appendChild(style);
+}
 import { 
   BookWithSearchMetadata, 
   SemanticSearchProps,
   SemanticSearchResult 
 } from '@/lib/types';
 
+interface SemanticSearchWithHeaderProps extends SemanticSearchProps {
+  pageTitle?: string;
+  headerMode?: boolean;
+}
+
 export default function SemanticSearch({ 
   onResults, 
   placeholder = "Search books in Myanmar or English...",
   category = "all",
-  autoNavigate = false
-}: SemanticSearchProps) {
+  autoNavigate = false,
+  pageTitle = "Books",
+  headerMode = false
+}: SemanticSearchWithHeaderProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<BookWithSearchMetadata[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +68,7 @@ export default function SemanticSearch({
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
 
   // Animated placeholder examples
@@ -69,6 +114,17 @@ export default function SemanticSearch({
 
     return () => clearTimeout(timeout);
   }, [currentPlaceholder, placeholderIndex, isTyping, query, isFocused, placeholderExamples]);
+
+  // Scroll detection for sticky behavior
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSearch = useCallback(async (forPageUpdate: boolean = false) => {
     if (query.trim().length < 2) return;
@@ -150,223 +206,318 @@ export default function SemanticSearch({
     }
   }, [query, handleSearch, onResults]);
 
-  return (
-    <>
-      {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-        @keyframes slideDown {
-          from { 
-            opacity: 0; 
-            transform: translateY(-10px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
-        }
-        @keyframes glow {
-          0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
-          50% { box-shadow: 0 0 30px rgba(102, 126, 234, 0.6); }
-        }
-        .search-container {
-          position: relative;
-          max-width: 700px;
-          margin: 0 auto;
-        }
-        .search-bar {
-          position: relative;
-          background: linear-gradient(145deg, #ffffff, #f8f9ff);
-          border: 2px solid transparent;
-          background-clip: padding-box;
-          border-radius: 25px;
-          box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
-          transition: all 0.3s ease;
-        }
-        .search-bar:focus-within {
-          animation: glow 2s ease-in-out infinite;
-          transform: translateY(-2px);
-        }
-        .search-bar::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          border-radius: 25px;
-          background: linear-gradient(145deg, #667eea, #764ba2);
-          z-index: -1;
-          margin: -2px;
-        }
-      `}</style>
-      
-      <div className="semantic-search search-container">
-        {/* Minimal AI Search Header */}
+  // Header mode for integration into existing navigation
+  if (headerMode) {
+    return (
+      <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
         <div style={{
-          textAlign: 'center',
-          marginBottom: '16px'
+          position: 'relative',
+          background: 'rgba(252, 235, 213, 0.95)',
+          border: '1px solid rgba(252, 235, 213, 0.3)',
+          borderRadius: '20px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+          transition: 'all 0.3s ease'
         }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'linear-gradient(145deg, #667eea, #764ba2)',
-            color: 'white',
-            padding: '8px 20px',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
-          }}>
-            🤖 <span>AI-Powered Search</span>
-          </div>
-        </div>
-
-        {/* Sleek Search Bar */}
-        <div className="search-bar">
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={query.length > 0 || isFocused ? '' : currentPlaceholder}
-              className="search-input"
-              style={{
-                width: '100%',
-                padding: '18px 70px 18px 24px',
-                fontSize: '16px',
-                border: 'none',
-                borderRadius: '23px',
-                outline: 'none',
-                backgroundColor: 'transparent',
-                color: 'white',
-                fontWeight: '500',
-                transition: 'all 0.3s ease'
-              }}
-              onFocus={() => {
-                setIsFocused(true);
-                if (results.length > 0) setShowDropdown(true);
-              }}
-              onBlur={() => {
-                setIsFocused(false);
-              }}
-            />
-            
-            {/* Animated cursor for placeholder */}
-            {!query && !isFocused && (
-              <span style={{
-                position: 'absolute',
-                left: `${24 + (currentPlaceholder.length * 8.5)}px`,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '2px',
-                height: '20px',
-                background: '#667eea',
-                animation: 'blink 1s infinite',
-                display: isTyping ? 'block' : 'none'
-              }} />
-            )}
-            
-            {/* Search Status Indicators */}
-            <div style={{
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={query.length > 0 || isFocused ? '' : currentPlaceholder}
+            style={{
+              width: '100%',
+              padding: '12px 50px 12px 16px',
+              fontSize: '14px',
+              border: 'none',
+              borderRadius: '18px',
+              outline: 'none',
+              backgroundColor: 'transparent',
+              color: '#5B2C3B',
+              fontWeight: '500',
+              transition: 'all 0.3s ease'
+            }}
+            onFocus={() => {
+              setIsFocused(true);
+              if (results.length > 0) setShowDropdown(true);
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+            }}
+          />
+          
+          {/* Animated cursor for placeholder */}
+          {!query && !isFocused && (
+            <span style={{
               position: 'absolute',
-              right: '24px',
+              left: `${16 + (currentPlaceholder.length * 7.5)}px`,
               top: '50%',
               transform: 'translateY(-50%)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              {loading && (
+              width: '1px',
+              height: '16px',
+              background: '#5B2C3B',
+              opacity: isTyping ? 1 : 0,
+              display: isTyping ? 'block' : 'none'
+            }} />
+          )}
+          
+          {/* Enhanced Search Status Indicators */}
+          <div style={{
+            position: 'absolute',
+            right: '16px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            zIndex: 2
+          }}>
+            {loading && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'linear-gradient(135deg, rgba(91, 44, 59, 0.9), rgba(91, 44, 59, 0.7))',
+                color: '#FCEBD5',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '10px',
+                fontWeight: '600',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(252, 235, 213, 0.2)',
+                boxShadow: '0 2px 8px rgba(91, 44, 59, 0.3)'
+              }}>
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'linear-gradient(45deg, #667eea, #764ba2)',
-                  color: 'white',
-                  padding: '6px 12px',
-                  borderRadius: '15px',
-                  fontSize: '11px',
-                  fontWeight: 'bold'
-                }}>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'white',
-                    animation: 'blink 1s infinite'
-                  }} />
-                  AI
-                </div>
-              )}
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#FCEBD5',
+                  animation: 'pulse 1.5s infinite'
+                }} />
+                AI
+              </div>
+            )}
 
-              {searchMethod === 'semantic' && results.length > 0 && !loading && (
-                <div style={{
-                  background: 'linear-gradient(45deg, #4CAF50, #45a049)',
-                  color: 'white',
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  ✨ {results.length}
-                </div>
-              )}
-              
-              {!loading && !results.length && (
-                <div style={{
-                  color: '#667eea',
-                  fontSize: '18px'
-                }}>
-                  🔍
-                </div>
-              )}
-            </div>
+            {searchMethod === 'semantic' && results.length > 0 && !loading && (
+              <div style={{
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '10px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                ✨ {results.length}
+              </div>
+            )}
+            
+            {!loading && !results.length && query.length === 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(201, 126, 126, 0.8), rgba(201, 126, 126, 0.6))',
+                color: '#FCEBD5',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '10px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                border: '1px solid rgba(252, 235, 213, 0.2)',
+                boxShadow: '0 2px 8px rgba(201, 126, 126, 0.2)'
+              }}>
+                🤖 AI
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Helper text */}
-        <div style={{
-          textAlign: 'center',
-          marginTop: '12px',
-          fontSize: '12px',
-          color: '#888'
-        }}>
-          Press <kbd style={{ 
-            background: '#f5f5f5', 
-            padding: '2px 6px', 
-            borderRadius: '4px',
-            fontWeight: 'bold' 
-          }}>Enter</kbd> to search the entire catalog
-        </div>
+        {/* Dropdown Results for header mode */}
+        {showDropdown && results.length > 0 && (
+          <div 
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '0',
+              right: '0',
+              width: '100%',
+              maxWidth: '600px',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              background: 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '16px',
+              marginTop: '8px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+              zIndex: 1000,
+              opacity: showDropdown ? 1 : 0,
+              transform: showDropdown ? 'translateY(0)' : 'translateY(-10px)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {results.map((book, index) => (
+              <div
+                key={book.id}
+                onClick={() => handleResultClick(book.id)}
+                style={{
+                  padding: '16px 20px',
+                  borderBottom: index === results.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.08)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  transition: 'all 0.3s ease',
+                  borderRadius: index === 0 ? '16px 16px 0 0' : index === results.length - 1 ? '0 0 16px 16px' : '0',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))';
+                  e.currentTarget.style.transform = 'translateX(4px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+              >
+                {/* Book Cover */}
+                <div style={{ position: 'relative', minWidth: '48px' }}>
+                  <img
+                    src={book.image_url}
+                    alt={book.name}
+                    style={{
+                      width: '48px',
+                      height: '72px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                      transition: 'transform 0.3s ease'
+                    }}
+                  />
+                  {(book as any).searchMetadata?.similarity && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      background: 'linear-gradient(45deg, #4CAF50, #45a049)',
+                      color: 'white',
+                      borderRadius: '12px',
+                      padding: '2px 6px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
+                    }}>
+                      {Math.round((book as any).searchMetadata.similarity * 100)}%
+                    </div>
+                  )}
+                </div>
+                
+                {/* Book Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ 
+                    fontWeight: 'bold', 
+                    fontSize: '16px',
+                    marginBottom: '6px',
+                    color: '#333',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {book.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    color: '#666',
+                    marginBottom: '4px'
+                  }}>
+                    👤 {book.author}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <span style={{ 
+                      fontSize: '14px', 
+                      fontWeight: 'bold',
+                      color: '#667eea'
+                    }}>
+                      💰 {book.price} MMK
+                    </span>
+                    <span style={{
+                      background: 'rgba(102, 126, 234, 0.1)',
+                      color: '#667eea',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '500'
+                    }}>
+                      {book.category}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Arrow Indicator */}
+                <div style={{
+                  color: '#667eea',
+                  fontSize: '18px',
+                  transition: 'transform 0.3s ease'
+                }}>
+                  →
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Click outside to close dropdown */}
+        {showDropdown && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999,
+            }}
+            onClick={() => setShowDropdown(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Original full page mode
+  return (
+    <div>
 
       {/* Enhanced Dropdown Results */}
       {showDropdown && results.length > 0 && (
         <div 
           className="search-dropdown"
           style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            maxHeight: '500px',
+            position: 'fixed',
+            top: '80px',
+            left: '50%',
+            transform: showDropdown ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(-10px)',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '400px',
             overflowY: 'auto',
             background: 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '20px',
+            borderRadius: '16px',
             marginTop: '8px',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
             zIndex: 1000,
-            animation: 'slideDown 0.3s ease-out'
+            opacity: showDropdown ? 1 : 0,
+            transition: 'all 0.3s ease'
           }}
         >
           {results.map((book, index) => (
@@ -501,7 +652,6 @@ export default function SemanticSearch({
           onClick={() => setShowDropdown(false)}
         />
       )}
-      </div>
-    </>
+    </div>
   );
 }

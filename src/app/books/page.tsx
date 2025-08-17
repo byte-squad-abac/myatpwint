@@ -2,16 +2,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabaseClient';
-import SemanticSearch from '@/components/SemanticSearch';
 import { Book, BookWithSearchMetadata } from '@/lib/types';
+import { useSearchContext } from '../ClientLayout';
 import './books.css';
 
 export default function BooksPage() {
-
+  const { searchResults, hasActiveSearch } = useSearchContext();
   const [books, setBooks] = useState<Book[]>([]);
-  const [searchResults, setSearchResults] = useState<BookWithSearchMetadata[] | null>(null);
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
-  const [hasActiveSearch, setHasActiveSearch] = useState(false);
   
   // Use search results if there's an active search, otherwise show all books
   const displayBooks = hasActiveSearch && searchResults !== null ? searchResults : books;
@@ -26,7 +23,6 @@ export default function BooksPage() {
       // Shuffle books for random display
       const shuffledBooks = (data || []).sort(() => Math.random() - 0.5);
       setBooks(shuffledBooks);
-      setAllBooks(data || []);
     } else {
       console.error('Error fetching books:', error.message);
     }
@@ -36,21 +32,8 @@ export default function BooksPage() {
     fetchBooks();
   }, []);
 
-  const handleSearchResults = useCallback((results: BookWithSearchMetadata[], isSearchActive: boolean = false) => {
-    setSearchResults(results);
-    setHasActiveSearch(isSearchActive);
-  }, []);
-
   return (
     <main style={{ padding: '0 20px 20px', fontFamily: 'sans-serif', background: '#fff', minHeight: '100vh' }}>
-      {/* AI-Powered Semantic Search */}
-      <div style={{ marginBottom: '32px', maxWidth: '600px', margin: '0 auto 32px' }}>
-        <SemanticSearch 
-          onResults={handleSearchResults}
-          placeholder="Search books in Myanmar or English with AI..."
-          autoNavigate={true}
-        />
-      </div>
       
       <p style={{ fontSize: '1.5rem', color: '#666', marginBottom: 32, textAlign: 'center' }}>
         {hasActiveSearch 
