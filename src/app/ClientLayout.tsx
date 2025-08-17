@@ -17,7 +17,6 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { Badge } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
-import { useSearchStore } from '@/lib/store/searchStore';
 
 const HEADER_HEIGHT = 64;
 const SIDEBAR_WIDTH = 220;
@@ -77,7 +76,6 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
 
 function HeaderWithTitleOnly() {
   const pathname = usePathname();
-  const { search, setSearch } = useSearchStore();
 
   const getTitle = () => {
     if (pathname.startsWith('/books')) return 'Books';
@@ -102,30 +100,6 @@ function HeaderWithTitleOnly() {
         {getTitle()}
       </div>
 
-      {pathname.startsWith('/books') && (
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '60%',
-          }}
-        >
-          <input
-            type="text"
-            placeholder="Search by title or author..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: 4,
-              border: '1px solid #ccc',
-              fontSize: 14,
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
