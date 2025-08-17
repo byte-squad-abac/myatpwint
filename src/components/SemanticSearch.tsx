@@ -244,7 +244,7 @@ export default function SemanticSearch({
                 borderRadius: '23px',
                 outline: 'none',
                 backgroundColor: 'transparent',
-                color: '#333',
+                color: 'white',
                 fontWeight: '500',
                 transition: 'all 0.3s ease'
               }}
