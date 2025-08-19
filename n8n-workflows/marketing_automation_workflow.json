@@ -1,0 +1,382 @@
+{
+  "name": "Marketing Automation - Book Published",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-published",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      },
+      "id": "ae01f44d-ac7c-4fe0-9b6e-3a02b1b4e81a",
+      "name": "Book Published Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [220, 300],
+      "webhookId": "book-published"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Extract and validate book data from webhook\nconst bookData = $json.body || $json;\n\n// Validate required fields\nif (!bookData.id || !bookData.name || !bookData.author) {\n  throw new Error('Missing required book data: id, name, or author');\n}\n\n// Generate content prompts for different platforms\nconst prompts = {\n  facebook: `Create an engaging Facebook post for a new ${bookData.language || 'Myanmar'} book:\nTitle: ${bookData.name}\nAuthor: ${bookData.author}\nDescription: ${bookData.description || 'A captivating new book'}\nCategory: ${bookData.category || 'General'}\n\nMake it exciting, include relevant hashtags in both Myanmar and English, and encourage readers to check it out. Keep it under 300 characters and include emojis.`,\n\n  twitter: `Create a Twitter post for a new book launch:\n\"${bookData.name}\" by ${bookData.author}\n${bookData.description || 'A must-read book'}\n\nInclude relevant hashtags and emojis. Keep under 280 characters.\nWrite in ${bookData.language === 'myanmar' ? 'Myanmar script with English hashtags' : 'English'}.`,\n\n  email_subject: `Create an engaging email subject line for the book launch: \"${bookData.name}\" by ${bookData.author}. Make it compelling for Myanmar book lovers.`,\n\n  email_body: `Create professional email marketing content for a book launch:\nBook: ${bookData.name}\nAuthor: ${bookData.author}\nDescription: ${bookData.description || 'An engaging new book'}\nPrice: ${bookData.price || 'Special Price'} MMK\nCategory: ${bookData.category || 'Literature'}\n\nWrite compelling content that highlights the book's value, includes a clear call-to-action, and appeals to Myanmar readers. Format for HTML email with proper structure.`\n};\n\nreturn [{\n  json: {\n    book_id: bookData.id,\n    book_data: bookData,\n    prompts: prompts,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "b1d7f3e2-8c9a-4f0e-9d6b-2a8b5c6e7f1a",
+      "name": "Process Book Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "value": "gemini-1.5-flash"
+        },
+        "prompt": "={{ $json.prompts.facebook }}"
+      },
+      "id": "c2e8f4f3-9d0b-5g1f-ae7c-3b9c6d7e8f2b",
+      "name": "Generate Facebook Post",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "value": "gemini-1.5-flash"
+        },
+        "prompt": "={{ $json.prompts.twitter }}"
+      },
+      "id": "d3f9g5g4-ae1c-6h2g-bf8d-4c0d7e8f9g3c",
+      "name": "Generate Twitter Post",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "value": "gemini-1.5-flash"
+        },
+        "prompt": "={{ $json.prompts.email_subject }}"
+      },
+      "id": "e4g0h6h5-bf2d-7i3h-cg9e-5d1e8f9g0h4d",
+      "name": "Generate Email Subject",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "value": "gemini-1.5-flash"
+        },
+        "prompt": "={{ $json.prompts.email_body }}"
+      },
+      "id": "f5h1i7i6-cg3e-8j4i-dh0f-6e2f9g0h1i5e",
+      "name": "Generate Email Body",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [660, 500]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Collect all AI-generated content\nconst allItems = $input.all();\n\n// Extract book data from the first item\nconst bookData = allItems[0].json.book_data;\n\n// Process AI responses\nconst socialContent = {\n  facebook: {\n    content: allItems.find(item => item.json.response)?.json.response || allItems[1]?.json.choices?.[0]?.message?.content || '',\n    platform: 'facebook',\n    generated_at: new Date().toISOString()\n  },\n  twitter: {\n    content: allItems.find(item => item.json.response)?.json.response || allItems[2]?.json.choices?.[0]?.message?.content || '',\n    platform: 'twitter', \n    generated_at: new Date().toISOString()\n  },\n  email_subject: {\n    content: allItems.find(item => item.json.response)?.json.response || allItems[3]?.json.choices?.[0]?.message?.content || '',\n    platform: 'email',\n    type: 'subject',\n    generated_at: new Date().toISOString()\n  },\n  email_body: {\n    content: allItems.find(item => item.json.response)?.json.response || allItems[4]?.json.choices?.[0]?.message?.content || '',\n    platform: 'email',\n    type: 'body', \n    generated_at: new Date().toISOString()\n  }\n};\n\n// Create marketing campaign data\nconst campaignData = {\n  book_id: bookData.id,\n  campaign_type: 'book_launch',\n  ai_generated_content: socialContent,\n  status: 'active',\n  platforms: ['facebook', 'twitter', 'email'],\n  target_audience: {\n    interests: [bookData.category || 'literature'],\n    language: bookData.language || 'myanmar',\n    demographics: 'book_readers'\n  },\n  scheduled_posts: [\n    {\n      platform: 'facebook',\n      content: socialContent.facebook.content,\n      scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes from now\n    },\n    {\n      platform: 'twitter', \n      content: socialContent.twitter.content,\n      scheduled_for: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() // 2 hours from now\n    }\n  ],\n  created_by: 'n8n_automation',\n  created_at: new Date().toISOString()\n};\n\nreturn [{\n  json: {\n    book_data: bookData,\n    social_content: socialContent,\n    campaign_data: campaignData,\n    processing_completed: true\n  }\n}];"
+      },
+      "id": "g6i2j8j7-dh4f-9k5j-ei1g-7f3g0h1i2j6f",
+      "name": "Combine AI Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 350]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "marketing_campaigns",
+        "columns": {
+          "book_id": "={{ $json.campaign_data.book_id }}",
+          "campaign_type": "={{ $json.campaign_data.campaign_type }}",
+          "ai_generated_content": "={{ JSON.stringify($json.campaign_data.ai_generated_content) }}",
+          "status": "={{ $json.campaign_data.status }}",
+          "platforms": "={{ JSON.stringify($json.campaign_data.platforms) }}",
+          "target_audience": "={{ JSON.stringify($json.campaign_data.target_audience) }}",
+          "scheduled_posts": "={{ JSON.stringify($json.campaign_data.scheduled_posts) }}",
+          "created_by": "={{ $json.campaign_data.created_by }}"
+        }
+      },
+      "id": "h7j3k9k8-ei5g-al6k-fj2h-8g4h1i2j3k7g",
+      "name": "Save Marketing Campaign",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 250]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "book_recommendations",
+        "columns": {
+          "book_id": "={{ $json.book_data.id }}",
+          "category": "={{ $json.book_data.category }}",
+          "author": "={{ $json.book_data.author }}",
+          "tags": "={{ JSON.stringify(['new_release', 'trending', $json.book_data.category?.toLowerCase() || 'general']) }}",
+          "boost_score": "1.5",
+          "marketing_campaign_active": "true",
+          "campaign_start_date": "={{ new Date().toISOString() }}",
+          "generated_content": "={{ JSON.stringify($json.social_content) }}"
+        }
+      },
+      "id": "i8k4l0l9-fj6h-bm7l-gk3i-9h5i2j3k4l8h",
+      "name": "Update Recommendations",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@myatpwint.com",
+        "toEmail": "subscribers@myatpwint.com",
+        "subject": "={{ $json.social_content.email_subject.content }}",
+        "emailFormat": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>New Book Launch</title>\n</head>\n<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;\">\n    <header style=\"background: #641B2E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;\">\n        <h1 style=\"margin: 0; font-size: 24px;\">📚 Myat Pwint Publishing House</h1>\n        <p style=\"margin: 10px 0 0 0; opacity: 0.9;\">New Book Launch</p>\n    </header>\n    \n    <main style=\"background: #fff; padding: 30px; border: 1px solid #ddd; border-top: none;\">\n        <div style=\"text-align: center; margin-bottom: 30px;\">\n            <img src=\"{{ $json.book_data.image_url }}\" alt=\"{{ $json.book_data.name }}\" \n                 style=\"width: 200px; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);\">\n        </div>\n        \n        <div style=\"text-align: center; margin-bottom: 30px;\">\n            <h2 style=\"color: #641B2E; margin: 0 0 10px 0;\">{{ $json.book_data.name }}</h2>\n            <p style=\"font-style: italic; color: #666; margin: 0 0 20px 0;\">by {{ $json.book_data.author }}</p>\n        </div>\n        \n        <div style=\"margin-bottom: 30px;\">\n            {{ $json.social_content.email_body.content }}\n        </div>\n        \n        <div style=\"text-align: center; margin: 40px 0;\">\n            <a href=\"https://myatpwint.com/books/{{ $json.book_data.id }}\" \n               style=\"background: #641B2E; color: white; padding: 15px 30px; text-decoration: none; \n                      border-radius: 25px; display: inline-block; font-weight: bold; \n                      transition: background-color 0.3s ease;\">\n                📖 Read Now - {{ $json.book_data.price }} MMK\n            </a>\n        </div>\n        \n        <div style=\"background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;\">\n            <h3 style=\"color: #641B2E; margin: 0 0 10px 0;\">Book Details</h3>\n            <ul style=\"margin: 0; padding-left: 20px;\">\n                <li><strong>Category:</strong> {{ $json.book_data.category || 'Literature' }}</li>\n                <li><strong>Language:</strong> {{ $json.book_data.language || 'Myanmar' }}</li>\n                <li><strong>Published:</strong> {{ $json.book_data.published_date || 'Recently' }}</li>\n            </ul>\n        </div>\n    </main>\n    \n    <footer style=\"background: #f5f5f5; padding: 20px; text-align: center; color: #666; \n                   border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;\">\n        <p style=\"margin: 0 0 10px 0;\">Myat Pwint Publishing House</p>\n        <p style=\"margin: 0; font-size: 14px;\">Digital Books for Myanmar • Connecting Readers with Great Stories</p>\n        <div style=\"margin-top: 15px;\">\n            <a href=\"https://myatpwint.com\" style=\"color: #641B2E; text-decoration: none; margin: 0 10px;\">Website</a>\n            <a href=\"https://facebook.com/myatpwint\" style=\"color: #641B2E; text-decoration: none; margin: 0 10px;\">Facebook</a>\n            <a href=\"mailto:info@myatpwint.com\" style=\"color: #641B2E; text-decoration: none; margin: 0 10px;\">Contact</a>\n        </div>\n    </footer>\n</body>\n</html>",
+        "attachments": [],
+        "options": {}
+      },
+      "id": "j9l5m1m0-gk7i-cn8m-hl4j-ai6j3k4l5m9i",
+      "name": "Send Marketing Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://myatpwint.com/api/analytics/realtime-update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.DASHBOARD_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "{\n  \"event_type\": \"marketing_campaign_created\",\n  \"data\": {\n    \"book_id\": \"{{ $json.book_data.id }}\",\n    \"campaign_id\": \"{{ $json.campaign_data.id }}\",\n    \"book_name\": \"{{ $json.book_data.name }}\",\n    \"author\": \"{{ $json.book_data.author }}\",\n    \"platforms\": {{ JSON.stringify($json.campaign_data.platforms) }},\n    \"timestamp\": \"{{ new Date().toISOString() }}\",\n    \"dashboard_sections\": [\n      \"recent_campaigns\",\n      \"book_recommendations\",\n      \"marketing_performance\"\n    ]\n  }\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "batching": {
+            "batch": {}
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "k0m6n2n1-hl8j-do9n-im5k-bj7k4l5m6n0j",
+      "name": "Update Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 350]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "n8n_workflow_logs",
+        "columns": {
+          "workflow_name": "Marketing Automation - Book Published",
+          "workflow_id": "{{ $workflow.id }}",
+          "execution_id": "{{ $execution.id }}",
+          "trigger_data": "={{ JSON.stringify($('Book Published Webhook').item.json) }}",
+          "status": "success",
+          "execution_time_ms": "={{ $execution.duration }}",
+          "output_data": "={{ JSON.stringify({ campaigns_created: 1, emails_sent: 1, recommendations_updated: 1 }) }}"
+        }
+      },
+      "id": "l1n7o3o2-im9k-ep0o-jn6l-ck8l5m6n7o1k",
+      "name": "Log Workflow Execution",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 350]
+    }
+  ],
+  "connections": {
+    "Book Published Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Book Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Book Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Facebook Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Twitter Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Email Subject",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Email Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "Combine AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Twitter Post": {
+      "main": [
+        [
+          {
+            "node": "Combine AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Email Subject": {
+      "main": [
+        [
+          {
+            "node": "Combine AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Email Body": {
+      "main": [
+        [
+          {
+            "node": "Combine AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine AI Content": {
+      "main": [
+        [
+          {
+            "node": "Save Marketing Campaign",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Recommendations",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Marketing Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Marketing Campaign": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Marketing Email": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-12-01T10:00:00.000Z",
+      "updatedAt": "2024-12-01T10:00:00.000Z",
+      "id": "marketing-automation",
+      "name": "Marketing Automation"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-01T10:00:00.000Z",
+  "versionId": "1"
+}

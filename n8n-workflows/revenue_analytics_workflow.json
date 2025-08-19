@@ -1,0 +1,314 @@
+{
+  "name": "Revenue Analytics - Stripe Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "checkout.session.completed",
+          "payment_intent.succeeded",
+          "invoice.payment_succeeded"
+        ],
+        "apiVersion": "2024-06-20"
+      },
+      "id": "stripe-webhook-001",
+      "name": "Stripe Payment Events",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [220, 300],
+      "webhookId": "stripe-revenue"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Process Stripe webhook data\nconst stripeEvent = $json.body || $json;\n\n// Validate event type\nconst supportedEvents = ['checkout.session.completed', 'payment_intent.succeeded', 'invoice.payment_succeeded'];\nif (!supportedEvents.includes(stripeEvent.type)) {\n  return [{ json: { skipped: true, reason: 'Unsupported event type', event_type: stripeEvent.type } }];\n}\n\n// Extract payment data based on event type\nlet paymentData = {};\n\nif (stripeEvent.type === 'checkout.session.completed') {\n  const session = stripeEvent.data.object;\n  paymentData = {\n    event_type: stripeEvent.type,\n    payment_id: session.id,\n    amount: session.amount_total || 0,\n    currency: session.currency || 'usd',\n    customer_id: session.customer,\n    status: session.payment_status,\n    created: new Date(session.created * 1000).toISOString(),\n    metadata: session.metadata || {},\n    payment_intent_id: session.payment_intent\n  };\n} else if (stripeEvent.type === 'payment_intent.succeeded') {\n  const paymentIntent = stripeEvent.data.object;\n  paymentData = {\n    event_type: stripeEvent.type,\n    payment_id: paymentIntent.id,\n    amount: paymentIntent.amount || 0,\n    currency: paymentIntent.currency || 'usd',\n    customer_id: paymentIntent.customer,\n    status: paymentIntent.status,\n    created: new Date(paymentIntent.created * 1000).toISOString(),\n    metadata: paymentIntent.metadata || {}\n  };\n} else if (stripeEvent.type === 'invoice.payment_succeeded') {\n  const invoice = stripeEvent.data.object;\n  paymentData = {\n    event_type: stripeEvent.type,\n    payment_id: invoice.id,\n    amount: invoice.amount_paid || 0,\n    currency: invoice.currency || 'usd',\n    customer_id: invoice.customer,\n    status: invoice.status,\n    created: new Date(invoice.created * 1000).toISOString(),\n    metadata: invoice.metadata || {}\n  };\n}\n\n// Extract book and user information from metadata\nif (paymentData.metadata.book_id) {\n  paymentData.book_id = paymentData.metadata.book_id;\n}\nif (paymentData.metadata.user_id) {\n  paymentData.user_id = paymentData.metadata.user_id;\n}\n\nreturn [{\n  json: {\n    payment_data: paymentData,\n    processing_timestamp: new Date().toISOString(),\n    original_event: stripeEvent.type\n  }\n}];"
+      },
+      "id": "process-payment-001",
+      "name": "Process Payment Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Calculate revenue breakdown and royalties\nconst paymentData = $json.payment_data;\n\n// Convert amount from cents to actual currency\nconst amount = paymentData.amount / 100;\n\n// Revenue breakdown calculations\nconst platformFeeRate = 0.05; // 5% platform fee\nconst stripeFeeRate = 0.029; // 2.9% Stripe fee\nconst stripeFeeFixed = 0.30; // $0.30 fixed fee\nconst publisherRoyaltyRate = 0.70; // 70% to publisher\nconst authorRoyaltyRate = 0.20; // 20% to author\n\n// Calculate fees and royalties\nconst platformFee = amount * platformFeeRate;\nconst stripeFee = (amount * stripeFeeRate) + stripeFeeFixed;\nconst publisherRoyalty = amount * publisherRoyaltyRate;\nconst authorRoyalty = amount * authorRoyaltyRate;\nconst netRevenue = amount - stripeFee;\n\n// Create revenue breakdown object\nconst revenueBreakdown = {\n  gross_amount: amount,\n  platform_fee: platformFee,\n  stripe_fee: stripeFee,\n  publisher_royalty: publisherRoyalty,\n  author_royalty: authorRoyalty,\n  net_revenue: netRevenue,\n  currency: paymentData.currency,\n  payment_id: paymentData.payment_id,\n  book_id: paymentData.book_id,\n  user_id: paymentData.user_id,\n  calculated_at: new Date().toISOString(),\n  \n  // Performance metrics\n  platform_profit: platformFee - stripeFee,\n  total_payouts: publisherRoyalty + authorRoyalty,\n  margin_percentage: ((platformFee - stripeFee) / amount * 100).toFixed(2)\n};\n\nreturn [{\n  json: {\n    revenue_data: revenueBreakdown,\n    original_payment: paymentData,\n    calculation_method: 'automated_n8n'\n  }\n}];"
+      },
+      "id": "calculate-revenue-001",
+      "name": "Calculate Revenue Breakdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "revenue_analytics",
+        "columns": {
+          "payment_id": "={{ $json.revenue_data.payment_id }}",
+          "book_id": "={{ $json.revenue_data.book_id }}",
+          "user_id": "={{ $json.revenue_data.user_id }}",
+          "gross_amount": "={{ $json.revenue_data.gross_amount }}",
+          "platform_fee": "={{ $json.revenue_data.platform_fee }}",
+          "stripe_fee": "={{ $json.revenue_data.stripe_fee }}",
+          "publisher_royalty": "={{ $json.revenue_data.publisher_royalty }}",
+          "author_royalty": "={{ $json.revenue_data.author_royalty }}",
+          "net_revenue": "={{ $json.revenue_data.net_revenue }}",
+          "currency": "={{ $json.revenue_data.currency }}",
+          "processed_at": "={{ $json.revenue_data.calculated_at }}",
+          "status": "calculated",
+          "metadata": "={{ JSON.stringify($json.original_payment) }}"
+        }
+      },
+      "id": "save-revenue-001",
+      "name": "Save Revenue Analytics",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [880, 250]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Generate daily analytics update\nconst revenueData = $json.revenue_data;\nconst today = new Date().toISOString().split('T')[0];\n\n// Create analytics update data\nconst analyticsUpdate = {\n  report_date: today,\n  sales_amount: revenueData.gross_amount,\n  transaction_count: 1,\n  platform_fee: revenueData.platform_fee,\n  stripe_fee: revenueData.stripe_fee,\n  publisher_royalty: revenueData.publisher_royalty,\n  author_royalty: revenueData.author_royalty,\n  net_profit: revenueData.platform_profit\n};\n\nreturn [{\n  json: {\n    daily_update: analyticsUpdate,\n    book_id: revenueData.book_id,\n    update_type: 'increment'\n  }\n}];"
+      },
+      "id": "prepare-analytics-001",
+      "name": "Prepare Daily Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 350]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "daily_analytics",
+        "columns": {
+          "report_date": "={{ $json.daily_update.report_date }}",
+          "total_sales": "={{ $json.daily_update.sales_amount }}",
+          "total_transactions": "={{ $json.daily_update.transaction_count }}",
+          "platform_revenue": "={{ $json.daily_update.platform_fee }}",
+          "stripe_costs": "={{ $json.daily_update.stripe_fee }}",
+          "publisher_payouts": "={{ $json.daily_update.publisher_royalty }}",
+          "author_payouts": "={{ $json.daily_update.author_royalty }}",
+          "net_profit": "={{ $json.daily_update.net_profit }}",
+          "currency": "mmk"
+        }
+      },
+      "id": "update-analytics-001",
+      "name": "Update Daily Analytics",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Get book information for publisher tracking\nconst revenueData = $json.revenue_data;\n\nif (!revenueData.book_id) {\n  return [{ json: { skip_publisher_update: true, reason: 'No book_id found' } }];\n}\n\nreturn [{\n  json: {\n    book_id: revenueData.book_id,\n    revenue_data: revenueData,\n    lookup_required: true\n  }\n}];"
+      },
+      "id": "prepare-publisher-001",
+      "name": "Prepare Publisher Lookup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 450]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "tableId": "books",
+        "filters": {
+          "conditions": [
+            {
+              "field": "id",
+              "operator": "equals",
+              "value": "={{ $json.book_id }}"
+            }
+          ]
+        }
+      },
+      "id": "get-book-info-001",
+      "name": "Get Book Info",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://myatpwint.com/api/analytics/realtime-update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.DASHBOARD_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "{\n  \"event_type\": \"revenue_updated\",\n  \"data\": {\n    \"payment_id\": \"{{ $('Save Revenue Analytics').item.json.revenue_data.payment_id }}\",\n    \"amount\": \"{{ $('Save Revenue Analytics').item.json.revenue_data.gross_amount }}\",\n    \"book_id\": \"{{ $('Save Revenue Analytics').item.json.revenue_data.book_id }}\",\n    \"platform_fee\": \"{{ $('Save Revenue Analytics').item.json.revenue_data.platform_fee }}\",\n    \"net_profit\": \"{{ $('Save Revenue Analytics').item.json.revenue_data.platform_profit }}\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\",\n    \"dashboard_sections\": [\n      \"total_revenue\",\n      \"daily_sales\",\n      \"top_books\",\n      \"publisher_earnings\"\n    ]\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "dashboard-update-001",
+      "name": "Update Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 350]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "create",
+        "tableId": "n8n_workflow_logs",
+        "columns": {
+          "workflow_name": "Revenue Analytics - Stripe Webhook",
+          "workflow_id": "{{ $workflow.id }}",
+          "execution_id": "{{ $execution.id }}",
+          "trigger_data": "={{ JSON.stringify($('Stripe Payment Events').item.json) }}",
+          "status": "success",
+          "execution_time_ms": "={{ $execution.duration }}",
+          "output_data": "={{ JSON.stringify({ revenue_calculated: 1, analytics_updated: 1, dashboard_notified: 1 }) }}"
+        }
+      },
+      "id": "log-execution-001",
+      "name": "Log Workflow Execution",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 350]
+    }
+  ],
+  "connections": {
+    "Stripe Payment Events": {
+      "main": [
+        [
+          {
+            "node": "Process Payment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Payment Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Revenue Breakdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Revenue Breakdown": {
+      "main": [
+        [
+          {
+            "node": "Save Revenue Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Daily Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Publisher Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Revenue Analytics": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Daily Analytics": {
+      "main": [
+        [
+          {
+            "node": "Update Daily Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Daily Analytics": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Publisher Lookup": {
+      "main": [
+        [
+          {
+            "node": "Get Book Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Book Info": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-12-01T10:00:00.000Z",
+      "updatedAt": "2024-12-01T10:00:00.000Z",
+      "id": "revenue-analytics",
+      "name": "Revenue Analytics"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-01T10:00:00.000Z",
+  "versionId": "1"
+}
