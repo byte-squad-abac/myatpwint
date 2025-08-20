@@ -192,4 +192,51 @@ export class BooksService extends BaseService {
       return response.data !== null;
     });
   }
+
+  /**
+   * Publish a book (creates new book and triggers marketing automation)
+   */
+  static async publishBook(bookData: Omit<Book, 'id' | 'created_at' | 'updated_at'>): Promise<Book> {
+    return this.withRetry(async () => {
+      // Call the publish API endpoint
+      const response = await fetch('/api/books/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to publish book');
+      }
+
+      const result = await response.json();
+      return result.book;
+    });
+  }
+
+  /**
+   * Create/add a book (without publishing workflow)
+   */
+  static async createBook(bookData: Omit<Book, 'id' | 'created_at' | 'updated_at'>): Promise<Book> {
+    return this.withRetry(async () => {
+      const bookToSave = {
+        ...bookData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        published_date: bookData.published_date || new Date().toISOString(),
+        tags: bookData.tags || [],
+      };
+
+      const response = await supabase
+        .from('books')
+        .insert(bookToSave)
+        .select()
+        .single();
+
+      return this.formatResponse(response).data;
+    });
+  }
 }

@@ -272,26 +272,54 @@ export default function PublisherPage() {
     if (isEdit && editingBook) {
       await supabase.from('books').update(bookData).eq('id', editingBook.id);
       setEditOpen(false);
+      setStatus('✅ Book updated');
     } else {
-      const { error: insertError } = await supabase.from('books').insert([bookData]);
-      if (!insertError && form.manuscript_id) {
-        const { error: mErr } = await supabase
-    .from('manuscripts')
-    .update({ status: 'published' })
-    .eq('id', form.manuscript_id);
+      setStatus('📚 Publishing book and triggering N8N automation...');
+      
+      try {
+        // Use the publish API endpoint which triggers N8N automation
+        const response = await fetch('/api/books/publish', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bookData),
+        });
 
-  if (mErr) {
-    console.error('[Supabase] manuscript update error:', mErr);
-  } else {
-    console.log('✅ Manuscript status updated to published');
-  }
-}
-      setUploadOpen(false);
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to publish book');
+        }
+
+        console.log('✅ Book published with N8N automation:', result);
+        
+        // Update manuscript status if manuscript_id provided
+        if (form.manuscript_id) {
+          const { error: mErr } = await supabase
+            .from('manuscripts')
+            .update({ status: 'published' })
+            .eq('id', form.manuscript_id);
+
+          if (mErr) {
+            console.error('[Supabase] manuscript update error:', mErr);
+          } else {
+            console.log('✅ Manuscript status updated to published');
+          }
+        }
+
+        setStatus('🚀 Book published and N8N marketing automation triggered!');
+        setUploadOpen(false);
+        
+      } catch (error) {
+        console.error('❌ Publishing failed:', error);
+        setStatus(`❌ Publishing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return;
+      }
     }
 
     setForm(getEmptyForm());
     setPreview(null);
-    setStatus('✅ Book saved');
     fetchBooks();
     fetchManuscripts();
   };
@@ -332,6 +360,16 @@ if (isPublisher === null) {
       </button>
       <a className="upload-button" href="/publisher/manuscripts">View Manuscript</a>
       <a className="upload-button" href="/publisher/author-manage">Manage Author</a>
+      
+      {/* N8N Marketing Automation Features */}
+      <div style={{ marginLeft: '20px', paddingLeft: '20px', borderLeft: '2px solid #444' }}>
+        <a className="upload-button" href="/publisher/publish-book" style={{ backgroundColor: '#28a745' }}>
+          🚀 Publish with N8N Automation
+        </a>
+        <a className="upload-button" href="/publisher/marketing-dashboard" style={{ backgroundColor: '#17a2b8' }}>
+          📊 Marketing Dashboard
+        </a>
+      </div>
       </div>
       <div style={{ marginBottom: 20, marginTop: 20, color: 'white' }}>
         <input
