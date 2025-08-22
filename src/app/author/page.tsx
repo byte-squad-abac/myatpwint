@@ -30,12 +30,13 @@ export default function AuthorPage() {
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [showSubmissionForm, setShowSubmissionForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'published' | 'approved' | 'rejected' | 'pending'>('all');
 
   // Form state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: '',
+    categories: '',
     tags: '',
     suggested_price: '',
     wants_physical: false
@@ -150,7 +151,7 @@ export default function AuthorPage() {
           file_url: manuscriptUrl,
           cover_image_url: coverUrl,
           tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-          category: formData.category,
+          category: formData.categories.split(',').map(cat => cat.trim()).filter(Boolean).join(', '),
           suggested_price: formData.suggested_price ? parseInt(formData.suggested_price) : null,
           wants_physical: formData.wants_physical,
           status: 'submitted'
@@ -162,7 +163,7 @@ export default function AuthorPage() {
       setFormData({
         title: '',
         description: '',
-        category: '',
+        categories: '',
         tags: '',
         suggested_price: '',
         wants_physical: false
@@ -200,6 +201,40 @@ export default function AuthorPage() {
       case 'rejected': return 'Rejected';
       case 'published': return 'Published';
       default: return status;
+    }
+  };
+
+  const getFilteredManuscripts = () => {
+    if (activeTab === 'all') return manuscripts;
+    
+    switch (activeTab) {
+      case 'published':
+        return manuscripts.filter(m => m.status === 'published');
+      case 'approved':
+        return manuscripts.filter(m => m.status === 'approved');
+      case 'rejected':
+        return manuscripts.filter(m => m.status === 'rejected');
+      case 'pending':
+        return manuscripts.filter(m => m.status === 'submitted' || m.status === 'under_review');
+      default:
+        return manuscripts;
+    }
+  };
+
+  const getTabCount = (tabType: typeof activeTab) => {
+    if (tabType === 'all') return manuscripts.length;
+    
+    switch (tabType) {
+      case 'published':
+        return manuscripts.filter(m => m.status === 'published').length;
+      case 'approved':
+        return manuscripts.filter(m => m.status === 'approved').length;
+      case 'rejected':
+        return manuscripts.filter(m => m.status === 'rejected').length;
+      case 'pending':
+        return manuscripts.filter(m => m.status === 'submitted' || m.status === 'under_review').length;
+      default:
+        return 0;
     }
   };
 
@@ -309,16 +344,18 @@ export default function AuthorPage() {
                 />
               </div>
 
-              {/* Category and Price */}
+              {/* Categories and Price */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                    Category *
+                    Categories (comma-separated) *
                   </label>
-                  <select
-                    name="category"
-                    value={formData.category}
+                  <input
+                    type="text"
+                    name="categories"
+                    value={formData.categories}
                     onChange={handleInputChange}
+                    placeholder="e.g., Fiction, Literature, History"
                     required
                     style={{
                       width: '100%',
@@ -327,17 +364,10 @@ export default function AuthorPage() {
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
-                  >
-                    <option value="">Select Category</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-Fiction">Non-Fiction</option>
-                    <option value="History">History</option>
-                    <option value="Literature">Literature</option>
-                    <option value="Children">Children</option>
-                    <option value="Education">Education</option>
-                    <option value="Biography">Biography</option>
-                    <option value="Business">Business</option>
-                  </select>
+                  />
+                  <small style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px', display: 'block' }}>
+                    Enter multiple categories separated by commas. You can create custom categories.
+                  </small>
                 </div>
 
                 <div>
@@ -477,7 +507,57 @@ export default function AuthorPage() {
       <div>
         <h2 style={{ margin: '0 0 20px 0', color: '#212529' }}>Your Manuscripts</h2>
         
-        {manuscripts.length === 0 ? (
+        {/* Status Tabs */}
+        <div style={{ 
+          display: 'flex', 
+          borderBottom: '2px solid #dee2e6', 
+          marginBottom: '20px',
+          gap: '0'
+        }}>
+          {[
+            { key: 'all', label: 'All', color: '#6c757d' },
+            { key: 'published', label: 'Published', color: '#007bff' },
+            { key: 'approved', label: 'Approved', color: '#28a745' },
+            { key: 'rejected', label: 'Rejected', color: '#dc3545' },
+            { key: 'pending', label: 'Pending', color: '#ffc107' }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '12px 20px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: activeTab === tab.key ? tab.color : '#6c757d',
+                borderBottom: activeTab === tab.key ? `3px solid ${tab.color}` : '3px solid transparent',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+            >
+              {tab.label}
+              {getTabCount(tab.key as typeof activeTab) > 0 && (
+                <span
+                  style={{
+                    marginLeft: '6px',
+                    padding: '2px 6px',
+                    backgroundColor: activeTab === tab.key ? tab.color : '#e9ecef',
+                    color: activeTab === tab.key ? 'white' : '#6c757d',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {getTabCount(tab.key as typeof activeTab)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        
+        {getFilteredManuscripts().length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '40px',
@@ -485,11 +565,16 @@ export default function AuthorPage() {
             borderRadius: '8px',
             border: '1px solid #dee2e6'
           }}>
-            <p style={{ margin: 0, color: '#6c757d' }}>No manuscripts submitted yet.</p>
+            <p style={{ margin: 0, color: '#6c757d' }}>
+              {manuscripts.length === 0 
+                ? 'No manuscripts submitted yet.' 
+                : `No manuscripts found for ${activeTab === 'pending' ? 'pending status' : `${activeTab} status`}.`
+              }
+            </p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
-            {manuscripts.map((manuscript) => (
+            {getFilteredManuscripts().map((manuscript) => (
               <div
                 key={manuscript.id}
                 style={{
@@ -502,7 +587,25 @@ export default function AuthorPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <h3 style={{ margin: '0 0 8px 0', color: '#212529' }}>{manuscript.title}</h3>
-                    <p style={{ margin: '0 0 8px 0', color: '#6c757d', fontSize: '14px' }}>{manuscript.category}</p>
+                    <div style={{ margin: '0 0 8px 0' }}>
+                      {manuscript.category.split(', ').map((category, index) => (
+                        <span
+                          key={index}
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            margin: '2px 4px 2px 0',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}
+                        >
+                          {category.trim()}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <span
                     style={{
@@ -553,12 +656,12 @@ export default function AuthorPage() {
                   <div style={{
                     marginTop: '12px',
                     padding: '12px',
-                    backgroundColor: '#f8d7da',
+                    backgroundColor: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#d4edda' : '#f8d7da',
                     borderRadius: '4px',
-                    border: '1px solid #f5c6cb'
+                    border: (manuscript.status === 'approved' || manuscript.status === 'published') ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
                   }}>
-                    <strong style={{ color: '#721c24' }}>Editor Feedback:</strong>
-                    <p style={{ margin: '4px 0 0 0', color: '#721c24' }}>{manuscript.editor_feedback}</p>
+                    <strong style={{ color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24' }}>Editor Feedback:</strong>
+                    <p style={{ margin: '4px 0 0 0', color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24' }}>{manuscript.editor_feedback}</p>
                   </div>
                 )}
 
