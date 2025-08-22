@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from '@supabase/auth-helpers-react';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import {
   Box,
   IconButton,
@@ -45,17 +45,24 @@ const TXTReader = dynamic(() => import('./components/TXTReader'), {
   loading: () => <CircularProgress />
 });
 
+const DOCXReader = dynamic(() => import('./components/DOCXReader'), {
+  ssr: false,
+  loading: () => <CircularProgress />
+});
+
 function BookReaderContent() {
   const { theme } = useTheme();
   const router = useRouter();
   const session = useSession();
+  const supabaseClient = useSupabaseClient();
   const searchParams = useSearchParams();
   const bookId = searchParams.get('id');
+  const [isLoading, setIsLoading] = useState(true);
   
   
   const [book, setBook] = useState<LibraryBook | null>(null);
   const [fileData, setFileData] = useState<ArrayBuffer | string | null>(null);
-  const [fileType, setFileType] = useState<'pdf' | 'epub' | 'txt' | null>(null);
+  const [fileType, setFileType] = useState<'pdf' | 'epub' | 'txt' | 'docx' | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(150);
   const [readerState, setReaderState] = useState<ReaderState>({
@@ -104,6 +111,11 @@ function BookReaderContent() {
       return;
     }
 
+    // Don't run if we're still checking authentication
+    if (isLoading) {
+      return;
+    }
+
     // If no session but we have a bookId, still try to load from offline storage
     console.log('🔍 Loading book:', bookId, 'Session:', !!session);
 
@@ -146,7 +158,7 @@ function BookReaderContent() {
             // Convert blob to ArrayBuffer for the reader
             const arrayBuffer = await offlineFile.arrayBuffer();
             setFileData(arrayBuffer);
-            setFileType('pdf'); // Assume PDF for now
+            setFileType('pdf'); // Assume PDF for offline - this should be improved
             setReaderState(prev => ({ ...prev, isLoading: false }));
             console.log('✅ Book loaded from offline storage');
             return;
@@ -164,6 +176,7 @@ function BookReaderContent() {
         }
 
         // If no offline book, try to load from Supabase
+        // Get purchase with book data
         const { data: purchase, error: purchaseError } = await supabaseClient
           .from('purchases')
           .select(`
@@ -172,7 +185,15 @@ function BookReaderContent() {
               id,
               name,
               author,
-              file_url
+              description,
+              price,
+              category,
+              published_date,
+              edition,
+              tags,
+              image_url,
+              created_at,
+              manuscript_id
             )
           `)
           .eq('user_id', session.user.id)
@@ -180,8 +201,29 @@ function BookReaderContent() {
           .single();
 
         if (purchaseError || !purchase) {
+          console.error('Purchase error:', purchaseError);
           setReaderState(prev => ({ ...prev, error: 'Book not found in your library. Try going online or download it first.', isLoading: false }));
           return;
+        }
+
+        // Debug: Log the purchase data structure
+        console.log('📊 Purchase data:', JSON.stringify(purchase, null, 2));
+
+        // Get manuscript file_url separately
+        let manuscriptFileUrl = null;
+        if (purchase.books.manuscript_id) {
+          const { data: manuscript, error: manuscriptError } = await supabaseClient
+            .from('manuscripts')
+            .select('file_url')
+            .eq('id', purchase.books.manuscript_id)
+            .single();
+          
+          if (manuscript && !manuscriptError) {
+            manuscriptFileUrl = manuscript.file_url;
+            console.log('📄 Manuscript file URL:', manuscriptFileUrl);
+          } else {
+            console.error('❌ Error fetching manuscript:', manuscriptError);
+          }
         }
 
         const book: LibraryBook = {
@@ -196,21 +238,25 @@ function BookReaderContent() {
           tags: purchase.books.tags || [],
           image_url: purchase.books.image_url || '',
           created_at: purchase.books.created_at || '',
-          fileName: `${purchase.books.name}.pdf`,
+          fileName: `${purchase.books.name}.docx`,
           file: null,
           size: 'Unknown',
           uploadDate: purchase.purchased_at,
           source: 'supabase',
-          fileUrl: purchase.books.file_url,
+          fileUrl: manuscriptFileUrl,
         };
 
         setBook(book);
         
         // Load file from URL
-        if (purchase.books.file_url) {
-          await loadFileDataFromUrl(purchase.books.file_url, book.fileName);
+        console.log('🔗 File URL:', manuscriptFileUrl);
+        console.log('📁 Book filename:', book.fileName);
+        
+        if (manuscriptFileUrl) {
+          await loadFileDataFromUrl(manuscriptFileUrl, book.fileName);
         } else {
-          setReaderState(prev => ({ ...prev, error: 'Book file not available', isLoading: false }));
+          console.error('❌ No manuscript file URL found for book:', purchase.books.name);
+          setReaderState(prev => ({ ...prev, error: 'Book file not available - manuscript file URL missing', isLoading: false }));
         }
       } catch (error) {
         console.error('❌ Error loading purchased book:', error);
@@ -223,7 +269,7 @@ function BookReaderContent() {
     };
 
     loadPurchasedBook();
-  }, [bookId]);
+  }, [bookId, session, isLoading]);
 
 
   const loadFileDataFromUrl = async (url: string, fileName: string) => {
@@ -253,8 +299,21 @@ function BookReaderContent() {
         const text = await response.text();
         setFileData(text);
         setFileType('txt');
+      } else if (extension === 'docx') {
+        const response = await fetch(url, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch DOCX: ${response.status} ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        setFileData(arrayBuffer);
+        setFileType('docx');
       } else {
-        throw new Error('Unsupported file format');
+        throw new Error(`Unsupported file format: ${extension}. Supported formats: PDF, EPUB, TXT, DOCX`);
       }
       
       setReaderState(prev => ({ ...prev, isLoading: false }));
@@ -304,12 +363,33 @@ function BookReaderContent() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Handle session redirect
+  // Initialize auth state check
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-    }
-  }, [session, router]);
+    const checkAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabaseClient.auth.getSession();
+        setIsLoading(false);
+        if (!currentSession) {
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsLoading(false);
+        router.push('/login');
+      }
+    };
+
+    checkAuth();
+  }, [supabaseClient, router]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   if (!session) {
     return null;
@@ -536,6 +616,13 @@ function BookReaderContent() {
           {fileType === 'txt' && fileData && (
             <TXTReader 
               fileData={fileData as string}
+              onStateChange={handleReaderStateChange}
+              zoomLevel={zoomLevel}
+            />
+          )}
+          {fileType === 'docx' && fileData && (
+            <DOCXReader 
+              fileData={fileData as ArrayBuffer}
               onStateChange={handleReaderStateChange}
               zoomLevel={zoomLevel}
             />

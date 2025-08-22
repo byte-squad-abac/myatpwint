@@ -1,660 +1,209 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
-  Paper,
   Typography,
   Box,
+  Grid,
+  Card,
+  CardMedia,
+  CardContent,
+  CardActions,
+  Button,
   CircularProgress,
-  Fade,
-  Grow,
-  useTheme,
-  useMediaQuery,
 } from '@mui/material';
-import {
-  AutoStories,
-  TrendingUp,
-} from '@mui/icons-material';
+import { PlayArrow } from '@mui/icons-material';
 import supabaseClient from '@/lib/supabaseClient';
-import { useOfflineBooks } from '@/hooks/useOfflineBooks';
-
-// Import components
-import BookshelfGrid from './components/BookshelfGrid';
-import SearchAndFilter from './components/SearchAndFilter';
-import EmptyBookshelf from './components/EmptyBookshelf';
-import LoadingBookshelf from './components/LoadingBookshelf';
 import { LibraryBook } from '@/lib/types';
-import { getFileExtension } from '@/lib/utils';
 
-// Constants
-const BACKGROUND_STYLES = {
-  background: `
-    radial-gradient(ellipse at top left, rgba(139, 69, 19, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at top right, rgba(160, 82, 45, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom center, rgba(205, 133, 63, 0.08) 0%, transparent 70%),
-    linear-gradient(135deg, 
-      rgba(245, 245, 220, 0.3) 0%, 
-      transparent 25%,
-      rgba(222, 184, 135, 0.2) 50%,
-      transparent 75%,
-      rgba(245, 245, 220, 0.3) 100%
-    )
-  `,
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: `
-      repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 100px,
-        rgba(139, 69, 19, 0.02) 100px,
-        rgba(139, 69, 19, 0.02) 101px,
-        transparent 101px,
-        transparent 200px
-      )
-    `,
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-};
-
-// Custom hook for purchased books
-function usePurchasedBooks(session: any) {
-  const [books, setBooks] = useState<LibraryBook[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
-  const [offlineBooksLoaded, setOfflineBooksLoaded] = useState(false);
-  const { offlineBooks } = useOfflineBooks();
-
-  // Listen for network status changes
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    if (typeof window !== 'undefined') {
-      setIsOnline(navigator.onLine);
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-    }
-    
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      }
-    };
-  }, []);
-
-  // Track when offline books are loaded
-  useEffect(() => {
-    if (offlineBooks !== undefined) {
-      setOfflineBooksLoaded(true);
-    }
-  }, [offlineBooks]);
-
-  useEffect(() => {
-    // Check if we're offline first - if offline, we can show offline books without session
-    const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-    
-    // If offline, wait for offline books to load before proceeding
-    if (isOffline && !offlineBooksLoaded) {
-      console.log('📱 Waiting for offline books to load...');
-      return;
-    }
-    
-    if (!isOffline && !session?.user?.id) return;
-    
-    const loadPurchasedBooks = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        console.log('🔍 Loading books for user:', session?.user?.id || 'offline');
-        
-        // Check if we're offline
-        const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-        
-        // If offline, only show offline books
-        if (isOffline) {
-          console.log('🌐 Device is offline, loading offline books only');
-          if (offlineBooks && offlineBooks.length > 0) {
-            const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
-              id: offlineBook.id,
-              name: offlineBook.title,
-              fileName: `${offlineBook.title}.pdf`,
-              size: 'Downloaded',
-              uploadDate: offlineBook.downloadDate,
-              file: null,
-              source: 'indexeddb',
-              fileUrl: 'offline',
-              author: offlineBook.author || 'Unknown Author',
-              description: 'Available offline',
-              category: '',
-              image_url: '',
-              tags: [],
-              published_date: offlineBook.downloadDate,
-              edition: '',
-              price: 0,
-              created_at: offlineBook.downloadDate,
-            }));
-            
-            setBooks(libraryBooks);
-            setIsLoading(false);
-            return;
-          } else {
-            // No offline books available
-            setBooks([]);
-            setError('No books available offline. Download books when online to read them offline.');
-            setIsLoading(false);
-            return;
-          }
-        }
-        
-        // Only reach here if online
-        // First show offline books if available to avoid loading delay
-        if (offlineBooks && offlineBooks.length > 0) {
-          console.log('📱 Found offline books, showing immediately:', offlineBooks.length);
-          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
-            id: offlineBook.id,
-            name: offlineBook.title,
-            fileName: `${offlineBook.title}.pdf`,
-            size: 'Downloaded',
-            uploadDate: offlineBook.downloadDate,
-            file: null,
-            source: 'indexeddb',
-            fileUrl: 'offline',
-            author: offlineBook.author || 'Unknown Author',
-            description: 'Available offline',
-            category: '',
-            image_url: '',
-            tags: [],
-            published_date: offlineBook.downloadDate,
-            edition: '',
-            price: 0,
-            created_at: offlineBook.downloadDate,
-          }));
-          
-          setBooks(libraryBooks);
-          setIsLoading(false);
-          // Continue to also try loading online books
-        }
-        
-        // If online, try to load from Supabase (requires session)
-        if (!session?.user?.id) {
-          console.log('📱 No session available, only showing offline books');
-          setBooks([]);
-          setError('Please sign in to see your purchased books online.');
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log('🔍 Querying purchases for user_id:', session.user.id);
-        console.log('🔍 User email:', session.user.email);
-        
-        const { data: purchases, error } = await supabaseClient
-          .from('purchases')
-          .select(`
-            *,
-            books (
-              id,
-              name,
-              author,
-              description,
-              category,
-              image_url,
-              file_url,
-              tags,
-              published_date,
-              edition
-            )
-          `)
-          .eq('user_id', session.user.id);
-
-        console.log('📚 Purchases query result:', { 
-          user_id: session.user.id,
-          purchases_count: purchases?.length || 0,
-          purchases, 
-          error 
-        });
-        
-        if (error) throw error;
-
-        const transformedBooks: LibraryBook[] = purchases?.map((purchase: any) => ({
-          id: purchase.books.id,
-          name: purchase.books.name,
-          fileName: `${purchase.books.name}.pdf`,
-          size: 'Unknown',
-          uploadDate: purchase.purchased_at,
-          file: null,
-          source: 'purchased',
-          fileUrl: purchase.books.file_url,
-          author: purchase.books.author,
-          description: purchase.books.description,
-          category: purchase.books.category,
-          image_url: purchase.books.image_url,
-          imageUrl: purchase.books.image_url,
-          tags: purchase.books.tags || [],
-          published_date: purchase.books.published_date || '',
-          edition: purchase.books.edition || '',
-          price: purchase.books.price || 0,
-          created_at: purchase.books.created_at || purchase.purchased_at,
-          purchasePrice: purchase.purchase_price,
-          purchaseDate: purchase.purchased_at
-        })) || [];
-
-        setBooks(transformedBooks);
-      } catch (error) {
-        console.error('Error loading purchased books:', error);
-        
-        // If we have offline books, show them as fallback
-        if (offlineBooks && offlineBooks.length > 0) {
-          console.log('📱 Falling back to offline books');
-          const libraryBooks: LibraryBook[] = offlineBooks.map((offlineBook: any) => ({
-            id: offlineBook.id,
-            name: offlineBook.title,
-            fileName: `${offlineBook.title}.pdf`,
-            size: 'Downloaded',
-            uploadDate: offlineBook.downloadDate,
-            file: null,
-            source: 'indexeddb',
-            fileUrl: 'offline',
-            author: offlineBook.author || 'Unknown Author',
-            description: 'Available offline',
-            category: '',
-            image_url: '',
-            tags: [],
-            published_date: offlineBook.downloadDate,
-            edition: '',
-            price: 0,
-            created_at: offlineBook.downloadDate,
-          }));
-          setBooks(libraryBooks);
-          setError(null); // Clear error since we have offline books
-        } else {
-          setError('Unable to load your library. Try going online or download books first.');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadPurchasedBooks();
-  }, [session?.user?.id, offlineBooks, isOnline, offlineBooksLoaded]);
-
-  return { books, isLoading, error, offlineBooksLoaded };
-}
-
-// Custom hook for book filtering and search
-function useBookFiltering(books: LibraryBook[]) {
-  const [filteredBooks, setFilteredBooks] = useState<LibraryBook[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [sortBy, setSortBy] = useState('uploadDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-
-  useEffect(() => {
-    let filtered = [...books];
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(book => 
-        book.name.toLowerCase().includes(searchLower) ||
-        book.fileName.toLowerCase().includes(searchLower) ||
-        book.author?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(book => {
-        const fileExtension = getFileExtension(book.fileName);
-        return fileExtension === filterType;
-      });
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'uploadDate':
-          aValue = new Date(a.uploadDate);
-          bValue = new Date(b.uploadDate);
-          break;
-        case 'author':
-          aValue = (a.author || '').toLowerCase();
-          bValue = (b.author || '').toLowerCase();
-          break;
-        default:
-          aValue = a.uploadDate;
-          bValue = b.uploadDate;
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    setFilteredBooks(filtered);
-  }, [books, searchTerm, filterType, sortBy, sortOrder]);
-
-  return {
-    filteredBooks,
-    searchTerm,
-    filterType,
-    sortBy,
-    sortOrder,
-    viewMode,
-    setSearchTerm,
-    setFilterType,
-    setSortBy,
-    setSortOrder,
-    setViewMode
-  };
-}
-
-// Header component
-function BookshelfHeader({ books, isMobile, theme }: { books: LibraryBook[], isMobile: boolean, theme: any }) {
-  const recentBooks = books.filter(b => 
-    new Date(b.purchaseDate || b.uploadDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  ).length;
-
-  return (
-    <Fade in={true} timeout={600}>
-      <Box sx={{ mb: 4 }}>
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: isMobile ? 'column' : 'row',
-            justifyContent: 'space-between', 
-            alignItems: isMobile ? 'flex-start' : 'center',
-            mb: 2,
-            gap: 2,
-          }}
-        >
-          <Box>
-            <Typography 
-              variant="h2" 
-              sx={{ 
-                fontWeight: 900,
-                background: 'linear-gradient(45deg, #8B4513, #D2691E, #CD853F)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1,
-                fontSize: isMobile ? '2.5rem' : '3.5rem',
-                textShadow: '0 4px 8px rgba(139, 69, 19, 0.3)',
-              }}
-            >
-              Bookshelf
-            </Typography>
-            <Typography 
-              variant="h6" 
-              color="text.secondary" 
-              sx={{ 
-                fontWeight: 400,
-                fontSize: isMobile ? '1rem' : '1.25rem',
-              }}
-            >
-              Your purchased books • {books.length} book{books.length !== 1 ? 's' : ''} owned
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {[
-              { icon: <AutoStories />, label: 'Total Books', value: books.length },
-              { icon: <TrendingUp />, label: 'This Month', value: recentBooks },
-            ].map((stat, index) => (
-              <Grow key={index} in={true} timeout={600 + index * 200}>
-                <Paper
-                  elevation={2}
-                  sx={{
-                    p: 2,
-                    minWidth: 120,
-                    textAlign: 'center',
-                    background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Box sx={{ color: theme.palette.primary.main, mb: 1 }}>
-                    {stat.icon}
-                  </Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {stat.value}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {stat.label}
-                  </Typography>
-                </Paper>
-              </Grow>
-            ))}
-          </Box>
-        </Box>
-      </Box>
-    </Fade>
-  );
-}
-
-
-export default function BookshelfPage() {
+export default function MyLibraryPage() {
   const session = useSession();
   const router = useRouter();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
-  // Custom hooks
-  const { books, isLoading, error, offlineBooksLoaded } = usePurchasedBooks(session);
-  
-  // Client-only state to prevent hydration mismatch
-  const [mounted, setMounted] = useState(false);
-  const {
-    filteredBooks,
-    searchTerm,
-    filterType,
-    sortBy,
-    sortOrder,
-    viewMode,
-    setSearchTerm,
-    setFilterType,
-    setSortBy,
-    setSortOrder,
-    setViewMode
-  } = useBookFiltering(books);
-
-  // Session management
-  const [isClient, setIsClient] = useState(false);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [books, setBooks] = useState<LibraryBook[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-    setIsClient(true);
-    // If offline, reduce session loading timeout to prioritize offline books
-    const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-    const timeout = isOffline ? 500 : 1000;
-    const timer = setTimeout(() => setIsSessionLoading(false), timeout);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!isSessionLoading && !session) {
-      // Check if we're offline and have cached books before redirecting
-      const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-      console.log('🔍 Session check - Offline:', isOffline, 'Books available:', books.length, 'Offline books loaded:', offlineBooksLoaded);
-      
-      // If offline, wait for offline books to load before making redirect decision
-      if (isOffline && !offlineBooksLoaded) {
-        console.log('📱 Waiting for offline books to load before redirect decision...');
-        return;
-      }
-      
-      if (!isOffline && books.length === 0) {
-        router.push('/login');
-      }
+    if (!session?.user?.id) {
+      router.push('/login');
+      return;
     }
-  }, [session, router, isSessionLoading, books.length, offlineBooksLoaded]);
+    loadBooks();
+  }, [session?.user?.id, router]);
 
-  // Event handlers
-  const handleReadBook = useCallback((bookId: string) => {
+  const loadBooks = async () => {
+    try {
+      setIsLoading(true);
+      const { data: purchases, error } = await supabaseClient
+        .from('purchases')
+        .select(`
+          *,
+          books (
+            id,
+            name,
+            author,
+            description,
+            image_url,
+            manuscript_id
+          )
+        `)
+        .eq('user_id', session?.user?.id);
+
+      if (error) throw error;
+
+      const libraryBooks: LibraryBook[] = purchases?.map((purchase: any) => ({
+        id: purchase.books.id,
+        name: purchase.books.name,
+        author: purchase.books.author || 'Unknown Author',
+        description: purchase.books.description || '',
+        image_url: purchase.books.image_url || '',
+        fileName: `${purchase.books.name}.docx`,
+        file: null,
+        size: '',
+        uploadDate: purchase.purchased_at,
+        source: 'supabase',
+        price: 0,
+        category: '',
+        published_date: '',
+        edition: '',
+        tags: [],
+        created_at: purchase.purchased_at,
+      })) || [];
+
+      setBooks(libraryBooks);
+    } catch (error) {
+      console.error('Error loading books:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReadBook = (bookId: string) => {
     router.push(`/my-library/read?id=${bookId}`);
-  }, [router]);
+  };
 
-  const handleDeleteBook = useCallback((bookId: string) => {
-    // For purchased books, this would be "hide from library" in a real app
-    if (window.confirm('Are you sure you want to remove this book from your library view?')) {
-      console.log(`Would remove book ${bookId} from library view`);
-    }
-  }, []);
-
-  const handleSearchChange = useCallback((newSearchTerm: string) => {
-    setSearchTerm(newSearchTerm);
-  }, [setSearchTerm]);
-
-  const handleFilterChange = useCallback((newFilterType: string) => {
-    setFilterType(newFilterType);
-  }, [setFilterType]);
-
-  const handleSortChange = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
-    setSortBy(newSortBy);
-    setSortOrder(newSortOrder);
-  }, [setSortBy, setSortOrder]);
-
-  const handleViewModeChange = useCallback((newViewMode: 'grid' | 'list') => {
-    setViewMode(newViewMode);
-  }, [setViewMode]);
-
-  // Prevent hydration mismatch by waiting for client mount
-  if (!mounted) {
+  if (isLoading) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-          Bookshelf
-        </Typography>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
       </Container>
     );
   }
-
-  // Loading states - allow offline books to load even during session loading
-  if ((isSessionLoading || !isClient) && books.length === 0) {
-    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-    
-    // If offline and offline books haven't loaded yet, show loading
-    if (isOffline && !offlineBooksLoaded) {
-      return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-            Bookshelf
-          </Typography>
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>
-              Loading offline books...
-            </Typography>
-          </Box>
-        </Container>
-      );
-    }
-    
-    // For online or when offline books are loaded but empty
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-          Bookshelf
-        </Typography>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
-
-  // Allow offline access even without session if we have cached books
-  const isOffline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-  if (!session && !isOffline) {
-    return null;
-  }
-
-  if (error) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h3" gutterBottom sx={{ color: '#641B2E', fontWeight: 700 }}>
-          Bookshelf
-        </Typography>
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography color="error" variant="h6">{error}</Typography>
-        </Box>
-      </Container>
-    );
-  }
-
-
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        position: 'relative',
-        overflow: 'hidden',
-        ...BACKGROUND_STYLES,
-      }}
-    >
-      <Container 
-        maxWidth="xl" 
-        sx={{ 
-          py: 4,
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <BookshelfHeader books={books} isMobile={isMobile} theme={theme} />
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 600 }}>
+        My Library ({books.length} {books.length === 1 ? 'book' : 'books'})
+      </Typography>
 
-        {isLoading ? (
-          <LoadingBookshelf />
-        ) : books.length === 0 ? (
-          <EmptyBookshelf onUploadClick={() => router.push('/books')} />
-        ) : (
-          <>
-            <SearchAndFilter
-              books={books}
-              onSearchChange={handleSearchChange}
-              onFilterChange={handleFilterChange}
-              onSortChange={handleSortChange}
-              onViewModeChange={handleViewModeChange}
-              searchTerm={searchTerm}
-              filterType={filterType}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              viewMode={viewMode}
-            />
-
-            <BookshelfGrid
-              books={filteredBooks}
-              loading={false}
-              onReadBook={handleReadBook}
-              onDeleteBook={handleDeleteBook}
-              searchTerm={searchTerm}
-              filterType={filterType}
-            />
-          </>
-        )}
-      </Container>
-    </Box>
+      {books.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No books in your library yet
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Purchase books from our store to start reading
+          </Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => router.push('/books')}
+            sx={{ bgcolor: '#641B2E', '&:hover': { bgcolor: '#4a1421' } }}
+          >
+            Browse Books
+          </Button>
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {books.map((book) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={book.id}>
+              <Card 
+                sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  '&:hover': { 
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4,
+                    transition: 'all 0.3s ease'
+                  }
+                }}
+              >
+                <CardMedia
+                  component="div"
+                  sx={{
+                    height: 200,
+                    bgcolor: '#f5f5f5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundImage: book.image_url ? `url(${book.image_url})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {!book.image_url && (
+                    <Typography variant="h6" color="text.secondary">
+                      📚
+                    </Typography>
+                  )}
+                </CardMedia>
+                
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" component="h2" gutterBottom sx={{ 
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }}>
+                    {book.name}
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    by {book.author}
+                  </Typography>
+                  
+                  {book.description && (
+                    <Typography variant="body2" color="text.secondary" sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    }}>
+                      {book.description}
+                    </Typography>
+                  )}
+                </CardContent>
+                
+                <CardActions sx={{ p: 2, pt: 0 }}>
+                  <Button 
+                    variant="contained" 
+                    startIcon={<PlayArrow />}
+                    onClick={() => handleReadBook(book.id)}
+                    fullWidth
+                    sx={{ 
+                      bgcolor: '#641B2E', 
+                      '&:hover': { bgcolor: '#4a1421' },
+                      textTransform: 'none',
+                      fontWeight: 500
+                    }}
+                  >
+                    Read
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </Container>
   );
-} 
+}

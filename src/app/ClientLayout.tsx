@@ -21,8 +21,6 @@ import { Badge } from '@mui/material';
 import { useCartStore } from '@/lib/store/cartStore';
 
 const HEADER_HEIGHT = 64;
-const SIDEBAR_WIDTH = 220;
-const COLLAPSED_WIDTH = 64;
 const HEADER_BG = '#5B2C3B';
 const HEADER_COLOR = '#FCEBD5';
 
@@ -86,45 +84,41 @@ function SearchProvider({ children }: { children: React.ReactNode }) {
 }
 
 function SidebarLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(true);
-  const [hoverExpanded, setHoverExpanded] = useState(false);
-  const isExpanded = !collapsed || hoverExpanded;
-  const sidebarWidth = isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH;
-
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
-      <Sidebar 
-        collapsed={collapsed} 
-        setCollapsed={setCollapsed}
-        onMouseEnter={() => setHoverExpanded(true)}
-        onMouseLeave={() => setHoverExpanded(false)}
-        isExpanded={isExpanded}
-      />
-      <div style={{ marginLeft: sidebarWidth, flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <div style={{
-          height: HEADER_HEIGHT,
-          background: HEADER_BG,
-          color: HEADER_COLOR,
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: '20px',
-          fontSize: 20,
-          fontWeight: 'bold',
-          borderBottom: `2px solid #C97E7E`,
-          position: 'relative',
-          zIndex: 100
-        }}>
-          <HeaderWithTitleOnly />
-        </div>
+      <TopNavbar />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', paddingTop: HEADER_HEIGHT }}>
         <main style={{ padding: 24, boxSizing: 'border-box', flex: 1, overflowY: 'auto' }}>{children}</main>
       </div>
     </div>
   );
 }
 
-function HeaderWithTitleOnly() {
+
+function TopNavbar() {
+  const session = useSession();
   const pathname = usePathname();
+  const { items } = useCartStore();
   const { setSearchResults } = useSearchContext();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Memoize role fetching to avoid excessive DB calls
+  useEffect(() => {
+    let mounted = true;
+    const fetchRole = async () => {
+      if (!session?.user?.email) return;
+      try {
+        const { data } = await supabase.from('profiles').select('role').eq('email', session.user.email).single();
+        if (mounted) setUserRole(data?.role || null);
+      } catch (error) {
+        console.error('Error fetching role:', error);
+      }
+    };
+    fetchRole();
+    return () => { mounted = false; };
+  }, [session?.user?.email]);
+
+  const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const getTitle = () => {
     if (pathname.startsWith('/books')) return 'Books';
@@ -133,145 +127,127 @@ function HeaderWithTitleOnly() {
     if (pathname.startsWith('/editor')) return 'Editor Dashboard';
     if (pathname.startsWith('/profile')) return 'Profile';
     if (pathname.startsWith('/my-library')) return 'My Library';
-    return 'Welcome to Myat Pwint Publishing House';
+    return 'Myat Pwint Publishing House';
   };
 
   const isOnBooksPage = pathname.startsWith('/books');
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        paddingRight: '20px'
-      }}
-    >
-      <div style={{ fontWeight: 'bold', fontSize: 20, paddingLeft: 12, minWidth: '120px' }}>
+    <nav style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: HEADER_HEIGHT,
+      background: HEADER_BG,
+      color: HEADER_COLOR,
+      display: 'flex',
+      alignItems: 'center',
+      padding: '0 20px',
+      borderBottom: '2px solid #C97E7E',
+      zIndex: 1000,
+      gap: '20px'
+    }}>
+      {/* Logo and Title Combined */}
+      <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: HEADER_COLOR }}>
+        <img src="/logo.jpg" alt="Logo" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
+        <div>
+          <div style={{ fontWeight: 'bold', fontSize: '18px', lineHeight: '1.2' }}>Myat Pwint</div>
+          <div style={{ fontWeight: 'normal', fontSize: '12px', opacity: 0.8, lineHeight: '1.2' }}>Publishing House</div>
+        </div>
+      </Link>
+
+      {/* Current Page Title */}
+      <div style={{ fontWeight: 'bold', fontSize: '16px', minWidth: '120px', marginLeft: '20px' }}>
         {getTitle()}
       </div>
 
-      {/* AI Search - only show on books page */}
+      {/* AI Search - centered */}
       {isOnBooksPage && (
         <div style={{ 
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'calc(100% - 160px)',
-          maxWidth: '700px',
-          minWidth: '500px'
+          flex: 1,
+          display: 'flex',
+          justifyContent: 'center',
+          maxWidth: '600px',
+          margin: '0 auto'
         }}>
           <SemanticSearch 
             placeholder="Search books in Myanmar or English with AI..."
             autoNavigate={true}
             headerMode={true}
-            onResults={setSearchResults}
+            onResults={(results, isActive = false) => setSearchResults(results, isActive)}
           />
         </div>
       )}
 
-    </div>
+      {/* Navigation Links */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+        <NavLink href="/" icon={<HomeIcon />} label="Home" />
+        <NavLink href="/books" icon={<MenuBookIcon />} label="Books" />
+        
+        {/* Author link - only for regular users, not publishers or editors */}
+        {session && userRole !== 'publisher' && userRole !== 'editor' && (
+          <NavLink href="/author" icon={<PersonIcon />} label="Author" />
+        )}
+        
+        {/* Role-specific dashboard links */}
+        {userRole === 'publisher' && (
+          <NavLink href="/publisher" icon={<DashboardIcon />} label="Publisher" />
+        )}
+        {userRole === 'editor' && (
+          <NavLink href="/editor" icon={<DashboardIcon />} label="Editor" />
+        )}
+        
+        {/* Library - only for regular users, not publishers or editors */}
+        {session && userRole !== 'publisher' && userRole !== 'editor' && (
+          <NavLink href="/my-library" icon={<LibraryBooksIcon />} label="Library" />
+        )}
+        
+        {/* Profile - available for all logged-in users */}
+        {session && (
+          <NavLink href="/profile" icon={<AccountCircleIcon />} label="Profile" />
+        )}
+        
+        {/* Cart - only for regular users, not publishers or editors */}
+        {userRole !== 'publisher' && userRole !== 'editor' && (
+          <NavLink 
+            href="/checkout" 
+            icon={
+              <Badge badgeContent={totalCount > 0 ? totalCount : null} color="error">
+                <ShoppingCartIcon />
+              </Badge>
+            } 
+            label="Cart" 
+          />
+        )}
+      </div>
+    </nav>
   );
 }
 
-function Sidebar({ 
-  collapsed, 
-  setCollapsed, 
-  onMouseEnter, 
-  onMouseLeave, 
-  isExpanded 
-}: { 
-  collapsed: boolean; 
-  setCollapsed: (val: boolean) => void; 
-  onMouseEnter: () => void; 
-  onMouseLeave: () => void; 
-  isExpanded: boolean; 
-}) {
-  const session = useSession();
-  const { items } = useCartStore();
-
-  const [isPublisher, setIsPublisher] = useState(false);
-  const [isEditor, setIsEditor] = useState(false);
-
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!session?.user?.email) return;
-      const { data } = await supabase.from('profiles').select('role').eq('email', session.user.email).single();
-      setIsPublisher(data?.role === 'publisher');
-      setIsEditor(data?.role === 'editor');
-    };
-    fetchRole();
-  }, [session]);
-
-  const totalCount = items.reduce((sum, item) => sum + (item.deliveryType === 'physical' ? item.quantity : 1), 0);
-
-  const navItems = [
-    { href: '/', icon: <HomeIcon />, label: 'Home' },
-    { href: '/books', icon: <MenuBookIcon />, label: 'Books' },
-    { href: '/author', icon: <PersonIcon />, label: 'Author' },
-    ...(isPublisher ? [{ href: '/publisher', icon: <DashboardIcon />, label: 'Publisher Dashboard' }] : []),
-    ...(isEditor ? [{ href: '/editor', icon: <DashboardIcon />, label: 'Editor Dashboard' }] : []),
-    ...(session ? [{ href: '/my-library', icon: <LibraryBooksIcon />, label: 'BookShelf' }] : []),
-    ...(session ? [{ href: '/profile', icon: <AccountCircleIcon />, label: 'Profile' }] : []),
-    { href: '/checkout', icon: <Badge badgeContent={totalCount} color="error"><ShoppingCartIcon /></Badge>, label: 'Cart' }
-  ];
-
+function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
+  
   return (
-    <nav 
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+    <Link
+      href={href}
       style={{
-        width: isExpanded ? SIDEBAR_WIDTH : COLLAPSED_WIDTH,
-        background: '#2C1B28',
-        color: '#FCEBD5',
-        height: '100vh',
-        paddingTop: 20,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        overflowY: 'auto',
-        borderRight: '2px solid #C97E7E',
-        zIndex: 999,
-        transition: 'width 0.3s ease',
-      }}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', marginBottom: 24 }}>
-        <img src="/logo.jpg" alt="Logo" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-        {isExpanded && (
-          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.2, marginLeft: 12 }}>
-            Myat Pwint<br />Publishing House
-          </div>
-        )}
-      </div>
-      <button onClick={() => setCollapsed(!collapsed)} style={{
-        margin: '0 16px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '2px',
         padding: '4px 8px',
-        background: 'transparent',
-        color: '#FCEBD5',
-        border: '1px solid #C97E7E',
-        borderRadius: 4,
-        cursor: 'pointer'
-      }}>
-        {collapsed ? '›' : '‹'}
-      </button>
-      {navItems.map(({ href, icon, label }) => (
-        <Link
-          key={href}
-          href={href}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 16px',
-            color: '#FCEBD5',
-            textDecoration: 'none',
-            fontSize: 16
-          }}
-        >
-          {icon}
-          {isExpanded && label}
-        </Link>
-      ))}
-    </nav>
+        color: isActive ? '#FFD700' : HEADER_COLOR,
+        textDecoration: 'none',
+        fontSize: '12px',
+        borderRadius: '4px',
+        background: isActive ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+        transition: 'all 0.2s ease'
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
   );
 }

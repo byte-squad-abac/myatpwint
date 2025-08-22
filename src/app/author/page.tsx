@@ -1,248 +1,604 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
-import ConversationBox from '@/components/ConversationBox';
-import '@/app/author/author.css'; // Import the CSS file for styling
 
-const publisherId = 'cf41c978-02bc-4bb6-a2f3-1fb5133f3f1a';
+type Manuscript = {
+  id: string;
+  title: string;
+  description: string;
+  file_url: string;
+  cover_image_url: string;
+  tags: string[];
+  category: string;
+  suggested_price: number | null;
+  wants_physical: boolean;
+  status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'published';
+  editor_feedback: string | null;
+  submitted_at: string;
+  reviewed_at: string | null;
+};
 
 export default function AuthorPage() {
   const supabase = useSupabaseClient();
-  const session  = useSession();
-  const router   = useRouter();
+  const session = useSession();
+  const router = useRouter();
 
-  const [role, setRole]         = useState<string | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [authorName, setAuthorName] = useState('');
-  const [authorID, setAuthorID] = useState('');
-  const [age, setAge] = useState('');
-  const [links, setLinks] = useState<string[]>([]);
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
+  const [showSubmissionForm, setShowSubmissionForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const fetchAuthorName = async () => { // Function to fetch author name
-  if (!session) return;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('author_name')
-    .eq('id', session.user.id)
-    .single();
-
-  if (error) {
-    console.error("Error fetching author name:", error);
-    return;
-  }
-
-  const authorName = data?.author_name || 'Author';  // Fallback to 'Author' if no name
-  setAuthorName(authorName);  // Store it in state or use as needed
-};
-
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    tags: '',
+    suggested_price: '',
+    wants_physical: false
+  });
+  const [manuscriptFile, setManuscriptFile] = useState<File | null>(null);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
 
   useEffect(() => {
-    const fetchRole = async () => {
+    const fetchUserData = async () => {
       if (!session) return;
-      const { data } = await supabase
+      
+      // Check if user is author
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single();
-
-      if (data?.role) setRole(data.role);
+      
+      if (profile?.role) {
+        setRole(profile.role);
+        if (profile.role === 'author') {
+          fetchManuscripts();
+        }
+      }
       setLoading(false);
     };
 
-    if (session) {
-    fetchRole();
-    fetchAuthorName();
-  }
-  }, [session, supabase]);
+    fetchUserData();
+  }, [session]);
 
-  const handleApply = () => {
-    setShowForm(true);
-    setFullName(session?.user.user_metadata.full_name || '');
-    setAuthorName(session?.user.user_metadata.author_name || '');
-    setAuthorID(session?.user.user_metadata.author_id || '');
-    setAge(session?.user.user_metadata.age || '');
-    const rawLinks = session?.user.user_metadata.links;
-    setLinks(Array.isArray(rawLinks) ? rawLinks : []);
-    setPhone(session?.user.user_metadata.phone || '');
-    setEmail(session?.user.email || '');
+  const fetchManuscripts = async () => {
+    if (!session) return;
+    
+    const { data } = await supabase
+      .from('manuscripts')
+      .select('*')
+      .eq('author_id', session.user.id)
+      .order('submitted_at', { ascending: false });
+    
+    setManuscripts(data || []);
   };
 
-  const submitApplication = async (e: FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        role: 'pending_author',
-        name: fullName || 'Unnamed',
-        author_name: authorName || 'Unnamed',
-        author_id: authorID || 'Unknown',
-        age: age || null,
-        links: links.filter(link => !!link.trim()), // This is array of strings. Note by Lut Lat
-        phone: phone || '',
-        email: email || session?.user.email
-      })
-      .eq('id', session?.user.id);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
 
-    if (!error) {
-      setRole('pending_author');
-      router.refresh();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'manuscript' | 'cover') => {
+    const file = e.target.files?.[0];
+    if (fileType === 'manuscript') {
+      // Validate DOCX file
+      if (file && !file.name.toLowerCase().endsWith('.docx')) {
+        alert('Please upload a DOCX file only.');
+        return;
+      }
+      setManuscriptFile(file || null);
+    } else {
+      // Validate image file
+      if (file && !file.type.startsWith('image/')) {
+        alert('Please upload an image file for the cover.');
+        return;
+      }
+      setCoverImage(file || null);
     }
   };
 
-  if (loading || !session) return (
-    <div style={{ marginTop: '40px' }}>
-      You are not logged in. Please log in or sign up to access the Author Portal.<br />
-      <button onClick={() => router.push('/login')}>Login</button>
-    </div>
-  );
+  const submitManuscript = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !manuscriptFile || !coverImage) {
+      alert('Please fill all required fields and upload both DOCX file and cover image.');
+      return;
+    }
 
-  if (role === 'user') {
+    setSubmitting(true);
+
+    try {
+      // Upload manuscript file
+      const manuscriptPath = `manuscripts/${session.user.id}/${Date.now()}-${manuscriptFile.name}`;
+      const { error: manuscriptUploadError } = await supabase.storage
+        .from('manuscripts')
+        .upload(manuscriptPath, manuscriptFile);
+
+      if (manuscriptUploadError) throw manuscriptUploadError;
+
+      // Upload cover image
+      const coverPath = `covers/${session.user.id}/${Date.now()}-${coverImage.name}`;
+      const { error: coverUploadError } = await supabase.storage
+        .from('covers')
+        .upload(coverPath, coverImage);
+
+      if (coverUploadError) throw coverUploadError;
+
+      // Get public URLs
+      const { data: { publicUrl: manuscriptUrl } } = supabase.storage
+        .from('manuscripts')
+        .getPublicUrl(manuscriptPath);
+
+      const { data: { publicUrl: coverUrl } } = supabase.storage
+        .from('covers')
+        .getPublicUrl(coverPath);
+
+      // Insert manuscript record
+      const { error: insertError } = await supabase
+        .from('manuscripts')
+        .insert({
+          author_id: session.user.id,
+          title: formData.title,
+          description: formData.description,
+          file_url: manuscriptUrl,
+          cover_image_url: coverUrl,
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          category: formData.category,
+          suggested_price: formData.suggested_price ? parseInt(formData.suggested_price) : null,
+          wants_physical: formData.wants_physical,
+          status: 'submitted'
+        });
+
+      if (insertError) throw insertError;
+
+      // Reset form and refresh data
+      setFormData({
+        title: '',
+        description: '',
+        category: '',
+        tags: '',
+        suggested_price: '',
+        wants_physical: false
+      });
+      setManuscriptFile(null);
+      setCoverImage(null);
+      setShowSubmissionForm(false);
+      fetchManuscripts();
+      alert('Manuscript submitted successfully!');
+
+    } catch (error) {
+      console.error('Submission error:', error);
+      alert('Failed to submit manuscript. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'submitted': return '#6c757d';
+      case 'under_review': return '#ffc107';
+      case 'approved': return '#28a745';
+      case 'rejected': return '#dc3545';
+      case 'published': return '#007bff';
+      default: return '#6c757d';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'submitted': return 'Submitted';
+      case 'under_review': return 'Under Review';
+      case 'approved': return 'Approved';
+      case 'rejected': return 'Rejected';
+      case 'published': return 'Published';
+      default: return status;
+    }
+  };
+
+  if (loading || !session) {
     return (
-      <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-        <h1>✍️ Become an Author</h1>
-        <p>You are currently a user. You can apply to become an Author. Please be reminded that all fields marked with * are mandatory. Your information will not be shared publicly and will be only used for the purpose of your application. Publisher can and will disregard any application that does not meet the requirements. The application process takes usually 2 days and you will be notified via phone / email once your application has been reviewed.</p>
-        {!showForm ? (
-          <button onClick={handleApply}>Apply as Author</button>
-        ) : (
-          <form onSubmit={submitApplication} style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '20px', 
-            marginTop: 20, 
-            background: '#f9f9f9',
-            padding: '24px',
-            borderRadius: '12px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.06)' 
-          }}>
-            {/* Full Name */}
-            <div>
-              <label className='labelStyle'>Legal Full Name *</label>
-              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required className='inputStyle' placeholder='Enter Legal Name' />
-            </div>
-
-            {/* Author Name */}
-            <div>
-              <label className='labelStyle'>Author Name / Pen Name *</label>
-              <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)} required className='inputStyle' placeholder='Enter Pen Name' />
-            </div>
-
-            {/* Author ID */}
-            <div>
-              <label className='labelStyle'>Author ID *</label>
-              <input type="text" value={authorID} onChange={e => setAuthorID(e.target.value)} required className='inputStyle' placeholder='Enter registered Author ID issued by Author Association' />
-            </div>
-
-            {/* Age */}
-            <div>
-              <label className='labelStyle'>Age *</label>
-              <input type="number" value={age} onChange={e => setAge(e.target.value)} required className='inputStyle' placeholder='Enter Age' />
-            </div>
-
-            {/* Links */}
-            <div>
-              <label className='labelStyle'>Links:</label>
-              {links.map((link, index) => (
-                <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                  <input
-                    type="url"
-                    value={link}
-                    onChange={e => {
-                      const updatedLinks = [...links];
-                      updatedLinks[index] = e.target.value;
-                      setLinks(updatedLinks);
-                    }}
-                    required
-                    className='inputStyle'
-                    placeholder={`Link ${index + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = links.filter((_, i) => i !== index);
-                      setLinks(updated);
-                    }}
-                    className='clearButton'
-                  >
-                    clear
-                  </button>
-                </div>
-              ))}
-              <button type="button" onClick={() => setLinks([...links, ''])} className='addButton'>➕ Add link</button>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className='labelStyle'>Contact Number *</label>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className='inputStyle' placeholder='Enter Contact Number' />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className='labelStyle'>Email *</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className='inputStyle' placeholder='Enter Email' />
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setShowForm(false)} className='cancelButton'>Cancel</button>
-              <button type="submit" className='submitButton'>Submit Application</button>
-            </div>
-          </form>
-
-        )}
-      </main>
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <h1>Loading...</h1>
+      </div>
     );
   }
 
-  if (role === 'pending_author') {
+  if (role !== 'author') {
     return (
-      <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-        <h1>✍️ Author Application Pending</h1>
-        <p>Your application is being reviewed. Admin will contact you shortly.</p>
-      </main>
-    );
-  }
-
-  if (role === 'publisher' || role === 'editor') {
-    return (
-      <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-        <h1>🚫 Access Denied</h1>
-        <p>You are logged in as a {role}. This page is for Authors only.</p>
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <h1>Access Denied</h1>
+        <p>This page is for authors only.</p>
         <button onClick={() => router.push('/profile')}>Go to Profile</button>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-      <h1>✍️ Author Portal</h1>
-      <p>You have <strong>Author</strong> role. Your contact email is {session?.user.email}</p>
-      <p>Authors can submit manuscripts, track sales, and message publishers.</p>
-      <a href="/author/manuscripts">
-      <button>Manuscript Management</button>
-      </a>
-
-      <div style={{ marginTop: 32 }}>
-        <h2>📨 Message the Publisher</h2>
-        
-        <ConversationBox
-          room_id={`${session.user.id}-${publisherId}`}
-          myId={session.user.id}
-          myRole="author"
-          authorId={session.user.id}
-          editorId={publisherId}
-          author_name={session.user.user_metadata.author_name || session.user.user_metadata.full_name || 'Author'}
-          editor_name="Publisher"
-          sender_name={authorName || session.user.user_metadata.full_name || 'Author'}
-        />
+    <div style={{ 
+      maxWidth: '1000px', 
+      margin: '0 auto', 
+      padding: '20px',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <div style={{ marginBottom: '30px', borderBottom: '1px solid #dee2e6', paddingBottom: '20px' }}>
+        <h1 style={{ margin: '0 0 10px 0', color: '#212529' }}>Author Dashboard</h1>
+        <p style={{ margin: 0, color: '#6c757d' }}>Submit and manage your manuscripts</p>
       </div>
-    </main>
+
+      {/* Submit New Manuscript Button */}
+      <div style={{ marginBottom: '30px' }}>
+        <button
+          onClick={() => setShowSubmissionForm(true)}
+          disabled={showSubmissionForm}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '4px',
+            fontSize: '16px',
+            cursor: showSubmissionForm ? 'not-allowed' : 'pointer',
+            opacity: showSubmissionForm ? 0.6 : 1
+          }}
+        >
+          Submit New Manuscript
+        </button>
+      </div>
+
+      {/* Submission Form */}
+      {showSubmissionForm && (
+        <div style={{
+          border: '1px solid #dee2e6',
+          borderRadius: '8px',
+          padding: '24px',
+          marginBottom: '30px',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <h2 style={{ margin: '0 0 20px 0', color: '#212529' }}>Submit New Manuscript</h2>
+          
+          <form onSubmit={submitManuscript}>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {/* Title */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                  Description *
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  required
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Category and Price */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                    Category *
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Select Category</option>
+                    <option value="Fiction">Fiction</option>
+                    <option value="Non-Fiction">Non-Fiction</option>
+                    <option value="History">History</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Children">Children</option>
+                    <option value="Education">Education</option>
+                    <option value="Biography">Biography</option>
+                    <option value="Business">Business</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                    Suggested Price (MMK)
+                  </label>
+                  <input
+                    type="number"
+                    name="suggested_price"
+                    value={formData.suggested_price}
+                    onChange={handleInputChange}
+                    placeholder="Optional - for negotiation"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleInputChange}
+                  placeholder="e.g., myanmar, history, culture"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* File Uploads */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                    Manuscript File (DOCX only) *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".docx"
+                    onChange={(e) => handleFileChange(e, 'manuscript')}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                    Book Cover Image *
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'cover')}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Physical Book Option */}
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    name="wants_physical"
+                    checked={formData.wants_physical}
+                    onChange={handleInputChange}
+                  />
+                  <span>I want a physical book version</span>
+                </label>
+              </div>
+
+              {/* Submit Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmissionForm(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '4px',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1
+                  }}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Manuscript'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Manuscripts List */}
+      <div>
+        <h2 style={{ margin: '0 0 20px 0', color: '#212529' }}>Your Manuscripts</h2>
+        
+        {manuscripts.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            border: '1px solid #dee2e6'
+          }}>
+            <p style={{ margin: 0, color: '#6c757d' }}>No manuscripts submitted yet.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {manuscripts.map((manuscript) => (
+              <div
+                key={manuscript.id}
+                style={{
+                  border: '1px solid #dee2e6',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  backgroundColor: 'white'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <h3 style={{ margin: '0 0 8px 0', color: '#212529' }}>{manuscript.title}</h3>
+                    <p style={{ margin: '0 0 8px 0', color: '#6c757d', fontSize: '14px' }}>{manuscript.category}</p>
+                  </div>
+                  <span
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      backgroundColor: getStatusColor(manuscript.status),
+                      color: 'white'
+                    }}
+                  >
+                    {getStatusText(manuscript.status)}
+                  </span>
+                </div>
+
+                <p style={{ margin: '0 0 12px 0', color: '#495057' }}>{manuscript.description}</p>
+
+                {manuscript.tags.length > 0 && (
+                  <div style={{ marginBottom: '12px' }}>
+                    {manuscript.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          margin: '2px 4px 2px 0',
+                          backgroundColor: '#e9ecef',
+                          color: '#495057',
+                          borderRadius: '12px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '14px', color: '#6c757d' }}>
+                  <span>Submitted: {new Date(manuscript.submitted_at).toLocaleDateString()}</span>
+                  {manuscript.suggested_price && (
+                    <span>Suggested Price: {manuscript.suggested_price.toLocaleString()} MMK</span>
+                  )}
+                  {manuscript.wants_physical && <span>Physical Book Requested</span>}
+                </div>
+
+                {manuscript.editor_feedback && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px',
+                    backgroundColor: '#f8d7da',
+                    borderRadius: '4px',
+                    border: '1px solid #f5c6cb'
+                  }}>
+                    <strong style={{ color: '#721c24' }}>Editor Feedback:</strong>
+                    <p style={{ margin: '4px 0 0 0', color: '#721c24' }}>{manuscript.editor_feedback}</p>
+                  </div>
+                )}
+
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  <a
+                    href={manuscript.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      textDecoration: 'none',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Download DOCX
+                  </a>
+                  <a
+                    href={manuscript.cover_image_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#6c757d',
+                      color: 'white',
+                      textDecoration: 'none',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    View Cover
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

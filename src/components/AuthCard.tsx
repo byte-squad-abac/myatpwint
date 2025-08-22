@@ -33,12 +33,7 @@ export default function AuthCard({ onSuccess }: Props) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
 
-        const userId = data.user?.id;
-        if (userId) {
-          await supabase
-            .from('profiles')
-            .upsert({ id: userId, role: 'user' }, { onConflict: 'id' });
-        }
+        // Profile will be created automatically by database trigger
 
         if (!data.session) {
           setInfo('Check your email to confirm your account.');

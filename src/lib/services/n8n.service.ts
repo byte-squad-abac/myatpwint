@@ -68,7 +68,18 @@ export class N8NService {
         throw new Error(`N8N webhook failed: ${response.status} ${response.statusText}`);
       }
 
-      const result = await response.json();
+      // Handle N8N response - it might not return JSON
+      let result = null;
+      try {
+        const responseText = await response.text();
+        if (responseText.trim()) {
+          result = JSON.parse(responseText);
+        }
+      } catch (parseError) {
+        // N8N webhook executed successfully but didn't return JSON
+        console.log('✅ N8N webhook triggered (no JSON response)');
+        result = { message: 'Webhook executed successfully' };
+      }
       
       console.log('✅ N8N marketing automation triggered successfully');
       console.log('📊 Generated content for platforms: Facebook, Twitter, Email, Telegram');

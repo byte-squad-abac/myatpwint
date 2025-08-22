@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
     console.log('Stripe Config Currency:', stripeConfig.currency);
     console.log('MMK to USD Rate:', stripeConfig.mmkToUsdRate);
     
-    // Create Supabase client for database operations (RLS disabled for stripe_products)
+    // Create Supabase client for database operations using service role (bypasses RLS)
     const supabaseServiceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
         auth: {
           persistSession: false,
@@ -179,6 +179,32 @@ export async function POST(request: NextRequest) {
           }
         },
         { status: 401 }
+      );
+    }
+
+    // Check user role to prevent publishers and editors from purchasing
+    const { data: profile, error: profileError } = await supabaseServiceClient
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('❌ Error fetching user profile:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to verify user permissions' },
+        { status: 500 }
+      );
+    }
+
+    if (profile?.role === 'publisher' || profile?.role === 'editor') {
+      console.log('❌ Purchase attempt by restricted role:', profile.role);
+      return NextResponse.json(
+        { 
+          error: `${profile.role === 'publisher' ? 'Publishers' : 'Editors'} cannot purchase books`,
+          roleRestriction: true
+        },
+        { status: 403 }
       );
     }
 

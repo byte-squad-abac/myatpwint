@@ -6,7 +6,6 @@ import { Box, CircularProgress, Alert, Typography } from '@mui/material';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import { PDFReaderProps } from '@/lib/types';
 import { PDFLoadError } from './ReaderErrorBoundary';
-import { useScrollTouchGestures } from '../hooks/useTouchGestures';
 import styles from './PDFReader.module.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -171,21 +170,6 @@ export default function PDFReader({ fileData, zoomLevel, onStateChange, navigati
   const pageManagerRef = useRef<PageManager | null>(null);
   const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
   
-  // Touch gesture support
-  useScrollTouchGestures(containerRef, {
-    onPageUp: () => {
-      if (containerRef.current) {
-        const scrollAmount = containerRef.current.clientHeight * 0.8;
-        containerRef.current.scrollBy({ top: -scrollAmount, behavior: 'smooth' });
-      }
-    },
-    onPageDown: () => {
-      if (containerRef.current) {
-        const scrollAmount = containerRef.current.clientHeight * 0.8;
-        containerRef.current.scrollBy({ top: scrollAmount, behavior: 'smooth' });
-      }
-    },
-  });
   
   const pageManager = useMemo(() => {
     if (numPages > 0) {

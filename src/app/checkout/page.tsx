@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -34,7 +34,39 @@ export default function CheckoutPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
   const { items, getTotal, clearCart, removeItem, updateQuantity } = useCartStore();
+
+  // Check user role on component mount
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (!session?.user?.id) {
+        setRoleLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user role:', error);
+        } else {
+          setUserRole(data?.role || null);
+        }
+      } catch (err) {
+        console.error('Error checking user role:', err);
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+
+    checkUserRole();
+  }, [session?.user?.id]);
 
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -203,6 +235,40 @@ export default function CheckoutPage() {
       </CardContent>
     </Card>
   );
+
+  if (roleLoading) {
+    return (
+      <Container maxWidth="md" sx={{ py: 8 }}>
+        <Typography variant="h6" textAlign="center">Loading...</Typography>
+      </Container>
+    );
+  }
+
+  // Check if user role is restricted from purchasing
+  if (userRole === 'publisher' || userRole === 'editor') {
+    return (
+      <Container maxWidth="md" sx={{ py: 8 }}>
+        <Alert severity="error">
+          <Typography variant="h6" gutterBottom>
+            Purchase Restricted
+          </Typography>
+          <Typography variant="body1" gutterBottom>
+            {userRole === 'publisher' 
+              ? 'Publishers cannot purchase books as they have administrative access to all content.'
+              : 'Editors cannot purchase books as they have review access to all manuscripts and published content.'
+            }
+          </Typography>
+          <Button 
+            variant="outlined" 
+            onClick={() => router.push('/')}
+            sx={{ mt: 2 }}
+          >
+            Back to Home
+          </Button>
+        </Alert>
+      </Container>
+    );
+  }
 
   if (items.length === 0) {
     return (

@@ -340,6 +340,10 @@ export interface TXTReaderProps extends BaseReaderProps {
   fileData: string;
 }
 
+export interface DOCXReaderProps extends BaseReaderProps {
+  fileData: ArrayBuffer;
+}
+
 // ============================================================================
 // ERROR TYPES
 // ============================================================================
