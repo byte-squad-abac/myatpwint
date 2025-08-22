@@ -43,6 +43,16 @@ export default function AuthorPage() {
   });
   const [manuscriptFile, setManuscriptFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
+  const [existingTags, setExistingTags] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState('');
+  const [customTag, setCustomTag] = useState('');
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [tagSearchTerm, setTagSearchTerm] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -59,6 +69,7 @@ export default function AuthorPage() {
         setRole(profile.role);
         if (profile.role === 'author') {
           fetchManuscripts();
+          fetchExistingData();
         }
       }
       setLoading(false);
@@ -66,6 +77,24 @@ export default function AuthorPage() {
 
     fetchUserData();
   }, [session]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[data-dropdown="category"]')) {
+        setShowCategoryDropdown(false);
+      }
+      if (!target.closest('[data-dropdown="tag"]')) {
+        setShowTagDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const fetchManuscripts = async () => {
     if (!session) return;
@@ -77,6 +106,156 @@ export default function AuthorPage() {
       .order('submitted_at', { ascending: false });
     
     setManuscripts(data || []);
+  };
+
+  const fetchExistingData = async () => {
+    try {
+      // Fetch existing categories from both books and manuscripts
+      const { data: booksData } = await supabase
+        .from('books')
+        .select('category')
+        .not('category', 'is', null);
+
+      const { data: manuscriptsData } = await supabase
+        .from('manuscripts')
+        .select('category')
+        .not('category', 'is', null);
+
+      if (booksData || manuscriptsData) {
+        const allCategoryStrings = [
+          ...(booksData || []).map(item => item.category),
+          ...(manuscriptsData || []).map(item => item.category)
+        ];
+        
+        // Parse comma-separated categories and flatten unique ones
+        const allCategories = allCategoryStrings
+          .flatMap(catString => catString.split(',').map((cat: string) => cat.trim()))
+          .filter((cat: string) => cat)
+          .filter((cat: string, index: number, arr: string[]) => arr.indexOf(cat) === index)
+          .sort();
+        
+        setExistingCategories(allCategories);
+      }
+
+      // Fetch existing tags from both books and manuscripts
+      const { data: bookTagsData } = await supabase
+        .from('books')
+        .select('tags')
+        .not('tags', 'is', null);
+
+      const { data: manuscriptTagsData } = await supabase
+        .from('manuscripts')
+        .select('tags')
+        .not('tags', 'is', null);
+
+      if (bookTagsData || manuscriptTagsData) {
+        const allTagArrays = [
+          ...(bookTagsData || []).map(item => item.tags || []),
+          ...(manuscriptTagsData || []).map(item => item.tags || [])
+        ];
+        
+        const allTags = allTagArrays
+          .flat()
+          .filter((tag: string) => tag)
+          .filter((tag: string, index: number, arr: string[]) => arr.indexOf(tag) === index)
+          .sort();
+        
+        setExistingTags(allTags);
+      }
+    } catch (error) {
+      console.error('Error fetching existing data:', error);
+      // Fallback to default categories
+      setExistingCategories(['Education', 'Fiction', 'Literature']);
+      setExistingTags(['Animation Comedy', 'coding', 'computer', 'google', 'hacking', 'technology']);
+    }
+  };
+
+  const handleCategoryToggle = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  const addCustomCategory = () => {
+    if (customCategory.trim() && !selectedCategories.includes(customCategory.trim())) {
+      setSelectedCategories(prev => [...prev, customCategory.trim()]);
+      setCustomCategory('');
+    }
+  };
+
+  const addCustomTag = () => {
+    if (customTag.trim() && !selectedTags.includes(customTag.trim())) {
+      setSelectedTags(prev => [...prev, customTag.trim()]);
+      setCustomTag('');
+    }
+  };
+
+  const getFilteredCategories = () => {
+    return existingCategories.filter(category => 
+      category.toLowerCase().includes(categorySearchTerm.toLowerCase()) &&
+      !selectedCategories.includes(category)
+    );
+  };
+
+  const getFilteredTags = () => {
+    return existingTags.filter(tag => 
+      tag.toLowerCase().includes(tagSearchTerm.toLowerCase()) &&
+      !selectedTags.includes(tag)
+    );
+  };
+
+  const handleCategorySearch = (searchTerm: string) => {
+    setCategorySearchTerm(searchTerm);
+    setShowCategoryDropdown(true);
+  };
+
+  const handleTagSearch = (searchTerm: string) => {
+    setTagSearchTerm(searchTerm);
+    setShowTagDropdown(true);
+  };
+
+  const selectCategoryFromDropdown = (category: string) => {
+    if (!selectedCategories.includes(category)) {
+      setSelectedCategories(prev => [...prev, category]);
+    }
+    setCategorySearchTerm('');
+    setShowCategoryDropdown(false);
+  };
+
+  const selectTagFromDropdown = (tag: string) => {
+    if (!selectedTags.includes(tag)) {
+      setSelectedTags(prev => [...prev, tag]);
+    }
+    setTagSearchTerm('');
+    setShowTagDropdown(false);
+  };
+
+  const addCategoryFromSearch = () => {
+    const trimmedTerm = categorySearchTerm.trim();
+    if (trimmedTerm && !selectedCategories.includes(trimmedTerm)) {
+      setSelectedCategories(prev => [...prev, trimmedTerm]);
+      setCategorySearchTerm('');
+      setShowCategoryDropdown(false);
+    }
+  };
+
+  const addTagFromSearch = () => {
+    const trimmedTerm = tagSearchTerm.trim();
+    if (trimmedTerm && !selectedTags.includes(trimmedTerm)) {
+      setSelectedTags(prev => [...prev, trimmedTerm]);
+      setTagSearchTerm('');
+      setShowTagDropdown(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -110,6 +289,11 @@ export default function AuthorPage() {
     e.preventDefault();
     if (!session || !manuscriptFile || !coverImage) {
       alert('Please fill all required fields and upload both DOCX file and cover image.');
+      return;
+    }
+
+    if (selectedCategories.length === 0) {
+      alert('Please select or add at least one category.');
       return;
     }
 
@@ -150,8 +334,8 @@ export default function AuthorPage() {
           description: formData.description,
           file_url: manuscriptUrl,
           cover_image_url: coverUrl,
-          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-          category: formData.categories.split(',').map(cat => cat.trim()).filter(Boolean).join(', '),
+          tags: selectedTags,
+          category: selectedCategories.join(', '),
           suggested_price: formData.suggested_price ? parseInt(formData.suggested_price) : null,
           wants_physical: formData.wants_physical,
           status: 'submitted'
@@ -170,6 +354,14 @@ export default function AuthorPage() {
       });
       setManuscriptFile(null);
       setCoverImage(null);
+      setSelectedCategories([]);
+      setSelectedTags([]);
+      setCustomCategory('');
+      setCustomTag('');
+      setCategorySearchTerm('');
+      setTagSearchTerm('');
+      setShowCategoryDropdown(false);
+      setShowTagDropdown(false);
       setShowSubmissionForm(false);
       fetchManuscripts();
       alert('Manuscript submitted successfully!');
@@ -344,19 +536,20 @@ export default function AuthorPage() {
                 />
               </div>
 
-              {/* Categories and Price */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                    Categories (comma-separated) *
-                  </label>
+              {/* Categories */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                  Categories *
+                </label>
+                
+                {/* Search Input */}
+                <div data-dropdown="category" style={{ position: 'relative', marginBottom: '12px' }}>
                   <input
                     type="text"
-                    name="categories"
-                    value={formData.categories}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Fiction, Literature, History"
-                    required
+                    value={categorySearchTerm}
+                    onChange={(e) => handleCategorySearch(e.target.value)}
+                    onFocus={() => setShowCategoryDropdown(true)}
+                    placeholder="Search or add categories..."
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -364,44 +557,262 @@ export default function AuthorPage() {
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (getFilteredCategories().length > 0) {
+                          selectCategoryFromDropdown(getFilteredCategories()[0]);
+                        } else {
+                          addCategoryFromSearch();
+                        }
+                      }
+                    }}
                   />
-                  <small style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px', display: 'block' }}>
-                    Enter multiple categories separated by commas. You can create custom categories.
-                  </small>
+                  
+                  {/* Dropdown */}
+                  {showCategoryDropdown && (categorySearchTerm || getFilteredCategories().length > 0) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'white',
+                      border: '1px solid #ced4da',
+                      borderTop: 'none',
+                      borderRadius: '0 0 4px 4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {/* Filtered existing categories */}
+                      {getFilteredCategories().map((category) => (
+                        <div
+                          key={category}
+                          onClick={() => selectCategoryFromDropdown(category)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #f8f9fa',
+                            backgroundColor: 'white',
+                            fontSize: '14px'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                        >
+                          {category}
+                        </div>
+                      ))}
+                      
+                      {/* Add custom category option */}
+                      {categorySearchTerm && !existingCategories.includes(categorySearchTerm) && !selectedCategories.includes(categorySearchTerm) && (
+                        <div
+                          onClick={addCategoryFromSearch}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa',
+                            fontSize: '14px',
+                            fontStyle: 'italic',
+                            color: '#007bff'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                        >
+                          + Add "{categorySearchTerm}"
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                    Suggested Price (MMK)
-                  </label>
-                  <input
-                    type="number"
-                    name="suggested_price"
-                    value={formData.suggested_price}
-                    onChange={handleInputChange}
-                    placeholder="Optional - for negotiation"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
+                {/* Selected Categories Display */}
+                {selectedCategories.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontSize: '14px', color: '#6c757d', marginBottom: '4px' }}>
+                      Selected categories:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {selectedCategories.map((category) => (
+                        <span
+                          key={category}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {category}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCategories(prev => prev.filter(c => c !== category))}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'white',
+                              cursor: 'pointer',
+                              padding: '0',
+                              marginLeft: '2px'
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Tags */}
               <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                  Tags
+                </label>
+                
+                {/* Search Input */}
+                <div data-dropdown="tag" style={{ position: 'relative', marginBottom: '12px' }}>
+                  <input
+                    type="text"
+                    value={tagSearchTerm}
+                    onChange={(e) => handleTagSearch(e.target.value)}
+                    onFocus={() => setShowTagDropdown(true)}
+                    placeholder="Search or add tags..."
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (getFilteredTags().length > 0) {
+                          selectTagFromDropdown(getFilteredTags()[0]);
+                        } else {
+                          addTagFromSearch();
+                        }
+                      }
+                    }}
+                  />
+                  
+                  {/* Dropdown */}
+                  {showTagDropdown && (tagSearchTerm || getFilteredTags().length > 0) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'white',
+                      border: '1px solid #ced4da',
+                      borderTop: 'none',
+                      borderRadius: '0 0 4px 4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {/* Filtered existing tags */}
+                      {getFilteredTags().map((tag) => (
+                        <div
+                          key={tag}
+                          onClick={() => selectTagFromDropdown(tag)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #f8f9fa',
+                            backgroundColor: 'white',
+                            fontSize: '14px'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                        >
+                          {tag}
+                        </div>
+                      ))}
+                      
+                      {/* Add custom tag option */}
+                      {tagSearchTerm && !existingTags.includes(tagSearchTerm) && !selectedTags.includes(tagSearchTerm) && (
+                        <div
+                          onClick={addTagFromSearch}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa',
+                            fontSize: '14px',
+                            fontStyle: 'italic',
+                            color: '#28a745'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                        >
+                          + Add "{tagSearchTerm}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Tags Display */}
+                {selectedTags.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontSize: '14px', color: '#6c757d', marginBottom: '4px' }}>
+                      Selected tags:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {selectedTags.map((tag) => (
+                        <span
+                          key={tag}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            backgroundColor: '#28a745',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'white',
+                              cursor: 'pointer',
+                              padding: '0',
+                              marginLeft: '2px'
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Suggested Price */}
+              <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                  Tags (comma-separated)
+                  Suggested Price (MMK)
                 </label>
                 <input
-                  type="text"
-                  name="tags"
-                  value={formData.tags}
+                  type="number"
+                  name="suggested_price"
+                  value={formData.suggested_price}
                   onChange={handleInputChange}
-                  placeholder="e.g., myanmar, history, culture"
+                  placeholder="Optional - for negotiation"
                   style={{
                     width: '100%',
                     padding: '8px 12px',
