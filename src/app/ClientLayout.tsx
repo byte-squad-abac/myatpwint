@@ -3,11 +3,12 @@
 import { useEffect, useState, createContext, useContext, useCallback } from 'react';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import supabase from '@/lib/supabaseClient';
+import supabase, { handleAuthError } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import SemanticSearch from '@/components/SemanticSearch';
 import { BookWithSearchMetadata } from '@/lib/types';
+import AuthErrorBoundary from '@/components/AuthErrorBoundary';
 
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import HomeIcon from '@mui/icons-material/Home';
@@ -49,11 +50,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }));
 
   return (
-    <SessionContextProvider supabaseClient={browserSupabaseClient}>
-      <SearchProvider>
-        <SidebarLayout>{children}</SidebarLayout>
-      </SearchProvider>
-    </SessionContextProvider>
+    <AuthErrorBoundary>
+      <SessionContextProvider supabaseClient={browserSupabaseClient}>
+        <SearchProvider>
+          <SidebarLayout>{children}</SidebarLayout>
+        </SearchProvider>
+      </SessionContextProvider>
+    </AuthErrorBoundary>
   );
 }
 
@@ -112,6 +115,8 @@ function TopNavbar() {
         if (mounted) setUserRole(data?.role || null);
       } catch (error) {
         console.error('Error fetching role:', error);
+        // Handle authentication errors
+        await handleAuthError(error);
       }
     };
     fetchRole();
