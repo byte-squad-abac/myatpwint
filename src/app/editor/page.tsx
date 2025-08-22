@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 
+type FeedbackHistory = {
+  feedback: string;
+  editor_id: string;
+  editor_name?: string;
+  timestamp: string;
+  action: 'rejected' | 'approved' | 'under_review';
+};
+
 type Manuscript = {
   id: string;
   title: string;
@@ -20,6 +28,9 @@ type Manuscript = {
   reviewed_at: string | null;
   author_id: string;
   editor_id: string | null;
+  submission_count: number;
+  feedback_history: FeedbackHistory[];
+  last_resubmitted_at: string | null;
   author?: {
     id: string;
     name: string;
@@ -48,6 +59,8 @@ export default function EditorPage() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [activeStatusTab, setActiveStatusTab] = useState<string>('all');
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [selectedFeedbackManuscript, setSelectedFeedbackManuscript] = useState<Manuscript | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -160,12 +173,35 @@ export default function EditorPage() {
 
     setProcessing(true);
     try {
+      // Get current editor info for feedback history
+      const { data: editorData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', session.user.id)
+        .single();
+
+      // Create new feedback history entry
+      const newFeedbackEntry = {
+        feedback: feedback.trim() || 'No feedback provided',
+        editor_id: session.user.id,
+        editor_name: editorData?.name || 'Unknown Editor',
+        timestamp: new Date().toISOString(),
+        action: approved ? 'approved' : 'rejected'
+      };
+
+      // Add to existing feedback history
+      const updatedFeedbackHistory = [
+        ...(selectedManuscript.feedback_history || []),
+        newFeedbackEntry
+      ];
+
       const { error } = await supabase
         .from('manuscripts')
         .update({
           status: approved ? 'approved' : 'rejected',
           editor_feedback: feedback.trim() || null,
-          reviewed_at: new Date().toISOString()
+          reviewed_at: new Date().toISOString(),
+          feedback_history: updatedFeedbackHistory
         })
         .eq('id', selectedManuscript.id);
 
@@ -736,8 +772,8 @@ export default function EditorPage() {
         ) : (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
-            gap: '20px' 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', 
+            gap: '24px' 
           }}>
             {getFilteredManuscripts().map((manuscript) => (
               <div
@@ -746,20 +782,20 @@ export default function EditorPage() {
                   border: '1px solid #dee2e6',
                   borderLeft: `4px solid ${getPriorityColor(manuscript.submitted_at, manuscript.status)}`,
                   borderRadius: '8px',
-                  padding: '16px',
+                  padding: '20px',
                   backgroundColor: 'white',
                   height: 'fit-content',
                   position: 'relative'
                 }}
               >
                 {/* Cover Image and Content Layout */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
                   {/* Book Cover */}
                   <div style={{ 
                     flexShrink: 0,
-                    width: '60px',
-                    height: '75px',
-                    borderRadius: '3px',
+                    width: '80px',
+                    height: '100px',
+                    borderRadius: '4px',
                     overflow: 'hidden',
                     border: '1px solid #e9ecef',
                     backgroundColor: '#f8f9fa'
@@ -788,17 +824,27 @@ export default function EditorPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {/* Title and Status */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                      <h3 style={{ 
-                        margin: '0', 
-                        color: '#212529', 
-                        fontSize: '14px',
-                        lineHeight: '1.2',
-                        wordWrap: 'break-word',
-                        flex: 1,
-                        paddingRight: '6px'
-                      }}>
-                        {manuscript.title}
-                      </h3>
+                      <div style={{ flex: 1, paddingRight: '6px' }}>
+                        <h3 style={{ 
+                          margin: '0', 
+                          color: '#212529', 
+                          fontSize: '14px',
+                          lineHeight: '1.2',
+                          wordWrap: 'break-word'
+                        }}>
+                          {manuscript.title}
+                        </h3>
+                        {(manuscript.submission_count || 1) > 1 && (
+                          <div style={{ 
+                            fontSize: '10px', 
+                            color: '#fd7e14', 
+                            fontWeight: 'bold',
+                            marginTop: '2px'
+                          }}>
+                            Resubmission #{manuscript.submission_count || 1}
+                          </div>
+                        )}
+                      </div>
                       
                       {/* Status Badge */}
                       <span
@@ -869,20 +915,21 @@ export default function EditorPage() {
                             key={index}
                             style={{
                               display: 'inline-block',
-                              padding: '1px 4px',
-                              margin: '0 2px 0 0',
+                              padding: '4px 8px',
+                              margin: '0 4px 0 0',
                               backgroundColor: '#f8f9fa',
                               color: '#495057',
-                              borderRadius: '6px',
-                              fontSize: '8px',
-                              border: '1px solid #e9ecef'
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              border: '1px solid #e9ecef',
+                              fontWeight: '500'
                             }}
                           >
                             {tag}
                           </span>
                         ))}
                         {manuscript.tags.length > 2 && (
-                          <span style={{ fontSize: '8px', color: '#6c757d' }}>
+                          <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
                             +{manuscript.tags.length - 2}
                           </span>
                         )}
@@ -949,30 +996,39 @@ export default function EditorPage() {
                   </div>
                 </div>
 
-                {/* Editor Feedback - Very Compact */}
-                {manuscript.editor_feedback && (
-                  <div style={{
-                    padding: '4px 6px',
-                    backgroundColor: manuscript.status === 'approved' ? '#d4edda' : '#f8d7da',
-                    borderRadius: '3px',
-                    marginTop: '6px',
-                    fontSize: '10px'
-                  }}>
-                    <strong style={{ 
-                      color: manuscript.status === 'approved' ? '#155724' : '#721c24',
-                      fontSize: '9px'
-                    }}>
-                      Editor:
-                    </strong>
-                    <span style={{ 
-                      color: manuscript.status === 'approved' ? '#155724' : '#721c24',
-                      marginLeft: '4px'
-                    }}>
-                      {manuscript.editor_feedback.length > 50 
-                        ? manuscript.editor_feedback.substring(0, 50) + '...'
-                        : manuscript.editor_feedback
-                      }
-                    </span>
+                {/* Feedback History Button */}
+                {(manuscript.editor_feedback || (manuscript.feedback_history && manuscript.feedback_history.length > 0)) && (
+                  <div style={{ marginTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedFeedbackManuscript(manuscript);
+                        setShowFeedbackModal(true);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#17a2b8',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      📝 View Feedback History
+                      {manuscript.feedback_history && manuscript.feedback_history.length > 0 && (
+                        <span style={{
+                          backgroundColor: 'rgba(255,255,255,0.3)',
+                          padding: '1px 4px',
+                          borderRadius: '8px',
+                          fontSize: '9px'
+                        }}>
+                          {manuscript.feedback_history.length + (manuscript.editor_feedback ? 1 : 0)}
+                        </span>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1082,6 +1138,172 @@ export default function EditorPage() {
                 Approve
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback History Modal */}
+      {showFeedbackModal && selectedFeedbackManuscript && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '700px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#212529', fontSize: '20px' }}>
+                📝 Feedback History: {selectedFeedbackManuscript.title}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setSelectedFeedbackManuscript(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: '#6c757d'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Feedback */}
+            {selectedFeedbackManuscript.editor_feedback && (
+              <div style={{
+                padding: '16px',
+                backgroundColor: (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#d4edda' : 
+                               selectedFeedbackManuscript.status === 'rejected' ? '#f8d7da' : '#d1ecf1',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                border: `1px solid ${(selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#c3e6cb' : 
+                                   selectedFeedbackManuscript.status === 'rejected' ? '#f5c6cb' : '#bee5eb'}`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>
+                    {(selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '✅' : 
+                     selectedFeedbackManuscript.status === 'rejected' ? '❌' : '📝'}
+                  </span>
+                  <strong style={{ 
+                    color: (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#155724' : 
+                           selectedFeedbackManuscript.status === 'rejected' ? '#721c24' : '#0c5460',
+                    fontSize: '16px'
+                  }}>
+                    Current Status: {getStatusText(selectedFeedbackManuscript.status)}
+                  </strong>
+                </div>
+                <p style={{ 
+                  margin: 0, 
+                  color: (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#155724' : 
+                         selectedFeedbackManuscript.status === 'rejected' ? '#721c24' : '#0c5460',
+                  fontSize: '14px',
+                  lineHeight: '1.5'
+                }}>
+                  {selectedFeedbackManuscript.editor_feedback}
+                </p>
+                {selectedFeedbackManuscript.reviewed_at && (
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#6c7b0b' : 
+                           selectedFeedbackManuscript.status === 'rejected' ? '#5a1a20' : '#436c82',
+                    marginTop: '8px'
+                  }}>
+                    Reviewed on: {new Date(selectedFeedbackManuscript.reviewed_at).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Previous Feedback History */}
+            {selectedFeedbackManuscript.feedback_history && selectedFeedbackManuscript.feedback_history.length > 0 && (
+              <>
+                <h4 style={{ margin: '0 0 12px 0', color: '#495057', fontSize: '16px' }}>
+                  📚 Previous Reviews ({selectedFeedbackManuscript.feedback_history.length})
+                </h4>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {selectedFeedbackManuscript.feedback_history
+                    .slice()
+                    .reverse()
+                    .map((feedback, index) => (
+                    <div key={index} style={{
+                      padding: '16px',
+                      backgroundColor: feedback.action === 'approved' ? '#d1f2eb' : '#fadbd8',
+                      borderRadius: '8px',
+                      marginBottom: '12px',
+                      border: `1px solid ${feedback.action === 'approved' ? '#a3e4d7' : '#f5b7b1'}`,
+                      borderLeft: `4px solid ${feedback.action === 'approved' ? '#28a745' : '#dc3545'}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>
+                          {feedback.action === 'approved' ? '✅' : '❌'}
+                        </span>
+                        <strong style={{ 
+                          color: feedback.action === 'approved' ? '#0e5e3e' : '#a42e2e',
+                          fontSize: '14px'
+                        }}>
+                          {feedback.editor_name || 'Unknown Editor'} - {feedback.action.toUpperCase()}
+                        </strong>
+                      </div>
+                      <p style={{ 
+                        margin: '0 0 8px 0', 
+                        color: feedback.action === 'approved' ? '#0e5e3e' : '#a42e2e',
+                        fontSize: '14px',
+                        lineHeight: '1.5'
+                      }}>
+                        {feedback.feedback}
+                      </p>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: feedback.action === 'approved' ? '#52854c' : '#c65d5d'
+                      }}>
+                        {new Date(feedback.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Submission Count Info */}
+            {selectedFeedbackManuscript.submission_count > 1 && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                backgroundColor: '#fff3cd',
+                borderRadius: '6px',
+                border: '1px solid #ffeeba',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '14px', color: '#856404', fontWeight: 'bold' }}>
+                  📊 This manuscript has been submitted {selectedFeedbackManuscript.submission_count} times
+                </span>
+                {selectedFeedbackManuscript.last_resubmitted_at && (
+                  <div style={{ fontSize: '12px', color: '#856404', marginTop: '4px' }}>
+                    Last resubmitted: {new Date(selectedFeedbackManuscript.last_resubmitted_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

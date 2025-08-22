@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 
+type FeedbackHistory = {
+  feedback: string;
+  editor_id: string;
+  editor_name?: string;
+  timestamp: string;
+  action: 'rejected' | 'approved' | 'under_review';
+};
+
 type Manuscript = {
   id: string;
   title: string;
@@ -18,6 +26,9 @@ type Manuscript = {
   editor_feedback: string | null;
   submitted_at: string;
   reviewed_at: string | null;
+  submission_count: number;
+  feedback_history: FeedbackHistory[];
+  last_resubmitted_at: string | null;
 };
 
 export default function AuthorPage() {
@@ -53,6 +64,8 @@ export default function AuthorPage() {
   const [tagSearchTerm, setTagSearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [selectedFeedbackManuscript, setSelectedFeedbackManuscript] = useState<Manuscript | null>(null);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -417,6 +430,60 @@ export default function AuthorPage() {
     } catch (error) {
       console.error('Submission error:', error);
       alert('Failed to submit manuscript. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resubmitManuscript = async (manuscript: Manuscript) => {
+    if (!session?.user?.id) return;
+    
+    const confirmed = confirm(
+      `Are you sure you want to resubmit "${manuscript.title}"? This will send it back to the editor for review.`
+    );
+    
+    if (!confirmed) return;
+    
+    setSubmitting(true);
+    try {
+      // Get current editor info for feedback history
+      const { data: editorData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', manuscript.editor_id)
+        .single();
+
+      // Create new feedback history entry with current rejection
+      const newFeedbackEntry = {
+        feedback: manuscript.editor_feedback || 'No feedback provided',
+        editor_id: manuscript.editor_id || '',
+        editor_name: editorData?.name || 'Unknown Editor',
+        timestamp: new Date().toISOString(),
+        action: 'rejected' as const
+      };
+
+      // Update manuscript for resubmission
+      const { error } = await supabase
+        .from('manuscripts')
+        .update({
+          status: 'submitted',
+          submission_count: manuscript.submission_count + 1,
+          feedback_history: [...manuscript.feedback_history, newFeedbackEntry],
+          last_resubmitted_at: new Date().toISOString(),
+          editor_feedback: null, // Clear current feedback
+          editor_id: null, // Clear current editor
+          reviewed_at: null // Clear review timestamp
+        })
+        .eq('id', manuscript.id);
+
+      if (error) throw error;
+
+      fetchManuscripts();
+      alert('Manuscript resubmitted successfully! It will appear in the editor\'s pending review queue.');
+
+    } catch (error) {
+      console.error('Resubmission error:', error);
+      alert('Failed to resubmit manuscript. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -1294,8 +1361,8 @@ export default function AuthorPage() {
         ) : (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
-            gap: '20px' 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', 
+            gap: '24px' 
           }}>
             {getFilteredManuscripts().map((manuscript) => (
               <div
@@ -1303,20 +1370,20 @@ export default function AuthorPage() {
                 style={{
                   border: '1px solid #dee2e6',
                   borderRadius: '8px',
-                  padding: '16px',
+                  padding: '20px',
                   backgroundColor: 'white',
                   height: 'fit-content',
                   position: 'relative'
                 }}
               >
                 {/* Cover Image and Content Layout */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
                   {/* Book Cover */}
                   <div style={{ 
                     flexShrink: 0,
-                    width: '60px',
-                    height: '75px',
-                    borderRadius: '3px',
+                    width: '80px',
+                    height: '100px',
+                    borderRadius: '4px',
                     overflow: 'hidden',
                     border: '1px solid #e9ecef',
                     backgroundColor: '#f8f9fa'
@@ -1434,20 +1501,21 @@ export default function AuthorPage() {
                             key={index}
                             style={{
                               display: 'inline-block',
-                              padding: '1px 4px',
-                              margin: '0 2px 0 0',
+                              padding: '4px 8px',
+                              margin: '0 4px 0 0',
                               backgroundColor: '#f8f9fa',
                               color: '#495057',
-                              borderRadius: '6px',
-                              fontSize: '8px',
-                              border: '1px solid #e9ecef'
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              border: '1px solid #e9ecef',
+                              fontWeight: '500'
                             }}
                           >
                             {tag}
                           </span>
                         ))}
                         {manuscript.tags.length > 2 && (
-                          <span style={{ fontSize: '8px', color: '#6c757d' }}>
+                          <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
                             +{manuscript.tags.length - 2}
                           </span>
                         )}
@@ -1455,49 +1523,83 @@ export default function AuthorPage() {
                     )}
                   </div>
 
-                  {/* Action Button */}
-                  <a
-                    href={manuscript.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      padding: '3px 8px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      textDecoration: 'none',
-                      borderRadius: '3px',
-                      fontSize: '9px',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    Download DOCX
-                  </a>
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                    <a
+                      href={manuscript.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: '3px 8px',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        textDecoration: 'none',
+                        borderRadius: '3px',
+                        fontSize: '9px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      DOCX
+                    </a>
+                    
+                    {manuscript.status === 'rejected' && (
+                      <button
+                        onClick={() => resubmitManuscript(manuscript)}
+                        disabled={submitting}
+                        style={{
+                          padding: '3px 8px',
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          fontSize: '9px',
+                          cursor: submitting ? 'not-allowed' : 'pointer',
+                          opacity: submitting ? 0.6 : 1,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Resubmit
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Editor Feedback - Very Compact */}
-                {manuscript.editor_feedback && (
-                  <div style={{
-                    padding: '4px 6px',
-                    backgroundColor: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#d4edda' : '#f8d7da',
-                    borderRadius: '3px',
-                    marginTop: '6px',
-                    fontSize: '10px'
-                  }}>
-                    <strong style={{ 
-                      color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24',
-                      fontSize: '9px'
-                    }}>
-                      Editor:
-                    </strong>
-                    <span style={{ 
-                      color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24',
-                      marginLeft: '4px'
-                    }}>
-                      {manuscript.editor_feedback.length > 50 
-                        ? manuscript.editor_feedback.substring(0, 50) + '...'
-                        : manuscript.editor_feedback
-                      }
-                    </span>
+                {/* Feedback History Button */}
+                {(manuscript.editor_feedback || (manuscript.feedback_history && manuscript.feedback_history.length > 0)) && (
+                  <div style={{ marginTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedFeedbackManuscript(manuscript);
+                        setShowFeedbackModal(true);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: manuscript.status === 'rejected' ? '#dc3545' : 
+                                       (manuscript.status === 'approved' || manuscript.status === 'published') ? '#28a745' : '#17a2b8',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      {manuscript.status === 'rejected' ? '❌' : 
+                       (manuscript.status === 'approved' || manuscript.status === 'published') ? '✅' : '📝'} 
+                      View Feedback
+                      {manuscript.feedback_history && manuscript.feedback_history.length > 0 && (
+                        <span style={{
+                          backgroundColor: 'rgba(255,255,255,0.3)',
+                          padding: '1px 4px',
+                          borderRadius: '8px',
+                          fontSize: '9px'
+                        }}>
+                          {manuscript.feedback_history.length + (manuscript.editor_feedback ? 1 : 0)}
+                        </span>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1505,6 +1607,193 @@ export default function AuthorPage() {
           </div>
         )}
       </div>
+
+      {/* Feedback History Modal */}
+      {showFeedbackModal && selectedFeedbackManuscript && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '700px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#212529', fontSize: '20px' }}>
+                📝 Feedback History: {selectedFeedbackManuscript.title}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setSelectedFeedbackManuscript(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: '#6c757d'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Status & Feedback */}
+            {selectedFeedbackManuscript.editor_feedback && (
+              <div style={{
+                padding: '16px',
+                backgroundColor: selectedFeedbackManuscript.status === 'rejected' ? '#f8d7da' : 
+                               (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#d4edda' : '#d1ecf1',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                border: `1px solid ${selectedFeedbackManuscript.status === 'rejected' ? '#f5c6cb' : 
+                                    (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#c3e6cb' : '#bee5eb'}`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>
+                    {selectedFeedbackManuscript.status === 'rejected' ? '❌' : 
+                     (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '✅' : '📝'}
+                  </span>
+                  <strong style={{ 
+                    color: selectedFeedbackManuscript.status === 'rejected' ? '#721c24' : 
+                           (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#155724' : '#0c5460',
+                    fontSize: '16px'
+                  }}>
+                    Current Status: {getStatusText(selectedFeedbackManuscript.status)}
+                  </strong>
+                </div>
+                <p style={{ 
+                  margin: 0, 
+                  color: selectedFeedbackManuscript.status === 'rejected' ? '#721c24' : 
+                         (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#155724' : '#0c5460',
+                  fontSize: '14px',
+                  lineHeight: '1.5'
+                }}>
+                  {selectedFeedbackManuscript.editor_feedback}
+                </p>
+                {selectedFeedbackManuscript.reviewed_at && (
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: selectedFeedbackManuscript.status === 'rejected' ? '#5a1a20' : 
+                           (selectedFeedbackManuscript.status === 'approved' || selectedFeedbackManuscript.status === 'published') ? '#6c7b0b' : '#436c82',
+                    marginTop: '8px'
+                  }}>
+                    Reviewed on: {new Date(selectedFeedbackManuscript.reviewed_at).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Resubmit Info for Rejected Books */}
+            {selectedFeedbackManuscript.status === 'rejected' && (
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#fff3cd',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                border: '1px solid #ffeeba'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>💡</span>
+                  <strong style={{ color: '#856404', fontSize: '14px' }}>
+                    You can fix the issues and resubmit this manuscript
+                  </strong>
+                </div>
+                <p style={{ margin: 0, color: '#856404', fontSize: '12px' }}>
+                  Use the "Resubmit" button above to send your revised manuscript back for review.
+                </p>
+              </div>
+            )}
+
+            {/* Previous Feedback History */}
+            {selectedFeedbackManuscript.feedback_history && selectedFeedbackManuscript.feedback_history.length > 0 && (
+              <>
+                <h4 style={{ margin: '0 0 12px 0', color: '#495057', fontSize: '16px' }}>
+                  📚 Previous Reviews ({selectedFeedbackManuscript.feedback_history.length})
+                </h4>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {selectedFeedbackManuscript.feedback_history
+                    .slice()
+                    .reverse()
+                    .map((feedback, index) => (
+                    <div key={index} style={{
+                      padding: '16px',
+                      backgroundColor: feedback.action === 'approved' ? '#d1f2eb' : '#fadbd8',
+                      borderRadius: '8px',
+                      marginBottom: '12px',
+                      border: `1px solid ${feedback.action === 'approved' ? '#a3e4d7' : '#f5b7b1'}`,
+                      borderLeft: `4px solid ${feedback.action === 'approved' ? '#28a745' : '#dc3545'}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>
+                          {feedback.action === 'approved' ? '✅' : '❌'}
+                        </span>
+                        <strong style={{ 
+                          color: feedback.action === 'approved' ? '#0e5e3e' : '#a42e2e',
+                          fontSize: '14px'
+                        }}>
+                          {feedback.editor_name || 'Unknown Editor'} - {feedback.action.toUpperCase()}
+                        </strong>
+                      </div>
+                      <p style={{ 
+                        margin: '0 0 8px 0', 
+                        color: feedback.action === 'approved' ? '#0e5e3e' : '#a42e2e',
+                        fontSize: '14px',
+                        lineHeight: '1.5'
+                      }}>
+                        {feedback.feedback}
+                      </p>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: feedback.action === 'approved' ? '#52854c' : '#c65d5d'
+                      }}>
+                        {new Date(feedback.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Submission Count Info */}
+            {selectedFeedbackManuscript.submission_count > 1 && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                backgroundColor: '#e9ecef',
+                borderRadius: '6px',
+                border: '1px solid #ced4da',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '14px', color: '#495057', fontWeight: 'bold' }}>
+                  📊 You have submitted this manuscript {selectedFeedbackManuscript.submission_count} times
+                </span>
+                {selectedFeedbackManuscript.last_resubmitted_at && (
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px' }}>
+                    Last submitted: {new Date(selectedFeedbackManuscript.last_resubmitted_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
