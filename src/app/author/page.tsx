@@ -435,7 +435,7 @@ export default function AuthorPage() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'submitted': return 'Submitted';
+      case 'submitted': return 'Pending Review';
       case 'under_review': return 'Under Review';
       case 'approved': return 'Approved';
       case 'rejected': return 'Rejected';
