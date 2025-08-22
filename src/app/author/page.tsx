@@ -53,6 +53,14 @@ export default function AuthorPage() {
   const [tagSearchTerm, setTagSearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterTag, setFilterTag] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -258,6 +266,46 @@ export default function AuthorPage() {
     }
   };
 
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setFilterCategory('');
+    setFilterTag('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+  };
+
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
+  const getUniqueCategories = () => {
+    const allCategories = manuscripts
+      .flatMap(m => m.category.split(', ').map(cat => cat.trim()))
+      .filter(cat => cat)
+      .filter((cat, index, arr) => arr.indexOf(cat) === index)
+      .sort();
+    return allCategories;
+  };
+
+  const getUniqueTags = () => {
+    const allTags = manuscripts
+      .flatMap(m => m.tags)
+      .filter(tag => tag)
+      .filter((tag, index, arr) => arr.indexOf(tag) === index)
+      .sort();
+    return allTags;
+  };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (searchQuery.trim()) count++;
+    if (filterCategory) count++;
+    if (filterTag) count++;
+    if (filterDateFrom) count++;
+    if (filterDateTo) count++;
+    return count;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -397,20 +445,68 @@ export default function AuthorPage() {
   };
 
   const getFilteredManuscripts = () => {
-    if (activeTab === 'all') return manuscripts;
-    
-    switch (activeTab) {
-      case 'published':
-        return manuscripts.filter(m => m.status === 'published');
-      case 'approved':
-        return manuscripts.filter(m => m.status === 'approved');
-      case 'rejected':
-        return manuscripts.filter(m => m.status === 'rejected');
-      case 'pending':
-        return manuscripts.filter(m => m.status === 'submitted' || m.status === 'under_review');
-      default:
-        return manuscripts;
+    let filtered = manuscripts;
+
+    // Filter by tab status first
+    if (activeTab !== 'all') {
+      switch (activeTab) {
+        case 'published':
+          filtered = filtered.filter(m => m.status === 'published');
+          break;
+        case 'approved':
+          filtered = filtered.filter(m => m.status === 'approved');
+          break;
+        case 'rejected':
+          filtered = filtered.filter(m => m.status === 'rejected');
+          break;
+        case 'pending':
+          filtered = filtered.filter(m => m.status === 'submitted' || m.status === 'under_review');
+          break;
+      }
     }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(m => 
+        m.title.toLowerCase().includes(query) ||
+        m.description.toLowerCase().includes(query) ||
+        m.category.toLowerCase().includes(query) ||
+        m.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by category
+    if (filterCategory) {
+      filtered = filtered.filter(m => 
+        m.category.split(', ').some(cat => cat.trim() === filterCategory)
+      );
+    }
+
+    // Filter by tag
+    if (filterTag) {
+      filtered = filtered.filter(m => 
+        m.tags.includes(filterTag)
+      );
+    }
+
+    // Filter by date range
+    if (filterDateFrom) {
+      const fromDate = new Date(filterDateFrom);
+      filtered = filtered.filter(m => 
+        new Date(m.submitted_at) >= fromDate
+      );
+    }
+
+    if (filterDateTo) {
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter(m => 
+        new Date(m.submitted_at) <= toDate
+      );
+    }
+
+    return filtered;
   };
 
   const getTabCount = (tabType: typeof activeTab) => {
@@ -918,12 +1014,222 @@ export default function AuthorPage() {
       <div>
         <h2 style={{ margin: '0 0 20px 0', color: '#212529' }}>Your Manuscripts</h2>
         
+        {/* Filter Toggle Button */}
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            onClick={toggleFilters}
+            style={{
+              backgroundColor: showFilters ? '#dc3545' : '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {showFilters ? '✕ Hide Filters' : '🔍 Show Filters & Search'}
+            {getActiveFiltersCount() > 0 && (
+              <span style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}>
+                {getActiveFiltersCount()}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Collapsible Filters and Search */}
+        {showFilters && (
+          <div style={{
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #dee2e6',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px',
+            animation: 'slideDown 0.3s ease-out'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#495057' }}>
+                Filters & Search {getActiveFiltersCount() > 0 && (
+                  <span style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    marginLeft: '8px'
+                  }}>
+                    {getActiveFiltersCount()}
+                  </span>
+                )}
+              </h3>
+              {getActiveFiltersCount() > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* Search Input */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  Search
+                </label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title, description, category..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  Category
+                </label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value="">All Categories</option>
+                  {getUniqueCategories().map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tag Filter */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  Tag
+                </label>
+                <select
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value="">All Tags</option>
+                  {getUniqueTags().map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date From */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Results Summary */}
+            {(getActiveFiltersCount() > 0 || activeTab !== 'all') && (
+              <div style={{
+                marginTop: '12px',
+                padding: '8px 12px',
+                backgroundColor: '#e9ecef',
+                borderRadius: '4px',
+                fontSize: '14px',
+                color: '#495057'
+              }}>
+                Showing {getFilteredManuscripts().length} of {manuscripts.length} manuscripts
+                {activeTab !== 'all' && ` in ${activeTab} status`}
+                {getActiveFiltersCount() > 0 && ` with ${getActiveFiltersCount()} filter(s) applied`}
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Status Tabs */}
         <div style={{ 
           display: 'flex', 
           borderBottom: '2px solid #dee2e6', 
           marginBottom: '20px',
-          gap: '0'
+          gap: '0',
+          overflowX: 'auto',
+          flexWrap: 'nowrap'
         }}>
           {[
             { key: 'all', label: 'All', color: '#6c757d' },
@@ -938,14 +1244,16 @@ export default function AuthorPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                padding: '12px 20px',
+                padding: '12px 16px',
                 cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: '500',
                 color: activeTab === tab.key ? tab.color : '#6c757d',
                 borderBottom: activeTab === tab.key ? `3px solid ${tab.color}` : '3px solid transparent',
                 transition: 'all 0.2s ease',
-                position: 'relative'
+                position: 'relative',
+                whiteSpace: 'nowrap',
+                minWidth: 'auto'
               }}
             >
               {tab.label}
@@ -984,130 +1292,214 @@ export default function AuthorPage() {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '16px' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
+            gap: '20px' 
+          }}>
             {getFilteredManuscripts().map((manuscript) => (
               <div
                 key={manuscript.id}
                 style={{
                   border: '1px solid #dee2e6',
                   borderRadius: '8px',
-                  padding: '20px',
-                  backgroundColor: 'white'
+                  padding: '16px',
+                  backgroundColor: 'white',
+                  height: 'fit-content',
+                  position: 'relative'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 8px 0', color: '#212529' }}>{manuscript.title}</h3>
-                    <div style={{ margin: '0 0 8px 0' }}>
-                      {manuscript.category.split(', ').map((category, index) => (
+                {/* Cover Image and Content Layout */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  {/* Book Cover */}
+                  <div style={{ 
+                    flexShrink: 0,
+                    width: '60px',
+                    height: '75px',
+                    borderRadius: '3px',
+                    overflow: 'hidden',
+                    border: '1px solid #e9ecef',
+                    backgroundColor: '#f8f9fa'
+                  }}>
+                    <img
+                      src={manuscript.cover_image_url}
+                      alt={`${manuscript.title} cover`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center'
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#6c757d;text-align:center;">No Cover</div>';
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Title and Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <h3 style={{ 
+                        margin: '0', 
+                        color: '#212529', 
+                        fontSize: '14px',
+                        lineHeight: '1.2',
+                        wordWrap: 'break-word',
+                        flex: 1,
+                        paddingRight: '6px'
+                      }}>
+                        {manuscript.title}
+                      </h3>
+                      
+                      {/* Status Badge */}
+                      <span
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '12px',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          backgroundColor: getStatusColor(manuscript.status),
+                          color: 'white',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        {getStatusText(manuscript.status)}
+                      </span>
+                    </div>
+
+                    {/* Categories and Info in one line */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                      {manuscript.category.split(', ').slice(0, 1).map((category, index) => (
                         <span
                           key={index}
                           style={{
                             display: 'inline-block',
-                            padding: '2px 8px',
-                            margin: '2px 4px 2px 0',
+                            padding: '1px 4px',
                             backgroundColor: '#007bff',
                             color: 'white',
-                            borderRadius: '12px',
-                            fontSize: '12px',
+                            borderRadius: '8px',
+                            fontSize: '9px',
                             fontWeight: '500'
                           }}
                         >
                           {category.trim()}
                         </span>
                       ))}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      backgroundColor: getStatusColor(manuscript.status),
-                      color: 'white'
-                    }}
-                  >
-                    {getStatusText(manuscript.status)}
-                  </span>
-                </div>
-
-                <p style={{ margin: '0 0 12px 0', color: '#495057' }}>{manuscript.description}</p>
-
-                {manuscript.tags.length > 0 && (
-                  <div style={{ marginBottom: '12px' }}>
-                    {manuscript.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          margin: '2px 4px 2px 0',
-                          backgroundColor: '#e9ecef',
-                          color: '#495057',
-                          borderRadius: '12px',
-                          fontSize: '12px'
-                        }}
-                      >
-                        {tag}
+                      {manuscript.category.split(', ').length > 1 && (
+                        <span style={{ fontSize: '9px', color: '#6c757d' }}>
+                          +{manuscript.category.split(', ').length - 1}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '10px', color: '#6c757d' }}>
+                        {new Date(manuscript.submitted_at).toLocaleDateString()}
                       </span>
-                    ))}
-                  </div>
-                )}
+                      {manuscript.suggested_price && (
+                        <span style={{ fontSize: '10px', color: '#6c757d' }}>
+                          {manuscript.suggested_price.toLocaleString()} MMK
+                        </span>
+                      )}
+                    </div>
 
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '14px', color: '#6c757d' }}>
-                  <span>Submitted: {new Date(manuscript.submitted_at).toLocaleDateString()}</span>
-                  {manuscript.suggested_price && (
-                    <span>Suggested Price: {manuscript.suggested_price.toLocaleString()} MMK</span>
-                  )}
-                  {manuscript.wants_physical && <span>Physical Book Requested</span>}
+                    {/* Description - Truncated */}
+                    <p style={{ 
+                      margin: '0', 
+                      color: '#495057', 
+                      fontSize: '11px',
+                      lineHeight: '1.3',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                      {manuscript.description}
+                    </p>
+                  </div>
                 </div>
 
-                {manuscript.editor_feedback && (
-                  <div style={{
-                    marginTop: '12px',
-                    padding: '12px',
-                    backgroundColor: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#d4edda' : '#f8d7da',
-                    borderRadius: '4px',
-                    border: (manuscript.status === 'approved' || manuscript.status === 'published') ? '1px solid #c3e6cb' : '1px solid #f5c6cb'
-                  }}>
-                    <strong style={{ color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24' }}>Editor Feedback:</strong>
-                    <p style={{ margin: '4px 0 0 0', color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24' }}>{manuscript.editor_feedback}</p>
+                {/* Tags and Additional Info */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  {/* Tags */}
+                  <div style={{ flex: 1 }}>
+                    {manuscript.tags.length > 0 && (
+                      <div>
+                        {manuscript.tags.slice(0, 2).map((tag, index) => (
+                          <span
+                            key={index}
+                            style={{
+                              display: 'inline-block',
+                              padding: '1px 4px',
+                              margin: '0 2px 0 0',
+                              backgroundColor: '#f8f9fa',
+                              color: '#495057',
+                              borderRadius: '6px',
+                              fontSize: '8px',
+                              border: '1px solid #e9ecef'
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {manuscript.tags.length > 2 && (
+                          <span style={{ fontSize: '8px', color: '#6c757d' }}>
+                            +{manuscript.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
 
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  {/* Action Button */}
                   <a
                     href={manuscript.file_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      padding: '6px 12px',
+                      padding: '3px 8px',
                       backgroundColor: '#007bff',
                       color: 'white',
                       textDecoration: 'none',
-                      borderRadius: '4px',
-                      fontSize: '14px'
+                      borderRadius: '3px',
+                      fontSize: '9px',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     Download DOCX
                   </a>
-                  <a
-                    href={manuscript.cover_image_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#6c757d',
-                      color: 'white',
-                      textDecoration: 'none',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  >
-                    View Cover
-                  </a>
                 </div>
+
+                {/* Editor Feedback - Very Compact */}
+                {manuscript.editor_feedback && (
+                  <div style={{
+                    padding: '4px 6px',
+                    backgroundColor: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#d4edda' : '#f8d7da',
+                    borderRadius: '3px',
+                    marginTop: '6px',
+                    fontSize: '10px'
+                  }}>
+                    <strong style={{ 
+                      color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24',
+                      fontSize: '9px'
+                    }}>
+                      Editor:
+                    </strong>
+                    <span style={{ 
+                      color: (manuscript.status === 'approved' || manuscript.status === 'published') ? '#155724' : '#721c24',
+                      marginLeft: '4px'
+                    }}>
+                      {manuscript.editor_feedback.length > 50 
+                        ? manuscript.editor_feedback.substring(0, 50) + '...'
+                        : manuscript.editor_feedback
+                      }
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
