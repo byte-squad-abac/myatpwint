@@ -1,0 +1,5 @@
+This is a test document for OnlyOffice integration.
+
+We are testing the basic functionality step by step following the official documentation.
+
+This simple text file should be accessible by OnlyOffice Document Server.

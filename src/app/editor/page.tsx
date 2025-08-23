@@ -956,6 +956,28 @@ export default function EditorPage() {
                       DOCX
                     </a>
 
+                    {/* Edit Button - Show for submitted and under_review manuscripts */}
+                    {(manuscript.status === 'submitted' || manuscript.status === 'under_review') && (
+                      <button
+                        onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
+                        style={{
+                          padding: '3px 6px',
+                          backgroundColor: '#17a2b8',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          fontSize: '9px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+
                     {manuscript.status === 'submitted' && (
                       <button
                         onClick={() => startReview(manuscript)}

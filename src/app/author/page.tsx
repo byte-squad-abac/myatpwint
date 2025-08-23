@@ -1542,6 +1542,28 @@ export default function AuthorPage() {
                       DOCX
                     </a>
                     
+                    {/* Edit Button - Only show if manuscript can be edited */}
+                    {(manuscript.status === 'submitted' || manuscript.status === 'under_review' || manuscript.status === 'rejected') && (
+                      <button
+                        onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
+                        style={{
+                          padding: '3px 8px',
+                          backgroundColor: '#17a2b8',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          fontSize: '9px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+                    
                     {manuscript.status === 'rejected' && (
                       <button
                         onClick={() => resubmitManuscript(manuscript)}
