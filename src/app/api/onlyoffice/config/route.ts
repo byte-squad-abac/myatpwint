@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       editorConfig: {
         mode: canEdit ? 'edit' : 'view',
         lang: 'en',
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/onlyoffice/callback`,
+        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://host.docker.internal:3000'}/api/onlyoffice/callback`,
         user: {
           id: userId,
           name: user.name || 'Anonymous User'
