@@ -77,7 +77,6 @@ export default function ManuscriptEditor({
   const fetchEditorConfig = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching editor config for:', { manuscriptId, userId, userRole, manuscriptStatus });
       
       // Force destroy existing editor instances globally
       const existingEditor = document.getElementById(editorId);
@@ -90,7 +89,7 @@ export default function ManuscriptEditor({
         try {
           window.DocsAPI.DocEditor.instances = {};
         } catch (e) {
-          console.log('Cleared OnlyOffice instances');
+          // OnlyOffice instances cleared
         }
       }
       
@@ -112,7 +111,6 @@ export default function ManuscriptEditor({
       }
 
       const config = await response.json();
-      console.log('Editor config received:', config);
       setEditorConfig(config);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load editor');
@@ -142,7 +140,7 @@ export default function ManuscriptEditor({
   }, [editorId]);
 
   const onDocumentReady = useCallback(() => {
-    console.log('Document is ready for editing');
+    // Document ready
   }, []);
 
   const onLoadComponentError = useCallback((error: any) => {
@@ -157,7 +155,7 @@ export default function ManuscriptEditor({
   }, [onClose]);
 
   const onRequestSaveAs = useCallback((event: any) => {
-    console.log('Save as requested:', event);
+    // Save as requested
   }, []);
 
   const onRequestEditRights = useCallback(() => {
@@ -170,7 +168,7 @@ export default function ManuscriptEditor({
 
   const events = {
     onAppReady: () => {
-      console.log('OnlyOffice app is ready');
+      // OnlyOffice app ready
     },
     onDocumentReady,
     onLoadComponentError,
@@ -182,7 +180,6 @@ export default function ManuscriptEditor({
       setTimeout(() => setSaving(false), 1000);
     },
     onRequestRefreshFile: () => {
-      console.log('OnlyOffice requesting file refresh');
       // Refresh the editor config to get latest version
       fetchEditorConfig();
     },

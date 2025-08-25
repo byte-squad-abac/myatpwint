@@ -67,15 +67,6 @@ export async function POST(request: NextRequest) {
     const separator = documentUrl.includes('?') ? '&' : '?';
     documentUrl += `${separator}v=${Date.now()}`;
     
-    console.log('Document config:', {
-      manuscriptId,
-      documentKey,
-      fileName,
-      documentUrl: documentUrl.substring(0, 100) + '...',
-      canEdit,
-      userRole,
-      manuscriptStatus
-    });
 
     // Create OnlyOffice configuration
     const config = {

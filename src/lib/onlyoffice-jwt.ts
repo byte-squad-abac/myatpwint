@@ -2,6 +2,10 @@ import * as crypto from 'crypto';
 
 const JWT_SECRET = process.env.ONLYOFFICE_JWT_SECRET || 'my_jwt_secret';
 
+// Constants for better maintainability
+export const MANUSCRIPT_KEY_PREFIX = 'manuscript-';
+export const VERSION_SEPARATOR = '-v';
+
 // Base64 URL encode
 function base64UrlEncode(obj: any): string {
   return Buffer.from(JSON.stringify(obj))
@@ -43,22 +47,8 @@ export function generateDocumentKey(manuscriptId: string, updatedAt?: string): s
   if (updatedAt) {
     // Create version-aware key based on last update time
     const timestamp = new Date(updatedAt).getTime();
-    return `manuscript-${manuscriptId}-v${timestamp}`;
+    return `${MANUSCRIPT_KEY_PREFIX}${manuscriptId}${VERSION_SEPARATOR}${timestamp}`;
   }
-  return `manuscript-${manuscriptId}`;
+  return `${MANUSCRIPT_KEY_PREFIX}${manuscriptId}`;
 }
 
-// Verify JWT token (for callback verification)
-export function verifyJWTToken(token: string): any {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid token format');
-    }
-    
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-    return payload;
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
-}
