@@ -12,7 +12,7 @@ function ManuscriptEditorContent() {
   const searchParams = useSearchParams();
   
   const [manuscript, setManuscript] = useState<any>(null);
-  const [userRole, setUserRole] = useState<'author' | 'editor' | 'viewer' | null>(null);
+  const [userRole, setUserRole] = useState<'author' | 'editor' | 'publisher' | 'viewer' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,11 +63,13 @@ function ManuscriptEditorContent() {
         }
 
         // Determine user role for this manuscript
-        let effectiveRole: 'author' | 'editor' | 'viewer';
+        let effectiveRole: 'author' | 'editor' | 'publisher' | 'viewer';
         if (profile.role === 'author' && manuscriptData.author_id === session.user.id) {
           effectiveRole = 'author';
-        } else if (profile.role === 'editor' || profile.role === 'publisher') {
+        } else if (profile.role === 'editor') {
           effectiveRole = 'editor';
+        } else if (profile.role === 'publisher') {
+          effectiveRole = 'publisher';
         } else {
           effectiveRole = 'viewer';
         }
@@ -97,6 +99,8 @@ function ManuscriptEditorContent() {
       router.push('/author');
     } else if (userRole === 'editor') {
       router.push('/editor');
+    } else if (userRole === 'publisher') {
+      router.push('/publisher');
     } else {
       router.push('/');
     }

@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       editorConfig: {
         mode: canEdit ? 'edit' : 'view',
         lang: 'en',
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://host.docker.internal:3000'}/api/onlyoffice/callback`,
+        callbackUrl: `${process.env.ONLYOFFICE_CALLBACK_URL || 'http://host.docker.internal:3000'}/api/onlyoffice/callback`,
         coEditing: {
           mode: 'fast',
           change: true
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           about: false,
           feedback: false,
           goback: {
-            url: userRole === 'author' ? '/author' : '/editor',
+            url: userRole === 'author' ? '/author' : userRole === 'publisher' ? '/publisher' : '/editor',
             text: 'Back to Dashboard'
           }
         }

@@ -13,7 +13,7 @@ declare global {
 interface ManuscriptEditorProps {
   manuscriptId: string;
   userId: string;
-  userRole: 'author' | 'editor' | 'viewer';
+  userRole: 'author' | 'editor' | 'publisher' | 'viewer';
   manuscriptStatus: string;
   onClose?: () => void;
 }
