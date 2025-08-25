@@ -38,28 +38,44 @@ export async function POST(request: NextRequest) {
 
     // Check permissions
     const canEdit = (
-      (userRole === 'author' && manuscript.author_id === userId && manuscript.status !== 'published') ||
+      (userRole === 'author' && manuscript.author_id === userId && manuscript.status === 'rejected') ||
       (userRole === 'editor' && (manuscript.status === 'submitted' || manuscript.status === 'under_review')) ||
       (userRole === 'publisher')
     );
 
-    // Generate document key
-    const documentKey = manuscript.document_key || generateDocumentKey(manuscriptId, userId);
+    // Generate version-aware document key to force OnlyOffice to recognize updates
+    const documentKey = generateDocumentKey(manuscriptId, manuscript.updated_at);
 
-    // Update manuscript with document key if not exists
-    if (!manuscript.document_key) {
-      await supabase
-        .from('manuscripts')
-        .update({ document_key: documentKey })
-        .eq('id', manuscriptId);
+    // Always update the document key to current value
+    await supabase
+      .from('manuscripts')
+      .update({ document_key: documentKey })
+      .eq('id', manuscriptId);
+
+    // Get signed URL for document using consistent filename pattern
+    const fileName = `manuscript-${manuscriptId}.docx`;
+    const { data: signedUrlData, error: urlError } = await supabase.storage
+      .from('manuscripts')
+      .createSignedUrl(fileName, 3600); // 1 hour
+
+    if (urlError) {
+      console.error('Error creating signed URL:', urlError);
     }
 
-    // Get signed URL for document
-    const { data: signedUrlData } = await supabase.storage
-      .from('manuscripts')
-      .createSignedUrl(manuscript.file_url.split('/').pop() || '', 3600); // 1 hour
-
-    const documentUrl = signedUrlData?.signedUrl || manuscript.file_url;
+    // Add cache-busting parameter to ensure latest version is loaded
+    let documentUrl = signedUrlData?.signedUrl || manuscript.file_url;
+    const separator = documentUrl.includes('?') ? '&' : '?';
+    documentUrl += `${separator}v=${Date.now()}`;
+    
+    console.log('Document config:', {
+      manuscriptId,
+      documentKey,
+      fileName,
+      documentUrl: documentUrl.substring(0, 100) + '...',
+      canEdit,
+      userRole,
+      manuscriptStatus
+    });
 
     // Create OnlyOffice configuration
     const config = {
@@ -74,7 +90,10 @@ export async function POST(request: NextRequest) {
           print: true,
           review: userRole === 'editor',
           comment: true,
-          chat: canEdit
+          chat: canEdit,
+          fillForms: canEdit,
+          modifyFilter: canEdit,
+          modifyContentControl: canEdit
         },
         info: {
           owner: manuscript.title,
@@ -87,6 +106,10 @@ export async function POST(request: NextRequest) {
         mode: canEdit ? 'edit' : 'view',
         lang: 'en',
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://host.docker.internal:3000'}/api/onlyoffice/callback`,
+        coEditing: {
+          mode: 'fast',
+          change: true
+        },
         user: {
           id: userId,
           name: user.name || 'Anonymous User'
@@ -99,9 +122,7 @@ export async function POST(request: NextRequest) {
             text: 'Back to Dashboard'
           }
         }
-      },
-      height: '600px',
-      width: '100%'
+      }
     };
 
     // Generate JWT token for the configuration

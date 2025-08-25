@@ -38,9 +38,14 @@ export function generateJWTToken(payload: any): string {
   return sign(header, payload, JWT_SECRET);
 }
 
-// Generate document key for OnlyOffice
-export function generateDocumentKey(manuscriptId: string, userId: string): string {
-  return `manuscript-${manuscriptId}-${userId}-${Date.now()}`;
+// Generate document key for OnlyOffice - version-aware for change tracking
+export function generateDocumentKey(manuscriptId: string, updatedAt?: string): string {
+  if (updatedAt) {
+    // Create version-aware key based on last update time
+    const timestamp = new Date(updatedAt).getTime();
+    return `manuscript-${manuscriptId}-v${timestamp}`;
+  }
+  return `manuscript-${manuscriptId}`;
 }
 
 // Verify JWT token (for callback verification)

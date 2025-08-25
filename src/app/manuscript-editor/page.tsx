@@ -171,73 +171,23 @@ function ManuscriptEditorContent() {
   return (
     <div style={{ 
       height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      backgroundColor: '#ffffff'
+      width: '100vw',
+      margin: 0,
+      padding: 0,
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      zIndex: 9999,
+      backgroundColor: 'white'
     }}>
-      {/* Header */}
-      <div style={{
-        padding: '16px 24px',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '1px solid #dee2e6',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '20px', 
-            color: '#212529',
-            fontWeight: '600'
-          }}>
-            {manuscript.title}
-          </h1>
-          <p style={{ 
-            margin: '4px 0 0 0', 
-            color: '#6c757d', 
-            fontSize: '14px' 
-          }}>
-            Status: {manuscript.status} • Role: {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-          </p>
-        </div>
-        
-        <button
-          onClick={handleClose}
-          style={{
-            backgroundColor: '#6c757d',
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          ← Back to Dashboard
-        </button>
-      </div>
-
-      {/* Editor Container */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ManuscriptEditor
-          manuscriptId={manuscriptId!}
-          userId={session!.user.id}
-          userRole={userRole}
-          manuscriptStatus={manuscript.status}
-          onClose={handleClose}
-        />
-      </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+      <ManuscriptEditor
+        manuscriptId={manuscriptId!}
+        userId={session!.user.id}
+        userRole={userRole}
+        manuscriptStatus={manuscript.status}
+        onClose={handleClose}
+      />
     </div>
   );
 }

@@ -3,6 +3,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DocumentEditor } from '@onlyoffice/document-editor-react';
 
+// Global window type extensions
+declare global {
+  interface Window {
+    DocsAPI?: any;
+  }
+}
+
 interface ManuscriptEditorProps {
   manuscriptId: string;
   userId: string;
@@ -65,10 +72,28 @@ export default function ManuscriptEditor({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editorId] = useState(`manuscriptEditor-${Date.now()}`);
 
   const fetchEditorConfig = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Fetching editor config for:', { manuscriptId, userId, userRole, manuscriptStatus });
+      
+      // Force destroy existing editor instances globally
+      const existingEditor = document.getElementById(editorId);
+      if (existingEditor) {
+        existingEditor.innerHTML = '';
+      }
+      
+      // Clear any global OnlyOffice instances
+      if (window.DocsAPI) {
+        try {
+          window.DocsAPI.DocEditor.instances = {};
+        } catch (e) {
+          console.log('Cleared OnlyOffice instances');
+        }
+      }
+      
       const response = await fetch(`/api/onlyoffice/config`, {
         method: 'POST',
         headers: {
@@ -87,6 +112,7 @@ export default function ManuscriptEditor({
       }
 
       const config = await response.json();
+      console.log('Editor config received:', config);
       setEditorConfig(config);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load editor');
@@ -94,11 +120,26 @@ export default function ManuscriptEditor({
     } finally {
       setLoading(false);
     }
-  }, [manuscriptId, userId, userRole, manuscriptStatus]);
+  }, [manuscriptId, userId, userRole, manuscriptStatus, editorId]);
 
   useEffect(() => {
+    // Force clear any cached editor instances on mount
+    if (window.DocsAPI) {
+      window.DocsAPI.DocEditor.instances = {};
+    }
+    
     fetchEditorConfig();
   }, [fetchEditorConfig]);
+
+  useEffect(() => {
+    // Cleanup function to destroy editor when component unmounts
+    return () => {
+      const existingEditor = document.getElementById(editorId);
+      if (existingEditor) {
+        existingEditor.innerHTML = '';
+      }
+    };
+  }, [editorId]);
 
   const onDocumentReady = useCallback(() => {
     console.log('Document is ready for editing');
@@ -139,6 +180,11 @@ export default function ManuscriptEditor({
     onCollaborativeChanges: () => {
       setSaving(true);
       setTimeout(() => setSaving(false), 1000);
+    },
+    onRequestRefreshFile: () => {
+      console.log('OnlyOffice requesting file refresh');
+      // Refresh the editor config to get latest version
+      fetchEditorConfig();
     },
     onError: (event: any) => {
       console.error('OnlyOffice error:', event);
@@ -214,7 +260,41 @@ export default function ManuscriptEditor({
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ 
+      position: 'relative',
+      width: '100vw',
+      height: '100vh',
+      margin: 0,
+      padding: 0
+    }}>
+      {/* Back button */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        left: '20px',
+        zIndex: 99999,
+        cursor: 'pointer'
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            backgroundColor: '#6c757d',
+            color: 'white',
+            border: 'none',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        >
+          ← Dashboard
+        </button>
+      </div>
+
       {/* Save indicator */}
       {saving && (
         <div style={{
@@ -250,12 +330,21 @@ export default function ManuscriptEditor({
       </div>
 
       {/* OnlyOffice DocumentEditor */}
-      <DocumentEditor
-        id="manuscriptEditor"
-        documentServerUrl={process.env.NEXT_PUBLIC_ONLYOFFICE_SERVER_URL || 'http://localhost'}
-        config={editorConfig}
-        events={events}
-      />
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 1
+      }}>
+        <DocumentEditor
+          id={editorId}
+          documentServerUrl={process.env.NEXT_PUBLIC_ONLYOFFICE_SERVER_URL || 'http://localhost'}
+          config={editorConfig}
+          events={events}
+        />
+      </div>
 
       <style jsx>{`
         @keyframes spin {

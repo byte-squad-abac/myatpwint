@@ -1543,7 +1543,7 @@ export default function AuthorPage() {
                     </a>
                     
                     {/* Edit Button - Only show if manuscript can be edited */}
-                    {(manuscript.status === 'submitted' || manuscript.status === 'under_review' || manuscript.status === 'rejected') && (
+                    {manuscript.status === 'rejected' && (
                       <button
                         onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
                         style={{

@@ -14,12 +14,24 @@ export async function POST(request: NextRequest) {
     console.log('OnlyOffice callback received:', { key, status, users: users?.length });
 
     // Extract manuscript ID from document key
-    const manuscriptId = key.split('-')[1];
+    // Key formats: manuscript-{manuscriptId} or manuscript-{manuscriptId}-v{timestamp}
+    // Since UUID contains hyphens, we need to handle this carefully
+    let manuscriptId: string;
+    if (key.includes('-v')) {
+      // Version-aware key: manuscript-{uuid}-v{timestamp}
+      const versionIndex = key.lastIndexOf('-v');
+      manuscriptId = key.substring('manuscript-'.length, versionIndex);
+    } else {
+      // Simple key: manuscript-{uuid}
+      manuscriptId = key.substring('manuscript-'.length);
+    }
 
     if (!manuscriptId) {
       console.error('Invalid document key format:', key);
       return NextResponse.json({ error: 0 }); // Still return success to avoid editor errors
     }
+
+    console.log('Extracted manuscript ID:', manuscriptId, 'from key:', key);
 
     try {
       // Handle different status codes
@@ -39,14 +51,21 @@ export async function POST(request: NextRequest) {
         case 6: // Document force-saved
           if (url) {
             // Download document from OnlyOffice
+            console.log('Downloading document from OnlyOffice:', url);
             const response = await fetch(url);
+            if (!response.ok) {
+              console.error('Failed to download from OnlyOffice:', response.status, response.statusText);
+              throw new Error(`Failed to download document: ${response.status}`);
+            }
+            
             const documentBuffer = await response.arrayBuffer();
+            console.log('Downloaded document size:', documentBuffer.byteLength, 'bytes');
 
-            // Generate new file name with timestamp
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const fileName = `manuscript-${manuscriptId}-${timestamp}.docx`;
+            // Use consistent filename pattern matching config route
+            const fileName = `manuscript-${manuscriptId}.docx`;
 
             // Upload to Supabase Storage
+            console.log('Uploading to storage:', fileName, 'Full filename length:', fileName.length);
             const { data, error } = await supabase.storage
               .from('manuscripts')
               .upload(fileName, documentBuffer, {
@@ -58,6 +77,9 @@ export async function POST(request: NextRequest) {
               console.error('Storage upload error:', error);
               throw error;
             }
+            
+            console.log('Storage upload successful:', data?.path);
+            console.log('Storage upload full response:', JSON.stringify(data, null, 2));
 
             // Get public URL
             const { data: { publicUrl } } = supabase.storage
