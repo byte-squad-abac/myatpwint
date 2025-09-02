@@ -1,0 +1,27 @@
+version: '3.7'
+
+services:
+  onlyoffice-documentserver:
+    image: onlyoffice/documentserver:latest
+    container_name: onlyoffice-documentserver
+    ports:
+      - "8080:80"
+    environment:
+      - JWT_ENABLED=false
+      - WOPI_ENABLED=false
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_fonts:/usr/share/fonts/truetype/custom
+    restart: unless-stopped
+    networks:
+      - onlyoffice-network
+
+networks:
+  onlyoffice-network:
+    driver: bridge
+
+volumes:
+  onlyoffice_data:
+  onlyoffice_logs:
+  onlyoffice_fonts:
