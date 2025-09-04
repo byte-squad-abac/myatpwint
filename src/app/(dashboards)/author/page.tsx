@@ -78,6 +78,10 @@ export default function AuthorPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [selectedFeedbackManuscript, setSelectedFeedbackManuscript] = useState<Manuscript | null>(null)
 
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedDetailManuscript, setSelectedDetailManuscript] = useState<Manuscript | null>(null)
+
   const fetchManuscripts = useCallback(async () => {
     if (!user) return
     
@@ -944,121 +948,223 @@ export default function AuthorPage() {
             </p>
           </Card>
         ) : (
-          <div className="grid gap-6">
-            {getFilteredManuscripts().map((manuscript) => (
-              <Card key={manuscript.id}>
-                <div className="flex gap-4">
-                  <Image
-                    src={manuscript.cover_image_url || '/book-placeholder.png'}
-                    alt={manuscript.title}
-                    width={80}
-                    height={112}
-                    className="w-20 h-28 object-cover rounded border flex-shrink-0"
-                  />
+          <div className="grid gap-6 lg:grid-cols-2">
+            {getFilteredManuscripts().map((manuscript) => {
+              // Status-based theming
+              const statusConfig = {
+                published: { 
+                  bg: 'bg-gradient-to-br from-blue-50 to-blue-100', 
+                  border: 'border-blue-200', 
+                  accent: 'bg-blue-500',
+                  text: 'text-blue-700',
+                  iconBg: 'bg-blue-500',
+                  iconSymbol: '•'
+                },
+                approved: { 
+                  bg: 'bg-gradient-to-br from-green-50 to-green-100', 
+                  border: 'border-green-200', 
+                  accent: 'bg-green-500',
+                  text: 'text-green-700',
+                  iconBg: 'bg-green-500',
+                  iconSymbol: '✓'
+                },
+                rejected: { 
+                  bg: 'bg-gradient-to-br from-red-50 to-red-100', 
+                  border: 'border-red-200', 
+                  accent: 'bg-red-500',
+                  text: 'text-red-700',
+                  iconBg: 'bg-red-500',
+                  iconSymbol: '×'
+                },
+                submitted: { 
+                  bg: 'bg-gradient-to-br from-yellow-50 to-yellow-100', 
+                  border: 'border-yellow-200', 
+                  accent: 'bg-yellow-500',
+                  text: 'text-yellow-700',
+                  iconBg: 'bg-yellow-500',
+                  iconSymbol: '○'
+                },
+                under_review: { 
+                  bg: 'bg-gradient-to-br from-orange-50 to-orange-100', 
+                  border: 'border-orange-200', 
+                  accent: 'bg-orange-500',
+                  text: 'text-orange-700',
+                  iconBg: 'bg-orange-500',
+                  iconSymbol: '◐'
+                }
+              }
+
+              const config = statusConfig[manuscript.status as keyof typeof statusConfig] || statusConfig.submitted
+
+              return (
+                <div 
+                  key={manuscript.id} 
+                  className={`relative overflow-hidden rounded-xl border-2 ${config.border} ${config.bg} hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
+                  onClick={() => {
+                    setSelectedDetailManuscript(manuscript)
+                    setShowDetailModal(true)
+                  }}
+                >
+                  {/* Status accent bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-2 ${config.accent}`}></div>
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-lg truncate pr-2">{manuscript.title}</h3>
-                      <Badge 
-                        variant={manuscript.status === 'published' ? 'primary' : 
-                                manuscript.status === 'approved' ? 'success' : 
-                                manuscript.status === 'rejected' ? 'error' : 'secondary'}
-                      >
-                        {getStatusText(manuscript.status)}
-                      </Badge>
-                    </div>
-
-                    {/* Categories and Meta Info */}
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      {manuscript.category.split(', ').slice(0, 1).map((category, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs"
-                        >
-                          {category.trim()}
-                        </span>
-                      ))}
-                      {manuscript.category.split(', ').length > 1 && (
-                        <span className="text-xs text-gray-500">
-                          +{manuscript.category.split(', ').length - 1}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {new Date(manuscript.submitted_at).toLocaleDateString()}
-                      </span>
-                      {manuscript.suggested_price && (
-                        <span className="text-xs text-gray-500">
-                          {manuscript.suggested_price.toLocaleString()} MMK
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-600 mb-3 line-clamp-2">{manuscript.description}</p>
-
-                    {/* Tags */}
-                    {manuscript.tags.length > 0 && (
-                      <div className="mb-3">
-                        {manuscript.tags.slice(0, 3).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-block mr-2 mb-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs"
-                          >
-                            {tag}
+                  <div className="p-6">
+                    {/* Header with title and status */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold text-gray-900 truncate mb-1">
+                          {manuscript.title}
+                        </h3>
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-6 h-6 ${config.iconBg} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
+                            {config.iconSymbol}
+                          </div>
+                          <span className={`font-medium ${config.text}`}>
+                            {getStatusText(manuscript.status)}
                           </span>
-                        ))}
-                        {manuscript.tags.length > 3 && (
-                          <span className="text-xs text-gray-500">
-                            +{manuscript.tags.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        Submitted: {new Date(manuscript.submitted_at).toLocaleDateString()}
-                        {manuscript.submission_count > 1 && (
-                          <span className="ml-2 text-orange-600">
-                            (Submission #{manuscript.submission_count})
-                          </span>
-                        )}
+                          {manuscript.submission_count > 1 && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                              Resubmission #{manuscript.submission_count}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="flex space-x-2">
+                      {/* Large cover image */}
+                      <div className="ml-4 flex-shrink-0">
+                        <Image
+                          src={manuscript.cover_image_url || '/book-placeholder.png'}
+                          alt={manuscript.title}
+                          width={120}
+                          height={160}
+                          className="w-24 h-32 object-cover rounded-lg shadow-md border-2 border-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-gray-700 mb-4 line-clamp-3 leading-relaxed">
+                      {manuscript.description}
+                    </p>
+
+                    {/* Metadata section */}
+                    <div className="space-y-3 mb-4">
+                      {/* Categories */}
+                      <div className="flex flex-wrap gap-2">
+                        {manuscript.category.split(', ').slice(0, 2).map((category, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 bg-white/70 text-blue-800 rounded-full text-sm font-medium border border-blue-200"
+                          >
+                            <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                            {category.trim()}
+                          </span>
+                        ))}
+                        {manuscript.category.split(', ').length > 2 && (
+                          <span className="inline-flex items-center px-3 py-1 bg-white/50 text-gray-600 rounded-full text-sm">
+                            +{manuscript.category.split(', ').length - 2} more
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {manuscript.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {manuscript.tags.slice(0, 3).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs border border-gray-300"
+                            >
+                              <span className="w-1.5 h-1.5 bg-gray-400 mr-1.5" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></span>
+                              {tag}
+                            </span>
+                          ))}
+                          {manuscript.tags.length > 3 && (
+                            <span className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-500 rounded text-xs">
+                              +{manuscript.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Meta info */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-gray-400 rounded-sm flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-sm"></div>
+                          </div>
+                          <span>{new Date(manuscript.submitted_at).toLocaleDateString()}</span>
+                        </div>
+                        {manuscript.suggested_price && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
+                              $
+                            </div>
+                            <span className="font-medium">{manuscript.suggested_price.toLocaleString()} MMK</span>
+                          </div>
+                        )}
+                        {manuscript.wants_physical && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-purple-500 rounded flex items-center justify-center">
+                              <div className="w-2 h-3 bg-white rounded-sm"></div>
+                            </div>
+                            <span className="text-xs">Physical Edition</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div 
+                      className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center space-x-2">
+                        {/* View DOCX */}
                         <a
                           href={manuscript.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+                          className="inline-flex items-center space-x-2 px-3 py-2 bg-white/80 hover:bg-white text-blue-700 rounded-lg text-sm font-medium border border-blue-200 transition-colors"
                         >
-                          View DOCX
+                          <div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center">
+                            <div className="w-2 h-2.5 bg-white rounded-sm"></div>
+                          </div>
+                          <span>View DOCX</span>
                         </a>
-                        
+
+                        {/* Status-specific actions */}
                         {manuscript.status === 'rejected' && (
                           <>
                             <Button
                               size="sm"
                               variant="primary"
                               onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
+                              className="inline-flex items-center space-x-2"
                             >
-                              ✏️ Edit
+                              <div className="w-3 h-3 border border-current rounded-sm flex items-center justify-center">
+                                <div className="w-1 h-1 bg-current"></div>
+                              </div>
+                              <span>Edit</span>
                             </Button>
                             <Button
                               size="sm"
                               variant="success"
                               onClick={() => resubmitManuscript(manuscript)}
                               disabled={submitting}
+                              className="inline-flex items-center space-x-2"
                             >
-                              Resubmit
+                              <div className="w-3 h-3 border border-current rounded-full flex items-center justify-center">
+                                <div className="w-1.5 h-0.5 bg-current rounded"></div>
+                              </div>
+                              <span>Resubmit</span>
                             </Button>
                           </>
                         )}
                       </div>
-                    </div>
 
-                    {/* Feedback Button */}
-                    {(manuscript.editor_feedback || (manuscript.feedback_history && manuscript.feedback_history.length > 0)) && (
-                      <div className="mt-3">
+                      {/* Feedback button */}
+                      {(manuscript.editor_feedback || (manuscript.feedback_history && manuscript.feedback_history.length > 0)) && (
                         <Button
                           size="sm"
                           variant={manuscript.status === 'rejected' ? 'error' : 
@@ -1067,22 +1173,24 @@ export default function AuthorPage() {
                             setSelectedFeedbackManuscript(manuscript)
                             setShowFeedbackModal(true)
                           }}
+                          className="inline-flex items-center space-x-2"
                         >
-                          {manuscript.status === 'rejected' ? '❌' : 
-                           manuscript.status === 'approved' || manuscript.status === 'published' ? '✅' : '📝'} 
-                          View Feedback
+                          <div className="w-4 h-4 border border-current rounded flex items-center justify-center">
+                            <div className="w-2 h-1 bg-current rounded-sm"></div>
+                          </div>
+                          <span>Feedback</span>
                           {manuscript.feedback_history && manuscript.feedback_history.length > 0 && (
-                            <span className="ml-1 px-1 py-0.5 bg-white/30 rounded text-xs">
+                            <span className="ml-1 px-1.5 py-0.5 bg-white/40 rounded-full text-xs font-bold">
                               {manuscript.feedback_history.length + (manuscript.editor_feedback ? 1 : 0)}
                             </span>
                           )}
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -1207,6 +1315,219 @@ export default function AuthorPage() {
                 </p>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal 
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        title={selectedDetailManuscript?.title || "Manuscript Details"}
+        size="lg"
+      >
+        {selectedDetailManuscript && (
+          <div className="space-y-6">
+            {/* Book Cover and Basic Info */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Cover Image */}
+              <div className="flex-shrink-0">
+                <Image
+                  src={selectedDetailManuscript.cover_image_url || '/book-placeholder.png'}
+                  alt={selectedDetailManuscript.title}
+                  width={200}
+                  height={280}
+                  className="w-48 h-64 object-cover rounded-lg shadow-lg border-4 border-white"
+                />
+              </div>
+              
+              {/* Basic Details */}
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {selectedDetailManuscript.title}
+                  </h2>
+                  <div className="flex items-center space-x-4 mb-4">
+                    {/* Status badge */}
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        selectedDetailManuscript.status === 'published' ? 'bg-blue-500' :
+                        selectedDetailManuscript.status === 'approved' ? 'bg-green-500' :
+                        selectedDetailManuscript.status === 'rejected' ? 'bg-red-500' :
+                        selectedDetailManuscript.status === 'under_review' ? 'bg-orange-500' :
+                        'bg-gray-500'
+                      }`}></div>
+                      <span className={`font-medium ${
+                        selectedDetailManuscript.status === 'published' ? 'text-blue-700' :
+                        selectedDetailManuscript.status === 'approved' ? 'text-green-700' :
+                        selectedDetailManuscript.status === 'rejected' ? 'text-red-700' :
+                        selectedDetailManuscript.status === 'under_review' ? 'text-orange-700' :
+                        'text-gray-700'
+                      }`}>
+                        {getStatusText(selectedDetailManuscript.status)}
+                      </span>
+                    </div>
+                    
+                    {selectedDetailManuscript.submission_count > 1 && (
+                      <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                        Resubmission #{selectedDetailManuscript.submission_count}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="prose prose-sm text-gray-700">
+                  <p className="leading-relaxed">{selectedDetailManuscript.description}</p>
+                </div>
+
+                {/* Categories and Tags */}
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-2">Categories</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDetailManuscript.category.split(', ').map((category, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          {category.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedDetailManuscript.tags.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-800 mb-2">Tags</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedDetailManuscript.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm"
+                          >
+                            <span className="w-1.5 h-1.5 bg-gray-400 mr-1.5" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></span>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Submission Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Submission Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">First Submitted:</span>
+                    <span className="font-medium">{new Date(selectedDetailManuscript.submitted_at).toLocaleDateString()}</span>
+                  </div>
+                  {selectedDetailManuscript.last_resubmitted_at && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Last Resubmitted:</span>
+                      <span className="font-medium">{new Date(selectedDetailManuscript.last_resubmitted_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {selectedDetailManuscript.reviewed_at && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Reviewed:</span>
+                      <span className="font-medium">{new Date(selectedDetailManuscript.reviewed_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Submission Count:</span>
+                    <span className="font-medium">#{selectedDetailManuscript.submission_count || 1}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Publishing Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Publishing Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Suggested Price:</span>
+                    <span className="font-medium">
+                      {selectedDetailManuscript.suggested_price 
+                        ? `${selectedDetailManuscript.suggested_price.toLocaleString()} MMK`
+                        : 'Not specified'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Physical Edition:</span>
+                    <span className="font-medium">
+                      {selectedDetailManuscript.wants_physical ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center space-x-3">
+                <a
+                  href={selectedDetailManuscript.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <div className="w-4 h-4 bg-blue-400 rounded flex items-center justify-center">
+                    <div className="w-2 h-2.5 bg-white rounded-sm"></div>
+                  </div>
+                  <span>View DOCX</span>
+                </a>
+
+                {selectedDetailManuscript.status === 'rejected' && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        setShowDetailModal(false)
+                        router.push(`/manuscript-editor?id=${selectedDetailManuscript.id}`)
+                      }}
+                    >
+                      Edit Manuscript
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="success"
+                      onClick={() => {
+                        setShowDetailModal(false)
+                        resubmitManuscript(selectedDetailManuscript)
+                      }}
+                      disabled={submitting}
+                    >
+                      Resubmit
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Feedback button */}
+              {(selectedDetailManuscript.editor_feedback || 
+                (selectedDetailManuscript.feedback_history && selectedDetailManuscript.feedback_history.length > 0)) && (
+                <Button
+                  size="sm"
+                  variant={selectedDetailManuscript.status === 'rejected' ? 'error' : 
+                         selectedDetailManuscript.status === 'approved' || selectedDetailManuscript.status === 'published' ? 'success' : 'secondary'}
+                  onClick={() => {
+                    setSelectedFeedbackManuscript(selectedDetailManuscript)
+                    setShowFeedbackModal(true)
+                    setShowDetailModal(false)
+                  }}
+                >
+                  View Feedback
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </Modal>

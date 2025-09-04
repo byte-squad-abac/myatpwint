@@ -30,15 +30,18 @@ src/
 ├── app/                    # Next.js App Router pages
 │   ├── (auth)/            # Authentication routes (login, register)
 │   ├── (dashboards)/      # Role-based dashboards (author, editor, publisher, library)
-│   ├── api/               # API routes for AI, payments, OnlyOffice
+│   ├── api/               # API routes for AI, payments, OnlyOffice, author applications, manuscripts
 │   ├── books/            # Book catalog and detail pages
 │   ├── checkout/         # Stripe checkout flow
 │   ├── manuscript-editor/ # OnlyOffice manuscript editor
+│   ├── apply-as-author/  # Author application process
+│   ├── first-manuscript-upload/ # Initial manuscript upload for approved authors
 │   └── read/             # Book reading interface
 ├── components/           # Reusable React components
-│   ├── ui/              # Base UI components (Button, Card, Modal, etc.)
+│   ├── ui/              # Base UI components (Button, Card, Modal, FileUpload, etc.)
 │   ├── ManuscriptEditor/ # OnlyOffice integration components
 │   ├── BookReader/       # Book reading components
+│   ├── AuthorApplication/ # Author application form and status components
 │   └── [feature components] # Feature-specific components
 ├── lib/                  # Core utilities and services
 │   ├── ai/              # AI/ML services (embeddings, search)
@@ -48,7 +51,7 @@ src/
 │   ├── store/           # Zustand state management
 │   ├── contexts/        # React contexts
 │   └── utils/           # Utility functions
-├── hooks/               # Custom React hooks
+├── hooks/               # Custom React hooks (useAuth, etc.)
 ├── types/              # TypeScript type definitions
 └── config/             # Application configuration
 ```
@@ -58,8 +61,9 @@ src/
 The application uses a comprehensive PostgreSQL schema with Row Level Security (RLS):
 
 **Core Tables:**
-- `profiles` - User profiles with role-based access (user/author/editor/publisher)
-- `manuscripts` - Author submissions with workflow status tracking
+- `profiles` - User profiles with role-based access (user/author/editor/publisher) and ban system
+- `author_applications` - Author application submissions with permanent ban enforcement
+- `manuscripts` - Author submissions with comprehensive workflow status tracking
 - `books` - Published books with vector embeddings for search
 - `purchases` - Order management supporting digital/physical delivery
 - `reading_progress` - User reading session tracking
@@ -68,41 +72,60 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - `stripe_products` - Payment processing mappings
 - `editor_sessions` - OnlyOffice collaboration tracking  
 - `manuscript_activity` - Audit trail for manuscript changes
-- `manuscript_comments` - External commenting system
+- `manuscript_comments` - External commenting system (separate from OnlyOffice)
 - `document_revisions` - Version control for manuscripts
 - `n8n_marketing_analytics` - Marketing automation tracking
+- `tags` - Global tag management
 
 ### Key Features & Workflows
 
-**1. Manuscript Submission & Review Workflow**
-- Authors upload DOCX manuscripts via `ManuscriptEditor`
+**1. Author Application System**
+- New users register as 'user' role only (no role selection during registration)
+- Author applications require: legal name, author name, book pitch, association membership proof
+- Publisher review with approve/reject decisions
+- **Permanent ban system**: Rejected applications result in permanent account ban from future applications
+- Approved authors are promoted to 'author' role and can upload their first manuscript
+
+**2. Manuscript Submission & Review Workflow**
+- Authors upload DOCX manuscripts only (security validated with magic numbers)
 - Multi-stage review process: submitted → under_review → editor_approved → published
 - OnlyOffice integration for collaborative editing with real-time collaboration
-- Version control and revision tracking
+- Version control and revision tracking with feedback history
+- File upload security: user-specific paths, RLS policies, size limits (50MB)
 
-**2. AI-Powered Book Discovery**
+**3. AI-Powered Book Discovery**
 - Vector embeddings generated via Hugging Face API (`/api/ai/generate-embeddings`)
 - Semantic search for book recommendations (`/api/ai/search`, `/api/ai/similar`)
 - Content-based matching for personalized discovery
 
-**3. E-commerce & Payment Processing**
+**4. E-commerce & Payment Processing**
 - Stripe integration with webhook handling (`/api/stripe/webhooks`)
 - Support for both digital and physical book delivery
 - Shopping cart with persistent state management
 - Automatic product sync between books and Stripe
 
-**4. Reading Experience**
+**5. Reading Experience**
 - OnlyOffice-powered book reader with progress tracking
 - Session management and reading analytics
 - Multiple format support (PDF, EPUB planned)
 
-**5. Role-Based Dashboards**
+**6. Role-Based Dashboards**
 - Author dashboard: manuscript management and submissions
 - Editor dashboard: review workflow and collaboration tools  
-- Publisher dashboard: publication management and analytics
+- Publisher dashboard: publication management, author applications, and analytics
 - Library dashboard: user's purchased books and reading progress
 
 ### Important Integration Details
+
+**Supabase Integration:**
+- Project ID: `bsmbqekevilajlapldan` (myat-pwint_polish)
+- RLS policies enabled for data security
+- Vector extension enabled for AI search capabilities
+- Storage buckets:
+  - `documents` (50MB, DOCX + images for applications/manuscripts)
+  - `manuscripts` (50MB, DOCX only)
+  - `covers` (10MB, images only)
+- Database trigger `handle_new_user()` creates profile with 'user' role automatically
 
 **OnlyOffice Configuration:**
 - Server URL: `ONLYOFFICE_SERVER_URL` (localhost for development)
@@ -110,16 +133,29 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Callback system for document state synchronization
 - Document keys and session management for concurrent editing
 
-**Supabase Integration:**
-- Project ID: `bsmbqekevilajlapldan` (myat-pwint_polish)
-- RLS policies enabled for data security
-- Vector extension enabled for AI search capabilities
-- Storage buckets for manuscript and book files
-
 **AI Services:**
 - Hugging Face token required for embedding generation
 - Embedding models used for content similarity matching
 - Search service provides semantic book discovery
+
+**File Upload Security:**
+- Magic number validation for file type verification
+- User-specific folder structure: `{user_id}/manuscripts/{type}s/{filename}`
+- Comprehensive MIME type validation
+- RLS policies restrict access to user's own files
+
+### Critical Security Features
+
+**Author Application Security:**
+- Permanent ban system prevents reapplication after rejection
+- Profile names automatically set from approved applications
+- Role-based access controls throughout the application
+- Storage policies enforce user-specific file access
+
+**Registration Security:**
+- Users cannot self-assign Editor/Publisher roles
+- Duplicate email detection with helpful error messaging
+- Automatic profile creation via database triggers
 
 ### Development Notes
 
@@ -129,6 +165,7 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - ESLint configured with Next.js recommended rules
 - Environment variables stored in `.env.local`
 - Marketing automation via N8N webhooks for book promotions
+- MCP integration available for Supabase operations
 
 ### Critical Dependencies
 
@@ -138,3 +175,13 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - `@huggingface/inference` for AI capabilities
 - `zustand` for state management
 - `jsonwebtoken` for OnlyOffice JWT handling
+- `mammoth` for document processing
+
+### Recent Major Changes
+
+- Implemented permanent ban system for rejected author applications
+- Removed role selection from registration (users default to 'user' role)
+- Enhanced duplicate email detection during registration
+- Fixed profile name population from approved author applications
+- Restricted manuscript uploads to DOCX only for security
+- Implemented comprehensive file upload validation and storage policies
