@@ -220,3 +220,107 @@ export interface PurchaseWithBook extends PaymentRecord {
     image_url?: string
   }
 }
+
+// Author Application types
+export interface AuthorApplication {
+  id: string
+  user_id: string
+  
+  // Author Profile Information
+  legal_name: string
+  author_name: string
+  
+  // Association Membership
+  association_name?: string
+  membership_id?: string
+  association_proof_url?: string
+  association_verified: boolean
+  
+  // Application Details
+  why_publish_with_us: string
+  
+  // First Book Information
+  book_title: string
+  book_synopsis: string
+  book_tags: string[]
+  book_category: string
+  preferred_price?: number
+  
+  // Application Status & Workflow
+  status: ApplicationStatus
+  publisher_feedback?: string
+  reviewed_by?: string
+  reviewed_at?: string
+  
+  // Resubmission Tracking
+  submission_count: number
+  last_resubmitted_at?: string
+  
+  // Timestamps
+  created_at: string
+  updated_at: string
+  
+  // Related data
+  profiles?: {
+    name: string
+    email: string
+  }
+  reviewer?: {
+    name: string
+    email: string
+  }
+}
+
+export interface AuthorApplicationFormData {
+  legal_name: string
+  author_name: string
+  association_name?: string
+  membership_id?: string
+  association_proof_url?: string
+  why_publish_with_us: string
+  book_title: string
+  book_synopsis: string
+  book_tags: string[]
+  book_category: string
+  preferred_price?: number
+}
+
+export interface AuthorApplicationWithProfile extends AuthorApplication {
+  profiles: {
+    name: string
+    email: string
+  }
+}
+
+// Application Status constants and types
+export const APPLICATION_STATUSES = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+} as const
+
+export type ApplicationStatus = typeof APPLICATION_STATUSES[keyof typeof APPLICATION_STATUSES]
+
+// File Upload types
+export interface FileUploadResult {
+  url: string
+  path: string
+  filename: string
+  originalName: string
+  size: number
+  type: string
+}
+
+// API Response types
+export interface ApiResponse<T> {
+  data?: T
+  error?: string
+}
+
+export interface AuthorApplicationsResponse {
+  data: AuthorApplication[]
+}
+
+export interface AuthorApplicationResponse {
+  data: AuthorApplication
+}

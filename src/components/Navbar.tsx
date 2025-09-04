@@ -92,6 +92,20 @@ export default function Navbar() {
                 >
                   My Library
                 </Link>
+                <Link 
+                  href="/profile" 
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Profile
+                </Link>
+                {profile?.role === 'user' && (
+                  <Link 
+                    href="/apply-as-author" 
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                  >
+                    Apply as Author
+                  </Link>
+                )}
               </>
             )}
           </div>
