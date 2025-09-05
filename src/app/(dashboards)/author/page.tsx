@@ -9,7 +9,6 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import Badge from '@/components/ui/Badge'
 
 type FeedbackHistory = {
   feedback: string
@@ -17,6 +16,13 @@ type FeedbackHistory = {
   editor_name?: string
   timestamp: string
   action: 'rejected' | 'approved' | 'under_review'
+}
+
+type BookSales = {
+  book_id: string
+  manuscript_id: string
+  total_sales: number
+  total_revenue: number
 }
 
 type Manuscript = {
@@ -44,6 +50,7 @@ export default function AuthorPage() {
 
   const [pageLoading, setPageLoading] = useState(false)
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([])
+  const [bookSales, setBookSales] = useState<BookSales[]>([])
   const [showSubmissionForm, setShowSubmissionForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState<'all' | 'published' | 'approved' | 'rejected' | 'pending'>('all')
@@ -92,6 +99,21 @@ export default function AuthorPage() {
       .order('submitted_at', { ascending: false })
     
     setManuscripts(data || [])
+  }, [user])
+
+  const fetchBookSales = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      const { data } = await supabase.rpc('get_author_book_sales', {
+        author_user_id: user.id
+      })
+      
+      setBookSales(data || [])
+    } catch (error) {
+      console.error('Error fetching book sales:', error)
+      setBookSales([])
+    }
   }, [user])
 
   const fetchExistingData = useCallback(async () => {
@@ -177,9 +199,10 @@ export default function AuthorPage() {
       setPageLoading(true)
       fetchManuscripts()
       fetchExistingData()
+      fetchBookSales()
       setPageLoading(false)
     }
-  }, [user, profile, router, authLoading, fetchManuscripts, fetchExistingData])
+  }, [user, profile, router, authLoading, fetchManuscripts, fetchExistingData, fetchBookSales])
 
   // Handle clicking outside dropdowns to close them
   useEffect(() => {
@@ -332,6 +355,11 @@ export default function AuthorPage() {
     return Array.from(tags).sort()
   }
 
+  const getSalesData = (manuscriptId: string) => {
+    const sale = bookSales.find(s => s.manuscript_id === manuscriptId)
+    return sale ? { sales: sale.total_sales, revenue: sale.total_revenue } : { sales: 0, revenue: 0 }
+  }
+
   const resubmitManuscript = async (manuscript: Manuscript) => {
     if (!manuscript.editor_feedback) {
       alert('No feedback available for resubmission')
@@ -375,6 +403,7 @@ export default function AuthorPage() {
       if (error) throw error
 
       await fetchManuscripts()
+      await fetchBookSales()
       alert('Manuscript resubmitted successfully!')
 
     } catch (error) {
@@ -460,6 +489,7 @@ export default function AuthorPage() {
       setShowTagDropdown(false)
       setShowSubmissionForm(false)
       fetchManuscripts()
+      fetchBookSales()
       alert('Manuscript submitted successfully!')
 
     } catch (error) {
@@ -1111,7 +1141,68 @@ export default function AuthorPage() {
                             <span className="text-xs">Physical Edition</span>
                           </div>
                         )}
+                        
                       </div>
+                      
+                      {/* Sales Performance Section - Only for Published Books */}
+                      {manuscript.status === 'published' && (() => {
+                        const salesData = getSalesData(manuscript.id)
+                        return (
+                          <div className="mt-4 pt-4 border-t border-white/40">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-600">Sales Performance</span>
+                              {salesData.sales > 0 && (
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                  <span className="text-xs text-green-600 font-medium">Active</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="mt-3 grid grid-cols-2 gap-4">
+                              <div className="bg-white/60 rounded-lg p-3 border border-white/80">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
+                                    <p className="text-lg font-bold text-gray-900">{salesData.sales}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="bg-white/60 rounded-lg p-3 border border-white/80">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Revenue</p>
+                                    <p className="text-lg font-bold text-gray-900">{Number(salesData.revenue).toLocaleString()} <span className="text-sm font-normal text-gray-600">MMK</span></p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {salesData.sales === 0 && (
+                              <div className="mt-3 text-center py-2">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </div>
+                                <p className="text-sm text-gray-500">No sales recorded yet</p>
+                                <p className="text-xs text-gray-400 mt-1">Sales will appear here once customers purchase your book</p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* Action buttons */}
@@ -1467,6 +1558,58 @@ export default function AuthorPage() {
                   </div>
                 </div>
               </div>
+              
+              {/* Sales Performance */}
+              {selectedDetailManuscript.status === 'published' && (() => {
+                const salesData = getSalesData(selectedDetailManuscript.id)
+                return (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-gray-800 text-lg">Sales Performance</h3>
+                      {salesData.sales > 0 && (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-sm text-green-600 font-medium">Active Sales</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {salesData.sales > 0 ? (
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.sales}</p>
+                          <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">Copies Sold</p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
+                          <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">MMK Revenue</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-600 mb-2">No sales recorded yet</p>
+                        <p className="text-sm text-gray-500">Your sales data will appear here once customers purchase your book</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Action Buttons */}
