@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import { MetadataEditor } from '@/components/MetadataEditor'
 
 type FeedbackHistory = {
   feedback: string
@@ -88,6 +89,10 @@ export default function AuthorPage() {
   // Detail modal
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedDetailManuscript, setSelectedDetailManuscript] = useState<Manuscript | null>(null)
+
+  // Metadata editor modal
+  const [showMetadataEditor, setShowMetadataEditor] = useState(false)
+  const [selectedMetadataManuscript, setSelectedMetadataManuscript] = useState<Manuscript | null>(null)
 
   const fetchManuscripts = useCallback(async () => {
     if (!user) return
@@ -1229,6 +1234,20 @@ export default function AuthorPage() {
                           <>
                             <Button
                               size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setSelectedMetadataManuscript(manuscript)
+                                setShowMetadataEditor(true)
+                              }}
+                              className="inline-flex items-center space-x-2"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              <span>Edit Info</span>
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="primary"
                               onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
                               className="inline-flex items-center space-x-2"
@@ -1236,7 +1255,7 @@ export default function AuthorPage() {
                               <div className="w-3 h-3 border border-current rounded-sm flex items-center justify-center">
                                 <div className="w-1 h-1 bg-current"></div>
                               </div>
-                              <span>Edit</span>
+                              <span>Edit Text</span>
                             </Button>
                             <Button
                               size="sm"
@@ -1631,6 +1650,16 @@ export default function AuthorPage() {
                   <>
                     <Button
                       size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setSelectedMetadataManuscript(selectedDetailManuscript)
+                        setShowMetadataEditor(true)
+                      }}
+                    >
+                      Edit Metadata
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="primary"
                       onClick={() => {
                         setShowDetailModal(false)
@@ -1674,6 +1703,30 @@ export default function AuthorPage() {
           </div>
         )}
       </Modal>
+
+      {/* Metadata Editor Modal */}
+      {showMetadataEditor && selectedMetadataManuscript && (
+        <MetadataEditor
+          manuscript={{
+            id: selectedMetadataManuscript.id,
+            title: selectedMetadataManuscript.title,
+            description: selectedMetadataManuscript.description,
+            category: selectedMetadataManuscript.category,
+            tags: selectedMetadataManuscript.tags,
+            cover_image_url: selectedMetadataManuscript.cover_image_url,
+            suggested_price: selectedMetadataManuscript.suggested_price,
+            wants_physical: selectedMetadataManuscript.wants_physical
+          }}
+          onClose={() => {
+            setShowMetadataEditor(false)
+            setSelectedMetadataManuscript(null)
+          }}
+          onUpdate={() => {
+            fetchManuscripts()
+            fetchBookSales()
+          }}
+        />
+      )}
     </div>
   )
 }
