@@ -86,12 +86,14 @@ export default function Navbar() {
                 >
                   Dashboard
                 </Link>
-                <Link 
-                  href="/library" 
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  My Library
-                </Link>
+                {profile?.role !== 'editor' && (
+                  <Link 
+                    href="/library" 
+                    className="text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    My Library
+                  </Link>
+                )}
                 <Link 
                   href="/profile" 
                   className="text-gray-600 hover:text-gray-900 transition-colors"
