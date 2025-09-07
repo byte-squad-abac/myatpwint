@@ -117,6 +117,10 @@ export default function PublisherPage() {
   // Analytics state
   const [sortBy, setSortBy] = useState<'default' | 'sales' | 'revenue' | 'author_revenue'>('default')
   const [showTopPerformers, setShowTopPerformers] = useState(false)
+  
+  // Toggle states for sections
+  const [showCurrentMonth, setShowCurrentMonth] = useState(false)
+  const [showMonthlyHistory, setShowMonthlyHistory] = useState(false)
 
   const fetchSalesData = useCallback(async () => {
     if (!user) return
@@ -823,7 +827,25 @@ MyatPwint Publishing Team`
         const stats = getTotalSalesStats()
         return (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Sales & Revenue Overview</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Sales & Revenue Overview</h2>
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant={showCurrentMonth ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setShowCurrentMonth(!showCurrentMonth)}
+                >
+                  {showCurrentMonth ? 'Hide' : 'Show'} Current Month
+                </Button>
+                <Button
+                  variant={showMonthlyHistory ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
+                >
+                  {showMonthlyHistory ? 'Hide' : 'Show'} History
+                </Button>
+              </div>
+            </div>
             
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -926,7 +948,7 @@ MyatPwint Publishing Team`
             </div>
 
             {/* Current Month Performance */}
-            {stats.currentMonth.total_sales > 0 && (
+            {showCurrentMonth && stats.currentMonth.total_sales > 0 && (
               <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Current Month Performance</h3>
@@ -978,7 +1000,7 @@ MyatPwint Publishing Team`
       })()}
 
       {/* Historical Monthly Records */}
-      {salesData.length > 0 && selectedMonth && (
+      {showMonthlyHistory && salesData.length > 0 && selectedMonth && (
         <div className="mb-8">
           <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-2 border-purple-200">
             <div className="flex items-center justify-between mb-4">
