@@ -18,6 +18,32 @@ type FeedbackHistory = {
   action: 'rejected' | 'approved' | 'under_review'
 }
 
+type PublisherSalesData = {
+  month: string
+  total_sales: number
+  total_revenue: number
+  unique_books_sold: number
+  unique_customers: number
+  avg_order_value: number
+  digital_revenue: number
+  physical_revenue: number
+  digital_sales: number
+  physical_sales: number
+  books_sold: string
+}
+
+type BookSalesData = {
+  book_id: string
+  manuscript_id: string
+  book_name: string
+  total_sales: number
+  total_revenue: number
+  digital_sales: number
+  physical_sales: number
+  digital_revenue: number
+  physical_revenue: number
+}
+
 type Manuscript = {
   id: string
   title: string
@@ -52,6 +78,8 @@ export default function PublisherPage() {
 
   const [pageLoading, setPageLoading] = useState(false)
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([])
+  const [salesData, setSalesData] = useState<PublisherSalesData[]>([])
+  const [bookSalesData, setBookSalesData] = useState<BookSalesData[]>([])
   const [selectedManuscript, setSelectedManuscript] = useState<Manuscript | null>(null)
   
   // Search and Filter states
@@ -79,7 +107,187 @@ export default function PublisherPage() {
   // Detail modal state
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedDetailManuscript, setSelectedDetailManuscript] = useState<Manuscript | null>(null)
+  
+  // Sales filter state
+  const [showOnlyBooksWithSales, setShowOnlyBooksWithSales] = useState(false)
 
+  const fetchSalesData = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      // Fetch monthly sales data for this publisher
+      const { data: monthlySales, error: monthlyError } = await supabase
+        .from('purchases')
+        .select(`
+          *,
+          books!inner(
+            name,
+            manuscripts!inner(
+              publisher_id
+            )
+          )
+        `)
+        .eq('books.manuscripts.publisher_id', user.id)
+        .eq('status', 'completed')
+
+      if (monthlyError) {
+        console.error('Error fetching monthly sales:', monthlyError)
+      } else if (monthlySales) {
+        // Process monthly sales data
+        const monthlyStats = monthlySales.reduce((acc: Record<string, {
+          month: string
+          total_sales: number
+          total_revenue: number
+          unique_books_sold: Set<string>
+          unique_customers: Set<string>
+          digital_revenue: number
+          physical_revenue: number
+          digital_sales: number
+          physical_sales: number
+          books_sold: Set<string>
+        }>, purchase: {
+          created_at: string
+          book_id: string
+          user_id: string
+          quantity: number
+          total_price: string
+          delivery_type: string
+          books: { name: string }
+        }) => {
+          const month = purchase.created_at.substring(0, 7) // YYYY-MM format
+          if (!acc[month]) {
+            acc[month] = {
+              month: month + '-01',
+              total_sales: 0,
+              total_revenue: 0,
+              unique_books_sold: new Set(),
+              unique_customers: new Set(),
+              digital_revenue: 0,
+              physical_revenue: 0,
+              digital_sales: 0,
+              physical_sales: 0,
+              books_sold: new Set()
+            }
+          }
+          
+          acc[month].total_sales += purchase.quantity || 1
+          acc[month].total_revenue += parseFloat(purchase.total_price || 0)
+          acc[month].unique_books_sold.add(purchase.book_id)
+          acc[month].unique_customers.add(purchase.user_id)
+          acc[month].books_sold.add(purchase.books.name)
+          
+          if (purchase.delivery_type === 'digital') {
+            acc[month].digital_revenue += parseFloat(purchase.total_price || 0)
+            acc[month].digital_sales += purchase.quantity || 1
+          } else {
+            acc[month].physical_revenue += parseFloat(purchase.total_price || 0)
+            acc[month].physical_sales += purchase.quantity || 1
+          }
+          
+          return acc
+        }, {})
+        
+        // Convert to array and calculate averages
+        const processedSalesData = Object.values(monthlyStats).map((stats) => ({
+          month: stats.month,
+          total_sales: stats.total_sales,
+          total_revenue: stats.total_revenue,
+          unique_books_sold: stats.unique_books_sold.size,
+          unique_customers: stats.unique_customers.size,
+          avg_order_value: stats.total_sales > 0 ? stats.total_revenue / stats.total_sales : 0,
+          digital_revenue: stats.digital_revenue,
+          physical_revenue: stats.physical_revenue,
+          digital_sales: stats.digital_sales,
+          physical_sales: stats.physical_sales,
+          books_sold: Array.from(stats.books_sold).join(', ')
+        })).sort((a, b) => b.month.localeCompare(a.month))
+        
+        setSalesData(processedSalesData.slice(0, 12)) // Last 12 months
+      }
+      
+      // Fetch individual book sales data
+      const { data: bookSales, error: bookError } = await supabase
+        .from('purchases')
+        .select(`
+          book_id,
+          quantity,
+          total_price,
+          delivery_type,
+          books!inner(
+            name,
+            manuscripts!inner(
+              id,
+              publisher_id
+            )
+          )
+        `)
+        .eq('books.manuscripts.publisher_id', user.id)
+        .eq('status', 'completed')
+        
+      if (bookError) {
+        console.error('Error fetching book sales:', bookError)
+      } else if (bookSales) {
+        // Process book sales data
+        const bookStats = bookSales.reduce((acc: Record<string, {
+          book_id: string
+          manuscript_id: string
+          book_name: string
+          total_sales: number
+          total_revenue: number
+          digital_sales: number
+          physical_sales: number
+          digital_revenue: number
+          physical_revenue: number
+        }>, purchase: {
+          book_id: string
+          quantity: number
+          total_price: string
+          delivery_type: string
+          books: {
+            name: string
+            manuscripts: {
+              id: string
+            }
+          }
+        }) => {
+          const bookId = purchase.book_id
+          const manuscriptId = purchase.books.manuscripts.id
+          
+          if (!acc[bookId]) {
+            acc[bookId] = {
+              book_id: bookId,
+              manuscript_id: manuscriptId,
+              book_name: purchase.books.name,
+              total_sales: 0,
+              total_revenue: 0,
+              digital_sales: 0,
+              physical_sales: 0,
+              digital_revenue: 0,
+              physical_revenue: 0
+            }
+          }
+          
+          acc[bookId].total_sales += purchase.quantity || 1
+          acc[bookId].total_revenue += parseFloat(purchase.total_price || 0)
+          
+          if (purchase.delivery_type === 'digital') {
+            acc[bookId].digital_sales += purchase.quantity || 1
+            acc[bookId].digital_revenue += parseFloat(purchase.total_price || 0)
+          } else {
+            acc[bookId].physical_sales += purchase.quantity || 1
+            acc[bookId].physical_revenue += parseFloat(purchase.total_price || 0)
+          }
+          
+          return acc
+        }, {})
+        
+        setBookSalesData(Object.values(bookStats))
+      }
+    } catch (error) {
+      console.error('Error fetching sales data:', error)
+    }
+  }, [user])
+  
   const fetchExistingData = async () => {
     try {
       // Fetch existing categories and authors for filter options
@@ -228,9 +436,10 @@ export default function PublisherPage() {
       setPageLoading(true)
       fetchManuscripts()
       fetchExistingData()
+      fetchSalesData()
       setPageLoading(false)
     }
-  }, [user, profile, router, authLoading, fetchManuscripts])
+  }, [user, profile, router, authLoading, fetchManuscripts, fetchSalesData])
 
 
   const formatDuration = (dateString: string) => {
@@ -259,6 +468,7 @@ export default function PublisherPage() {
     setFilterAuthor('')
     setFilterDateFrom('')
     setFilterDateTo('')
+    setShowOnlyBooksWithSales(false)
   }
 
   const getActiveFiltersCount = () => {
@@ -269,6 +479,7 @@ export default function PublisherPage() {
     if (filterAuthor) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
+    if (showOnlyBooksWithSales) count++
     return count
   }
 
@@ -279,6 +490,15 @@ export default function PublisherPage() {
     if (activeStatusTab !== 'all') {
       if (activeStatusTab === 'approved') filtered = filtered.filter(m => m.status === 'approved')
       if (activeStatusTab === 'published') filtered = filtered.filter(m => m.status === 'published')
+    }
+
+    // Sales filter - only show books with sales
+    if (showOnlyBooksWithSales) {
+      filtered = filtered.filter(m => {
+        if (m.status !== 'published') return false
+        const salesData = getSalesDataForManuscript(m.id)
+        return salesData.sales > 0
+      })
     }
 
     // Search query filter
@@ -431,6 +651,7 @@ MyatPwint Publishing Team`
       setSelectedManuscript(null)
       setPublishData({ finalPrice: '', edition: 'First Edition' })
       fetchManuscripts()
+      fetchSalesData() // Refresh sales data
       
       alert('Book published successfully!')
 
@@ -451,6 +672,42 @@ MyatPwint Publishing Team`
       case 'published': return 'Published'
       default: return status
     }
+  }
+
+  const getSalesDataForManuscript = (manuscriptId: string) => {
+    const bookSale = bookSalesData.find(s => s.manuscript_id === manuscriptId)
+    return bookSale ? { 
+      sales: bookSale.total_sales, 
+      revenue: bookSale.total_revenue,
+      digitalSales: bookSale.digital_sales,
+      physicalSales: bookSale.physical_sales,
+      digitalRevenue: bookSale.digital_revenue,
+      physicalRevenue: bookSale.physical_revenue
+    } : { 
+      sales: 0, 
+      revenue: 0, 
+      digitalSales: 0, 
+      physicalSales: 0, 
+      digitalRevenue: 0, 
+      physicalRevenue: 0 
+    }
+  }
+
+  const getTotalSalesStats = () => {
+    const totalStats = salesData.reduce((acc, month) => ({
+      totalSales: acc.totalSales + month.total_sales,
+      totalRevenue: acc.totalRevenue + month.total_revenue,
+      digitalSales: acc.digitalSales + month.digital_sales,
+      physicalSales: acc.physicalSales + month.physical_sales,
+      uniqueCustomersCount: Math.max(acc.uniqueCustomersCount, month.unique_customers)
+    }), { totalSales: 0, totalRevenue: 0, digitalSales: 0, physicalSales: 0, uniqueCustomersCount: 0 })
+    
+    // Count unique books from bookSalesData (books that actually have sales)
+    const uniqueBooksCount = bookSalesData.filter(book => book.total_sales > 0).length
+    
+    const currentMonth = salesData[0] || { total_sales: 0, total_revenue: 0, digital_sales: 0, physical_sales: 0, unique_customers: 0, unique_books_sold: 0 }
+    
+    return { ...totalStats, uniqueBooksCount, currentMonth }
   }
 
 
@@ -483,6 +740,152 @@ MyatPwint Publishing Team`
         </div>
       </div>
 
+      {/* Publisher Sales & Revenue Dashboard */}
+      {salesData.length > 0 && (() => {
+        const stats = getTotalSalesStats()
+        return (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Sales & Revenue Overview</h2>
+            
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Total Revenue */}
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-emerald-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-emerald-700 font-medium uppercase tracking-wide">Total Revenue</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalRevenue.toLocaleString()} <span className="text-lg text-gray-600">MMK</span></p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                      <span className="text-xs text-emerald-600">All time</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Total Sales */}
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-700 font-medium uppercase tracking-wide">Total Sales</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalSales}</p>
+                    <div className="flex items-center space-x-4 mt-1 text-xs">
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-blue-600">Digital: {stats.digitalSales}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span className="text-purple-600">Physical: {stats.physicalSales}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Books Sold */}
+              <Card 
+                className={`cursor-pointer transition-all duration-200 ${
+                  showOnlyBooksWithSales 
+                    ? 'bg-gradient-to-br from-purple-100 to-purple-200 border-2 border-purple-400 ring-2 ring-purple-300' 
+                    : 'bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 hover:border-purple-300'
+                }`}
+                onClick={() => setShowOnlyBooksWithSales(!showOnlyBooksWithSales)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+                    showOnlyBooksWithSales ? 'bg-purple-600' : 'bg-purple-500'
+                  }`}>
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-700 font-medium uppercase tracking-wide">Books With Sales</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.uniqueBooksCount}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        showOnlyBooksWithSales ? 'bg-purple-500 animate-pulse' : 'bg-purple-400'
+                      }`}></div>
+                      <span className={`text-xs ${
+                        showOnlyBooksWithSales ? 'text-purple-700 font-semibold' : 'text-purple-600'
+                      }`}>
+                        {showOnlyBooksWithSales ? 'Filtering active' : 'Click to filter'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Customers */}
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-orange-700 font-medium uppercase tracking-wide">Customers</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.uniqueCustomersCount}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                      <span className="text-xs text-orange-600">Unique buyers</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Current Month Performance */}
+            {stats.currentMonth.total_sales > 0 && (
+              <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Current Month Performance</h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-green-600 font-medium">Live Data</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Copies</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.total_sales}</p>
+                    <p className="text-xs text-gray-400 mt-1">Individual purchases</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Monthly Revenue</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.total_revenue.toLocaleString()} <span className="text-sm text-gray-600">MMK</span></p>
+                    <p className="text-xs text-gray-400 mt-1">Total earnings</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">New Customers</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.unique_customers}</p>
+                    <p className="text-xs text-gray-400 mt-1">First-time buyers</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Active Titles</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.unique_books_sold}</p>
+                    <p className="text-xs text-gray-400 mt-1">Different books sold</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Filter Toggle Button */}
       <div className="mb-6">
         <Button
@@ -498,9 +901,14 @@ MyatPwint Publishing Team`
         </Button>
 
         {/* Results Counter */}
-        {finalFilteredManuscripts.length !== manuscripts.length && (
+        {(finalFilteredManuscripts.length !== manuscripts.length || showOnlyBooksWithSales) && (
           <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm text-gray-600">
             Showing {finalFilteredManuscripts.length} of {manuscripts.length} manuscripts
+            {showOnlyBooksWithSales && (
+              <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                With sales only
+              </span>
+            )}
             {getActiveFiltersCount() > 0 && ` with ${getActiveFiltersCount()} filter(s) applied`}
           </div>
         )}
@@ -832,6 +1240,77 @@ MyatPwint Publishing Team`
                           </div>
                         </div>
                       )}
+
+                      {/* Sales Performance Section - Only for Published Books */}
+                      {manuscript.status === 'published' && (() => {
+                        const salesData = getSalesDataForManuscript(manuscript.id)
+                        return (
+                          <div className="mt-4 pt-4 border-t border-white/40">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-600">Sales Performance</span>
+                              {salesData.sales > 0 && (
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                  <span className="text-xs text-green-600 font-medium">Active</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="mt-3 grid grid-cols-2 gap-4">
+                              <div className="bg-white/60 rounded-lg p-3 border border-white/80">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
+                                    <p className="text-lg font-bold text-gray-900">{salesData.sales}</p>
+                                    {salesData.sales > 0 && (
+                                      <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                        <span>D: {salesData.digitalSales}</span>
+                                        <span>P: {salesData.physicalSales}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="bg-white/60 rounded-lg p-3 border border-white/80">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Revenue</p>
+                                    <p className="text-lg font-bold text-gray-900">{Number(salesData.revenue).toLocaleString()} <span className="text-sm font-normal text-gray-600">MMK</span></p>
+                                    {salesData.sales > 0 && (
+                                      <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                        <span>Avg: {Math.round(salesData.revenue / salesData.sales).toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {salesData.sales === 0 && (
+                              <div className="mt-3 text-center py-2">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </div>
+                                <p className="text-sm text-gray-500">No sales recorded yet</p>
+                                <p className="text-xs text-gray-400 mt-1">Sales will appear here once customers purchase this book</p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* Action buttons */}
@@ -1079,7 +1558,7 @@ MyatPwint Publishing Team`
             </div>
 
             {/* Detailed Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Manuscript Details */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-800 mb-3">Manuscript Details</h3>
@@ -1138,6 +1617,80 @@ MyatPwint Publishing Team`
                   </div>
                 </div>
               </div>
+
+              {/* Sales Performance - Only for Published Books */}
+              {selectedDetailManuscript.status === 'published' && (() => {
+                const salesData = getSalesDataForManuscript(selectedDetailManuscript.id)
+                return (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-gray-800">Sales Performance</h3>
+                      {salesData.sales > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-xs text-green-600 font-medium">Active</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {salesData.sales > 0 ? (
+                      <div className="space-y-4">
+                        {/* Total Sales */}
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
+                                <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.sales}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600 mt-2">
+                            <span>Digital: {salesData.digitalSales}</span>
+                            <span>Physical: {salesData.physicalSales}</span>
+                          </div>
+                        </div>
+
+                        {/* Total Revenue */}
+                        <div className="bg-white/80 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
+                                <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">MMK</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600 mt-2">
+                            <span>Avg per sale: {Math.round(salesData.revenue / salesData.sales).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-600 mb-2">No sales recorded yet</p>
+                        <p className="text-sm text-gray-500">Your sales data will appear here once customers purchase your book</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Action Buttons */}
