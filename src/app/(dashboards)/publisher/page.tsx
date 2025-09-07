@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useAuthContext } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import Badge from '@/components/ui/Badge'
 
 type FeedbackHistory = {
   feedback: string
@@ -75,6 +75,10 @@ export default function PublisherPage() {
   // Available categories and authors for filters
   const [existingCategories, setExistingCategories] = useState<string[]>([])
   const [existingAuthors, setExistingAuthors] = useState<{ id: string; name: string }[]>([])
+
+  // Detail modal state
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedDetailManuscript, setSelectedDetailManuscript] = useState<Manuscript | null>(null)
 
   const fetchExistingData = async () => {
     try {
@@ -440,13 +444,6 @@ MyatPwint Publishing Team`
     }
   }
 
-  const getStatusColor = (status: string): 'primary' | 'secondary' | 'success' | 'warning' | 'error' => {
-    switch (status) {
-      case 'approved': return 'success'
-      case 'published': return 'primary'
-      default: return 'secondary'
-    }
-  }
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -456,17 +453,6 @@ MyatPwint Publishing Team`
     }
   }
 
-  const getPriorityColor = (reviewedAt: string, status: string) => {
-    if (status !== 'approved') return 'transparent'
-    
-    const daysSinceReview = Math.floor(
-      (new Date().getTime() - new Date(reviewedAt).getTime()) / (1000 * 60 * 60 * 24)
-    )
-    
-    if (daysSinceReview >= 7) return '#dc3545' // Red - high priority
-    if (daysSinceReview >= 3) return '#ffc107' // Yellow - medium priority
-    return '#28a745' // Green - normal priority
-  }
 
   if (authLoading || pageLoading) {
     return (
@@ -677,121 +663,253 @@ MyatPwint Publishing Team`
           </Card>
         ) : (
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {finalFilteredManuscripts.map((manuscript) => (
-              <Card 
-                key={manuscript.id}
-                className="overflow-hidden transition-all duration-200 hover:shadow-lg"
-                style={{
-                  borderLeft: `4px solid ${getPriorityColor(manuscript.reviewed_at || '', manuscript.status)}`
-                }}
-              >
-                {/* Cover Image */}
-                {manuscript.cover_image_url && (
-                  <div 
-                    className="h-48 bg-cover bg-center relative"
-                    style={{ backgroundImage: `url(${manuscript.cover_image_url})` }}
-                  >
-                    <div className="absolute top-2 right-2">
-                      <Badge variant={getStatusColor(manuscript.status)}>
-                        {getStatusText(manuscript.status)}
-                      </Badge>
+            {finalFilteredManuscripts.map((manuscript) => {
+              // Status-based theming (matching author/editor dashboard)
+              const statusConfig = {
+                published: { 
+                  bg: 'bg-gradient-to-br from-blue-50 to-blue-100', 
+                  border: 'border-blue-200', 
+                  accent: 'bg-blue-500',
+                  text: 'text-blue-700',
+                  iconBg: 'bg-blue-500',
+                  iconSymbol: '📚'
+                },
+                approved: { 
+                  bg: 'bg-gradient-to-br from-green-50 to-green-100', 
+                  border: 'border-green-200', 
+                  accent: 'bg-green-500',
+                  text: 'text-green-700',
+                  iconBg: 'bg-green-500',
+                  iconSymbol: '✅'
+                }
+              }
+              const config = statusConfig[manuscript.status as keyof typeof statusConfig] || {
+                bg: 'bg-gradient-to-br from-gray-50 to-gray-100', 
+                border: 'border-gray-200', 
+                accent: 'bg-gray-500',
+                text: 'text-gray-700',
+                iconBg: 'bg-gray-500',
+                iconSymbol: '📄'
+              }
+              
+              return (
+                <div 
+                  key={manuscript.id} 
+                  className={`relative overflow-hidden rounded-xl border-2 ${config.border} ${config.bg} hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
+                  onClick={() => {
+                    setSelectedDetailManuscript(manuscript)
+                    setShowDetailModal(true)
+                  }}
+                >
+                  {/* Priority/Status Accent Bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-2 ${config.accent}`}></div>
+                  
+                  {/* Status Icon in Top Right */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <div className={`w-8 h-8 rounded-full ${config.iconBg} text-white flex items-center justify-center text-lg shadow-lg`}>
+                      {config.iconSymbol}
                     </div>
                   </div>
-                )}
 
-                {/* Content */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-900 mb-2">
-                    {manuscript.title}
-                  </h3>
-                  
-                  <div className="text-sm text-gray-600 mb-2 space-y-1">
-                    <div>Author: {manuscript.profiles?.name || 'Unknown'}</div>
-                    <div>Category: {manuscript.category}</div>
-                    {manuscript.reviewed_at && (
-                      <div>Approved: {formatDuration(manuscript.reviewed_at)}</div>
-                    )}
-                  </div>
+                  <div className="p-6 pt-8">
+                    {/* Book Cover and Title Section */}
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-20 bg-white rounded-lg shadow-md border-2 border-white overflow-hidden">
+                          <Image
+                            src={manuscript.cover_image_url || '/book-placeholder.png'}
+                            alt={manuscript.title}
+                            width={64}
+                            height={80}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-lg text-gray-900 line-clamp-2 mb-1">
+                          {manuscript.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span className="font-medium">{manuscript.profiles?.name || 'Unknown Author'}</span>
+                        </div>
+                        {manuscript.reviewed_at && (
+                          <div className="mt-1 text-xs text-gray-500">
+                            Approved: {formatDuration(manuscript.reviewed_at)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                  <p className="text-gray-600 text-sm line-clamp-3 mb-3">
-                    {manuscript.description}
-                  </p>
+                    {/* Description */}
+                    <div className="mb-4">
+                      <p className="text-gray-700 text-sm line-clamp-3 leading-relaxed">
+                        {manuscript.description}
+                      </p>
+                    </div>
 
-                  {/* Tags */}
-                  {manuscript.tags.length > 0 && (
-                    <div className="mb-3">
-                      {manuscript.tags.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-block mr-2 mb-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {manuscript.tags.length > 3 && (
-                        <span className="text-xs text-gray-500">
-                          +{manuscript.tags.length - 3} more
-                        </span>
+                    {/* Categories and Tags */}
+                    <div className="space-y-3 mb-4">
+                      {/* Categories */}
+                      <div>
+                        <div className="flex flex-wrap gap-2">
+                          {manuscript.category.split(', ').slice(0, 2).map((category, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                            >
+                              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                              {category.trim()}
+                            </span>
+                          ))}
+                          {manuscript.category.split(', ').length > 2 && (
+                            <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm">
+                              +{manuscript.category.split(', ').length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tags */}
+                      {manuscript.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {manuscript.tags.slice(0, 3).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs border border-gray-300"
+                            >
+                              <span className="w-1.5 h-1.5 bg-gray-400 mr-1.5" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></span>
+                              {tag}
+                            </span>
+                          ))}
+                          {manuscript.tags.length > 3 && (
+                            <span className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-500 rounded text-xs">
+                              +{manuscript.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Price and Physical Book Info */}
-                  <div className="text-sm text-gray-600 mb-3 space-y-1">
-                    {manuscript.suggested_price && (
-                      <div>Suggested Price: {manuscript.suggested_price.toLocaleString()} MMK</div>
-                    )}
-                    {manuscript.wants_physical && <div>Physical Book Requested</div>}
-                  </div>
+                    {/* Publisher-specific info */}
+                    <div className="space-y-3 mb-4">
+                      {/* Pricing and edition info */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        {manuscript.suggested_price && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
+                              $
+                            </div>
+                            <span className="font-medium">{manuscript.suggested_price.toLocaleString()} MMK</span>
+                          </div>
+                        )}
+                        {manuscript.wants_physical && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-purple-500 rounded flex items-center justify-center">
+                              <div className="w-2 h-3 bg-white rounded-sm"></div>
+                            </div>
+                            <span className="text-xs">Physical Edition</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-gray-400 rounded-sm flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-sm"></div>
+                          </div>
+                          <span className="text-xs">{getStatusText(manuscript.status)}</span>
+                        </div>
+                      </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 flex-wrap">
-                    <a
-                      href={manuscript.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      {/* Publication readiness indicator */}
+                      {manuscript.status === 'approved' && (
+                        <div className="bg-green-100 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <span className="text-sm font-medium text-green-700">Ready to publish!</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div 
+                      className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/50"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      DOCX
-                    </a>
-                    
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
-                    >
-                      ✏️ View
-                    </Button>
-
-                    {manuscript.status === 'approved' && (
-                      <>
+                      <div className="flex items-center space-x-2">
+                        {/* View DOCX */}
                         <a
-                          href={createMailtoLink(manuscript)}
-                          className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
+                          href={manuscript.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center space-x-2 px-3 py-2 bg-white/80 hover:bg-white text-blue-700 rounded-lg text-sm font-medium border border-blue-200 transition-colors"
                         >
-                          📧 Email
+                          <div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center">
+                            <div className="w-2 h-2.5 bg-white rounded-sm"></div>
+                          </div>
+                          <span>View DOCX</span>
                         </a>
 
+                        {/* View/Edit Button */}
                         <Button
                           size="sm"
-                          variant="success"
-                          onClick={() => setSelectedManuscript(manuscript)}
-                          disabled={publishing}
+                          variant="secondary"
+                          onClick={() => router.push(`/manuscript-editor?id=${manuscript.id}`)}
+                          className="inline-flex items-center space-x-2"
                         >
-                          📚 Publish
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          <span>View</span>
                         </Button>
-                      </>
-                    )}
+                        
+                        {/* Status-specific actions */}
+                        {manuscript.status === 'approved' && (
+                          <>
+                            <a
+                              href={createMailtoLink(manuscript)}
+                              className="inline-flex items-center space-x-2 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <span>Email</span>
+                            </a>
 
-                    {manuscript.status === 'published' && (
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                        ✅ Published
-                      </span>
-                    )}
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => setSelectedManuscript(manuscript)}
+                              disabled={publishing}
+                              className="inline-flex items-center space-x-2"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.832 18.477 19.246 18 17.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              <span>Publish</span>
+                            </Button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Published badge */}
+                      {manuscript.status === 'published' && (
+                        <div className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          <span>Published</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -861,6 +979,229 @@ MyatPwint Publishing Team`
               >
                 {publishing ? 'Publishing...' : 'Publish Book'}
               </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Manuscript Detail Modal */}
+      <Modal 
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        title={selectedDetailManuscript?.title || "Manuscript Details"}
+        size="lg"
+      >
+        {selectedDetailManuscript && (
+          <div className="space-y-6">
+            {/* Book Cover and Basic Info */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Cover Image */}
+              <div className="flex-shrink-0">
+                <Image
+                  src={selectedDetailManuscript.cover_image_url || '/book-placeholder.png'}
+                  alt={selectedDetailManuscript.title}
+                  width={200}
+                  height={280}
+                  className="w-48 h-64 object-cover rounded-lg shadow-lg border-4 border-white"
+                />
+              </div>
+              
+              {/* Basic Details */}
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {selectedDetailManuscript.title}
+                  </h2>
+                  <div className="flex items-center space-x-4 mb-4">
+                    {/* Status badge */}
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        selectedDetailManuscript.status === 'published' ? 'bg-blue-500' :
+                        selectedDetailManuscript.status === 'approved' ? 'bg-green-500' :
+                        'bg-gray-500'
+                      }`}></div>
+                      <span className={`font-medium ${
+                        selectedDetailManuscript.status === 'published' ? 'text-blue-700' :
+                        selectedDetailManuscript.status === 'approved' ? 'text-green-700' :
+                        'text-gray-700'
+                      }`}>
+                        {getStatusText(selectedDetailManuscript.status)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-2">Author</h4>
+                  <p className="text-gray-700">{selectedDetailManuscript.profiles?.name || 'Unknown Author'}</p>
+                </div>
+
+                <div className="prose prose-sm text-gray-700">
+                  <h4 className="font-medium text-gray-800 mb-2">Description</h4>
+                  <p className="leading-relaxed">{selectedDetailManuscript.description}</p>
+                </div>
+
+                {/* Categories and Tags */}
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-2">Categories</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDetailManuscript.category.split(', ').map((category, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          {category.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedDetailManuscript.tags.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-800 mb-2">Tags</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedDetailManuscript.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm"
+                          >
+                            <span className="w-1.5 h-1.5 bg-gray-400 mr-1.5" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></span>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Manuscript Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Manuscript Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Submitted:</span>
+                    <span className="font-medium">{new Date(selectedDetailManuscript.submitted_at).toLocaleDateString()}</span>
+                  </div>
+                  {selectedDetailManuscript.reviewed_at && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Approved:</span>
+                      <span className="font-medium">{new Date(selectedDetailManuscript.reviewed_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {selectedDetailManuscript.published_at && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Published:</span>
+                      <span className="font-medium">{new Date(selectedDetailManuscript.published_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Submission Count:</span>
+                    <span className="font-medium">#{selectedDetailManuscript.submission_count || 1}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Publishing Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Publishing Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Suggested Price:</span>
+                    <span className="font-medium">
+                      {selectedDetailManuscript.suggested_price 
+                        ? `${selectedDetailManuscript.suggested_price.toLocaleString()} MMK`
+                        : 'Not specified'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Physical Edition:</span>
+                    <span className="font-medium">
+                      {selectedDetailManuscript.wants_physical ? 'Requested' : 'Digital only'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`font-medium ${
+                      selectedDetailManuscript.status === 'published' ? 'text-blue-600' :
+                      selectedDetailManuscript.status === 'approved' ? 'text-green-600' :
+                      'text-gray-600'
+                    }`}>
+                      {getStatusText(selectedDetailManuscript.status)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center space-x-3">
+                <a
+                  href={selectedDetailManuscript.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <div className="w-4 h-4 bg-blue-400 rounded flex items-center justify-center">
+                    <div className="w-2 h-2.5 bg-white rounded-sm"></div>
+                  </div>
+                  <span>View DOCX</span>
+                </a>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowDetailModal(false)
+                    router.push(`/manuscript-editor?id=${selectedDetailManuscript.id}`)
+                  }}
+                >
+                  View Manuscript
+                </Button>
+
+                {selectedDetailManuscript.status === 'approved' && (
+                  <>
+                    <a
+                      href={createMailtoLink(selectedDetailManuscript)}
+                      className="inline-flex items-center space-x-2 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span>Email Author</span>
+                    </a>
+
+                    <Button
+                      size="sm"
+                      variant="success"
+                      onClick={() => {
+                        setShowDetailModal(false)
+                        setSelectedManuscript(selectedDetailManuscript)
+                      }}
+                      disabled={publishing}
+                    >
+                      Publish Book
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Status indicator */}
+              {selectedDetailManuscript.status === 'published' && (
+                <div className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Published</span>
+                </div>
+              )}
             </div>
           </div>
         )}
