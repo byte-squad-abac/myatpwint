@@ -9,6 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint for code quality checks
 
+**Note**: This project does not have a formal testing framework configured. Manual testing is performed through the application interfaces.
+
 ## Project Architecture
 
 This is **MyatPwint v2**, a Myanmar digital publishing platform built with Next.js 15.5 and React 19. The application facilitates a complete manuscript-to-publication workflow for authors, editors, and publishers.
@@ -163,7 +165,7 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Path aliases configured: `@/*` maps to `src/*`
 - Tailwind CSS v4 with custom configuration
 - ESLint configured with Next.js recommended rules
-- Environment variables stored in `.env.local`
+- Environment variables stored in `.env.local` (requires Supabase, Stripe, OnlyOffice, Hugging Face, and N8N configuration)
 - Marketing automation via N8N webhooks for book promotions
 - MCP integration available for Supabase operations
 
@@ -185,3 +187,9 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Fixed profile name population from approved author applications
 - Restricted manuscript uploads to DOCX only for security
 - Implemented comprehensive file upload validation and storage policies
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

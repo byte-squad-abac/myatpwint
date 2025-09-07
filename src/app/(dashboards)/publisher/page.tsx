@@ -104,6 +104,13 @@ type SalesStats = {
   }
 }
 
+// Helper functions
+const sortByDateDesc = (a: { month: string }, b: { month: string }) => 
+  new Date(b.month).getTime() - new Date(a.month).getTime()
+
+const sortByMonthDesc = (a: { month: string }, b: { month: string }) => 
+  b.month.localeCompare(a.month)
+
 export default function PublisherPage() {
   const { user, profile, loading: authLoading } = useAuthContext()
   const router = useRouter()
@@ -159,7 +166,6 @@ export default function PublisherPage() {
     
     setIsRefreshingSales(true)
     try {
-      console.log('Auto-refreshing sales data...')
       // Fetch monthly sales data for this publisher - simplified approach
       // First get publisher's books, then get purchases for those books
       const { data: publisherBooks } = await supabase
@@ -181,12 +187,7 @@ export default function PublisherPage() {
         .in('book_id', bookIds)
         .eq('status', 'completed')
 
-      // Create maps for both monthly and book sales processing
-      const bookNameMap = publisherBooks.reduce((map: Record<string, string>, book: { id: string; name: string; manuscript_id: string }) => {
-        map[book.id] = book.name
-        return map
-      }, {})
-
+      // Create consolidated book map for processing
       const bookDetailsMap = publisherBooks.reduce((map: Record<string, { name: string; manuscript_id: string }>, book: { id: string; name: string; manuscript_id: string }) => {
         map[book.id] = { name: book.name, manuscript_id: book.manuscript_id }
         return map
@@ -225,7 +226,7 @@ export default function PublisherPage() {
           acc[month].total_revenue += parseFloat(purchase.total_price || '0')
           acc[month].unique_books_sold.add(purchase.book_id)
           acc[month].unique_customers.add(purchase.user_id)
-          acc[month].books_sold.add(bookNameMap[purchase.book_id] || 'Unknown Book')
+          acc[month].books_sold.add(bookDetailsMap[purchase.book_id]?.name || 'Unknown Book')
           
           if (purchase.delivery_type === 'digital') {
             acc[month].digital_revenue += parseFloat(purchase.total_price || '0')
@@ -251,13 +252,13 @@ export default function PublisherPage() {
           digital_sales: stats.digital_sales,
           physical_sales: stats.physical_sales,
           books_sold: Array.from(stats.books_sold).join(', ')
-        })).sort((a, b) => b.month.localeCompare(a.month))
+        })).sort(sortByMonthDesc)
         
         setSalesData(processedSalesData.slice(0, 12)) // Last 12 months
         
         // Set current month as default selected month if not already set
         if (!selectedMonth && processedSalesData.length > 0) {
-          const sortedData = processedSalesData.sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime())
+          const sortedData = processedSalesData.sort(sortByDateDesc)
           setSelectedMonth(sortedData[0].month)
         }
       }
@@ -429,7 +430,7 @@ export default function PublisherPage() {
       )
 
       if (orphanedManuscripts.length > 0) {
-        console.log(`Found ${orphanedManuscripts.length} orphaned published manuscripts, resetting to approved...`)
+        // Reset orphaned published manuscripts to approved status
         
         for (const orphaned of orphanedManuscripts) {
           await supabase
@@ -462,16 +463,12 @@ export default function PublisherPage() {
     // Don't check auth while still loading
     if (authLoading) return
     
-    console.log('Publisher auth check - User:', !!user, 'Profile:', profile?.role)
-    
     if (!user) {
-      console.log('No user, redirecting to login')
       router.push('/login')
       return
     }
     
     if (profile && profile.role !== 'publisher') {
-      console.log('User role is not publisher:', profile.role, 'redirecting to home')
       router.push('/')
       return
     }
@@ -490,15 +487,13 @@ export default function PublisherPage() {
   useEffect(() => {
     if (!user || !profile || profile.role !== 'publisher') return
 
-    console.log('Starting live sales data updates (every 30 seconds)')
+    // Auto-refresh sales data every 30 seconds
     const salesInterval = setInterval(() => {
-      console.log('Auto-refreshing sales data...')
       fetchSalesData()
-    }, 30000) // 30 seconds
+    }, 30000)
 
     // Cleanup interval on unmount or when user changes
     return () => {
-      console.log('Stopping live sales data updates')
       clearInterval(salesInterval)
     }
   }, [user, profile, fetchSalesData])
@@ -702,7 +697,7 @@ MyatPwint Publishing Team`
         if (!response.ok) {
           console.warn('Failed to generate embedding, but book was published successfully')
         } else {
-          console.log('AI embedding generated successfully for new book')
+          // AI embedding generated successfully for new book
         }
       } catch (embeddingError) {
         console.warn('Embedding generation error (book still published):', embeddingError)
@@ -910,7 +905,7 @@ MyatPwint Publishing Team`
                   className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
                   {salesData
-                    .sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime())
+                    .sort(sortByDateDesc)
                     .map((monthData) => {
                       const monthName = new Date(monthData.month + 'T00:00:00').toLocaleDateString('en-US', {
                         year: 'numeric',
