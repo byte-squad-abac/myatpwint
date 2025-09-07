@@ -850,27 +850,36 @@ MyatPwint Publishing Team`
       </div>
 
       {/* Publisher Sales & Revenue Dashboard */}
-      {salesData.length > 0 && (() => {
+      {(() => {
         const stats = getTotalSalesStats()
         return (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Sales & Revenue Overview</h2>
               <div className="flex items-center space-x-3">
-                <Button
-                  variant={showCurrentMonth ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setShowCurrentMonth(!showCurrentMonth)}
-                >
-                  {showCurrentMonth ? 'Hide' : 'Show'} Current Month
-                </Button>
-                <Button
-                  variant={showMonthlyHistory ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
-                >
-                  {showMonthlyHistory ? 'Hide' : 'Show'} History
-                </Button>
+                {salesData.length > 0 && (
+                  <>
+                    <Button
+                      variant={showCurrentMonth ? 'primary' : 'secondary'}
+                      size="sm"
+                      onClick={() => setShowCurrentMonth(!showCurrentMonth)}
+                    >
+                      {showCurrentMonth ? 'Hide' : 'Show'} Current Month
+                    </Button>
+                    <Button
+                      variant={showMonthlyHistory ? 'primary' : 'secondary'}
+                      size="sm"
+                      onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
+                    >
+                      {showMonthlyHistory ? 'Hide' : 'Show'} History
+                    </Button>
+                  </>
+                )}
+                {salesData.length === 0 && (
+                  <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-lg">
+                    No sales data yet - publish books to see analytics
+                  </div>
+                )}
               </div>
             </div>
             
@@ -881,50 +890,90 @@ MyatPwint Publishing Team`
             />
 
             {/* Current Month Performance */}
-            {showCurrentMonth && (
+            {showCurrentMonth && salesData.length > 0 && (
               <CurrentMonthPerformance 
                 currentMonth={stats.currentMonth}
                 isRefreshingSales={isRefreshingSales}
                 lastSalesUpdate={lastSalesUpdate}
               />
             )}
+            
+            {/* No data state for current month */}
+            {showCurrentMonth && salesData.length === 0 && (
+              <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200">
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Current Month Data</h3>
+                  <p className="text-gray-600">Current month performance will appear here once you have sales.</p>
+                </div>
+              </Card>
+            )}
           </div>
         )
       })()}
 
       {/* Historical Monthly Records */}
-      {showMonthlyHistory && salesData.length > 0 && selectedMonth && (
+      {showMonthlyHistory && (
         <div className="mb-8">
           <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-2 border-purple-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Monthly Performance History</h3>
               <div className="flex items-center space-x-3">
-                <select 
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  {salesData
-                    .sort(sortByDateDesc)
-                    .map((monthData) => {
-                      const monthName = new Date(monthData.month + 'T00:00:00').toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long'
-                      })
-                      return (
-                        <option key={monthData.month} value={monthData.month}>
-                          {monthName}
-                        </option>
-                      )
-                    })}
-                </select>
-                <div className="text-sm text-gray-600">
-                  {salesData.length} month{salesData.length !== 1 ? 's' : ''} available
-                </div>
+                {salesData.length > 0 ? (
+                  <>
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {salesData
+                        .sort(sortByDateDesc)
+                        .map((monthData) => {
+                          const monthName = new Date(monthData.month + 'T00:00:00').toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long'
+                          })
+                          return (
+                            <option key={monthData.month} value={monthData.month}>
+                              {monthName}
+                            </option>
+                          )
+                        })}
+                    </select>
+                    <div className="text-sm text-gray-600">
+                      {salesData.length} month{salesData.length !== 1 ? 's' : ''} available
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-lg">
+                    No monthly data yet - sales history will appear here
+                  </div>
+                )}
               </div>
             </div>
             
             {(() => {
+              if (salesData.length === 0) {
+                return (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-xl font-medium text-gray-900 mb-2">No Sales History Yet</h4>
+                    <p className="text-gray-600 mb-4">Monthly performance data will appear here once customers start purchasing your books.</p>
+                    <div className="bg-white/80 rounded-lg p-4 max-w-md mx-auto">
+                      <p className="text-sm text-gray-500">Track monthly trends, compare performance, and analyze growth patterns over time.</p>
+                    </div>
+                  </div>
+                )
+              }
+              
               const monthData = salesData.find(data => data.month === selectedMonth)
               if (!monthData) return <p className="text-center text-gray-500 py-4">No data found for selected month</p>
               
@@ -1012,37 +1061,45 @@ MyatPwint Publishing Team`
       )}
 
       {/* Analytics Section */}
-      {salesData.length > 0 && (
+      {(
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Performance Analytics</h2>
             <div className="flex items-center space-x-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'default' | 'sales' | 'revenue' | 'author_revenue')}
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="default">Default Sort</option>
-                <option value="sales">Sort by Sales Volume</option>
-                <option value="revenue">Sort by Revenue</option>
-              </select>
-              <Button
-                variant={showTopPerformers ? 'secondary' : 'primary'}
-                size="sm"
-                onClick={() => setShowTopPerformers(!showTopPerformers)}
-              >
-                {showTopPerformers ? 'Hide Analytics' : 'Show Top Performers'}
-              </Button>
-              {sortBy !== 'default' && (
-                <div className="flex items-center space-x-1">
-                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                  <span className="text-xs text-blue-600 font-medium">Sorted</span>
+              {salesData.length > 0 ? (
+                <>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'default' | 'sales' | 'revenue' | 'author_revenue')}
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="default">Default Sort</option>
+                    <option value="sales">Sort by Sales Volume</option>
+                    <option value="revenue">Sort by Revenue</option>
+                  </select>
+                  <Button
+                    variant={showTopPerformers ? 'secondary' : 'primary'}
+                    size="sm"
+                    onClick={() => setShowTopPerformers(!showTopPerformers)}
+                  >
+                    {showTopPerformers ? 'Hide Analytics' : 'Show Top Performers'}
+                  </Button>
+                  {sortBy !== 'default' && (
+                    <div className="flex items-center space-x-1">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                      <span className="text-xs text-blue-600 font-medium">Sorted</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-lg">
+                  Performance analytics will appear here when you have sales
                 </div>
               )}
             </div>
           </div>
 
-          {showTopPerformers && (
+          {showTopPerformers && salesData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Top Performing Books */}
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
@@ -1107,6 +1164,29 @@ MyatPwint Publishing Team`
                   )}
                 </div>
               </Card>
+            </div>
+          )}
+          
+          {/* No data state for top performers */}
+          {showTopPerformers && salesData.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-medium text-gray-900 mb-2">No Performance Data Yet</h4>
+              <p className="text-gray-600 mb-4">Top performers and analytics will appear here once you have book sales.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h5 className="font-medium text-blue-900 mb-2">📚 Top Books</h5>
+                  <p className="text-sm text-blue-700">Track your highest earning publications and bestsellers</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <h5 className="font-medium text-green-900 mb-2">✍️ Top Authors</h5>
+                  <p className="text-sm text-green-700">Identify your most profitable and successful authors</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
