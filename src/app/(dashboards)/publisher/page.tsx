@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import SalesOverviewCards from '@/components/publisher/SalesOverviewCards'
+import CurrentMonthPerformance from '@/components/publisher/CurrentMonthPerformance'
 
 type FeedbackHistory = {
   feedback: string
@@ -70,6 +72,36 @@ type Manuscript = {
     name: string
     email: string
   } | null
+}
+
+type MonthlyStatsAccumulator = {
+  month: string
+  total_sales: number
+  total_revenue: number
+  unique_books_sold: Set<string>
+  unique_customers: Set<string>
+  digital_revenue: number
+  physical_revenue: number
+  digital_sales: number
+  physical_sales: number
+  books_sold: Set<string>
+}
+
+type SalesStats = {
+  totalSales: number
+  totalRevenue: number
+  digitalSales: number
+  physicalSales: number
+  uniqueCustomersCount: number
+  uniqueBooksCount: number
+  currentMonth: {
+    total_sales: number
+    total_revenue: number
+    digital_sales: number
+    physical_sales: number
+    unique_customers: number
+    unique_books_sold: number
+  }
 }
 
 export default function PublisherPage() {
@@ -165,18 +197,7 @@ export default function PublisherPage() {
       } else if (monthlySales && publisherBooks) {
 
         // Process monthly sales data
-        const monthlyStats = monthlySales.reduce((acc: Record<string, {
-          month: string
-          total_sales: number
-          total_revenue: number
-          unique_books_sold: Set<string>
-          unique_customers: Set<string>
-          digital_revenue: number
-          physical_revenue: number
-          digital_sales: number
-          physical_sales: number
-          books_sold: Set<string>
-        }>, purchase: {
+        const monthlyStats = monthlySales.reduce((acc: Record<string, MonthlyStatsAccumulator>, purchase: {
           created_at: string
           book_id: string
           user_id: string
@@ -218,7 +239,7 @@ export default function PublisherPage() {
         }, {})
         
         // Convert to array and calculate averages
-        const processedSalesData = Object.values(monthlyStats).map((stats) => ({
+        const processedSalesData = (Object.values(monthlyStats) as MonthlyStatsAccumulator[]).map((stats) => ({
           month: stats.month,
           total_sales: stats.total_sales,
           total_revenue: stats.total_revenue,
@@ -733,7 +754,7 @@ MyatPwint Publishing Team`
     }
   }
 
-  const getTotalSalesStats = () => {
+  const getTotalSalesStats = (): SalesStats => {
     const totalStats = salesData.reduce((acc, month) => ({
       totalSales: acc.totalSales + month.total_sales,
       totalRevenue: acc.totalRevenue + month.total_revenue,
@@ -745,9 +766,20 @@ MyatPwint Publishing Team`
     // Count unique books from bookSalesData (books that actually have sales)
     const uniqueBooksCount = bookSalesData.filter(book => book.total_sales > 0).length
     
-    const currentMonth = salesData[0] || { total_sales: 0, total_revenue: 0, digital_sales: 0, physical_sales: 0, unique_customers: 0, unique_books_sold: 0 }
+    const currentMonth = salesData[0] || { 
+      total_sales: 0, 
+      total_revenue: 0, 
+      digital_sales: 0, 
+      physical_sales: 0, 
+      unique_customers: 0, 
+      unique_books_sold: 0 
+    }
     
-    return { ...totalStats, uniqueBooksCount, currentMonth }
+    return { 
+      ...totalStats, 
+      uniqueBooksCount, 
+      currentMonth 
+    }
   }
 
   // Analytics functions
@@ -847,153 +879,19 @@ MyatPwint Publishing Team`
               </div>
             </div>
             
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Total Revenue */}
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-emerald-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm text-emerald-700 font-medium uppercase tracking-wide">Total Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalRevenue.toLocaleString()} <span className="text-lg text-gray-600">MMK</span></p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                      <span className="text-xs text-emerald-600">All time</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Total Sales */}
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm text-blue-700 font-medium uppercase tracking-wide">Total Sales</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalSales}</p>
-                    <div className="flex items-center space-x-4 mt-1 text-xs">
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                        <span className="text-blue-600">Digital: {stats.digitalSales}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                        <span className="text-purple-600">Physical: {stats.physicalSales}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Books Sold */}
-              <Card 
-                className={`cursor-pointer transition-all duration-200 ${
-                  showOnlyBooksWithSales 
-                    ? 'bg-gradient-to-br from-purple-100 to-purple-200 border-2 border-purple-400 ring-2 ring-purple-300' 
-                    : 'bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 hover:border-purple-300'
-                }`}
-                onClick={() => setShowOnlyBooksWithSales(!showOnlyBooksWithSales)}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
-                    showOnlyBooksWithSales ? 'bg-purple-600' : 'bg-purple-500'
-                  }`}>
-                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm text-purple-700 font-medium uppercase tracking-wide">Books With Sales</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.uniqueBooksCount}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        showOnlyBooksWithSales ? 'bg-purple-500 animate-pulse' : 'bg-purple-400'
-                      }`}></div>
-                      <span className={`text-xs ${
-                        showOnlyBooksWithSales ? 'text-purple-700 font-semibold' : 'text-purple-600'
-                      }`}>
-                        {showOnlyBooksWithSales ? 'Filtering active' : 'Click to filter'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Customers */}
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm text-orange-700 font-medium uppercase tracking-wide">Customers</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.uniqueCustomersCount}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                      <span className="text-xs text-orange-600">Unique buyers</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
+            <SalesOverviewCards 
+              stats={stats}
+              showOnlyBooksWithSales={showOnlyBooksWithSales}
+              onToggleFilter={() => setShowOnlyBooksWithSales(!showOnlyBooksWithSales)}
+            />
 
             {/* Current Month Performance */}
-            {showCurrentMonth && stats.currentMonth.total_sales > 0 && (
-              <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Current Month Performance</h3>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      isRefreshingSales ? 'bg-orange-400 animate-pulse' : 'bg-green-400 animate-pulse'
-                    }`}></div>
-                    <div className="text-right">
-                      <span className={`text-sm font-medium ${
-                        isRefreshingSales ? 'text-orange-600' : 'text-green-600'
-                      }`}>
-                        {isRefreshingSales ? 'Refreshing...' : 'Live Data'}
-                      </span>
-                      {lastSalesUpdate && !isRefreshingSales && (
-                        <div className="text-xs text-gray-500">
-                          Updated {lastSalesUpdate.toLocaleTimeString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Copies</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.total_sales}</p>
-                    <p className="text-xs text-gray-400 mt-1">Individual purchases</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Monthly Revenue</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.total_revenue.toLocaleString()} <span className="text-sm text-gray-600">MMK</span></p>
-                    <p className="text-xs text-gray-400 mt-1">Total earnings</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">New Customers</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.unique_customers}</p>
-                    <p className="text-xs text-gray-400 mt-1">First-time buyers</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Active Titles</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.currentMonth.unique_books_sold}</p>
-                    <p className="text-xs text-gray-400 mt-1">Different books sold</p>
-                  </div>
-                </div>
-              </Card>
+            {showCurrentMonth && (
+              <CurrentMonthPerformance 
+                currentMonth={stats.currentMonth}
+                isRefreshingSales={isRefreshingSales}
+                lastSalesUpdate={lastSalesUpdate}
+              />
             )}
           </div>
         )
