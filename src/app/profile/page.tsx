@@ -15,7 +15,11 @@ export default function ProfilePage() {
   const { user, profile } = useAuth()
   const router = useRouter()
   const [application, setApplication] = useState<AuthorApplication | null>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<{
+    banned_from_applying?: boolean
+    ban_reason?: string | null
+    banned_at?: string | null
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [showResubmitForm, setShowResubmitForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -230,7 +234,7 @@ export default function ProfilePage() {
                 loading={loading}
                 onResubmit={handleResubmit}
                 userRole={profile?.role}
-                userProfile={userProfile}
+                userProfile={userProfile || undefined}
               />
             </div>
 

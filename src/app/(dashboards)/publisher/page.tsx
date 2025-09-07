@@ -119,6 +119,7 @@ export default function PublisherPage() {
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([])
   const [salesData, setSalesData] = useState<PublisherSalesData[]>([])
   const [bookSalesData, setBookSalesData] = useState<BookSalesData[]>([])
+  const [publishedBooks, setPublishedBooks] = useState<{ manuscript_id: string; physical_copies_count: number }[]>([])
   const [selectedManuscript, setSelectedManuscript] = useState<Manuscript | null>(null)
   
   // Search and Filter states
@@ -134,10 +135,16 @@ export default function PublisherPage() {
   // Publishing states
   const [publishData, setPublishData] = useState({
     finalPrice: '',
-    edition: 'First Edition'
+    edition: 'First Edition',
+    physicalCopiesCount: ''
   })
   const [publishing, setPublishing] = useState(false)
   const [publishingProgress, setPublishingProgress] = useState('')
+
+  // Physical copies editing states
+  const [editingCopies, setEditingCopies] = useState<string | null>(null)
+  const [editCopiesValue, setEditCopiesValue] = useState('')
+  const [updatingCopies, setUpdatingCopies] = useState(false)
 
   // Available categories and authors for filters
   const [existingCategories, setExistingCategories] = useState<string[]>([])
@@ -404,14 +411,15 @@ export default function PublisherPage() {
         .filter(m => m.status === 'published')
         .map(m => m.id)
 
-      let existingBooks: { manuscript_id: string }[] = []
+      let existingBooks: { manuscript_id: string; physical_copies_count: number }[] = []
       if (publishedManuscriptIds.length > 0) {
         const { data: booksData } = await supabase
           .from('books')
-          .select('manuscript_id')
+          .select('manuscript_id, physical_copies_count')
           .in('manuscript_id', publishedManuscriptIds)
         
         existingBooks = booksData || []
+        setPublishedBooks(existingBooks)
       }
 
       // Filter out published manuscripts that don't have corresponding books
@@ -652,7 +660,8 @@ MyatPwint Publishing Team`
         price: parseInt(publishData.finalPrice),
         edition: publishData.edition,
         image_url: selectedManuscript.cover_image_url,
-        published_date: new Date().toISOString()
+        published_date: new Date().toISOString(),
+        physical_copies_count: publishData.physicalCopiesCount ? parseInt(publishData.physicalCopiesCount) : 0
       }
 
       setPublishingProgress('Creating book record...')
@@ -705,7 +714,7 @@ MyatPwint Publishing Team`
 
       setPublishingProgress('Complete!')
       setSelectedManuscript(null)
-      setPublishData({ finalPrice: '', edition: 'First Edition' })
+      setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
       fetchManuscripts()
       fetchSalesData() // Refresh sales data
       
@@ -746,6 +755,85 @@ MyatPwint Publishing Team`
       physicalSales: 0, 
       digitalRevenue: 0, 
       physicalRevenue: 0 
+    }
+  }
+
+  const getPhysicalCopiesCount = (manuscriptId: string): number => {
+    const bookData = publishedBooks.find(book => book.manuscript_id === manuscriptId)
+    return bookData?.physical_copies_count || 0
+  }
+
+  const startEditingCopies = (manuscriptId: string) => {
+    const currentCount = getPhysicalCopiesCount(manuscriptId)
+    setEditingCopies(manuscriptId)
+    setEditCopiesValue(currentCount.toString())
+  }
+
+  const cancelEditingCopies = () => {
+    setEditingCopies(null)
+    setEditCopiesValue('')
+  }
+
+  const updatePhysicalCopies = async (manuscriptId: string) => {
+    const newCount = parseInt(editCopiesValue)
+    const currentCount = getPhysicalCopiesCount(manuscriptId)
+    const salesData = getSalesDataForManuscript(manuscriptId)
+    const soldPhysical = salesData.physicalSales
+
+    // Validation
+    if (isNaN(newCount) || newCount < 0) {
+      alert('Please enter a valid number of copies (0 or greater)')
+      return
+    }
+
+    if (newCount < soldPhysical) {
+      alert(`Cannot reduce copies below ${soldPhysical} - that's how many have already been sold!`)
+      return
+    }
+
+    // Confirmation for decreases
+    if (newCount < currentCount) {
+      const confirmed = confirm(
+        `Are you sure you want to reduce physical copies from ${currentCount} to ${newCount}?\n\n` +
+        `This could be for damaged inventory, returns, or data correction.\n` +
+        `Sold copies: ${soldPhysical}\nNew remaining: ${newCount - soldPhysical}`
+      )
+      if (!confirmed) return
+    }
+
+    setUpdatingCopies(true)
+    try {
+      const response = await fetch('/api/books/update-physical-copies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manuscriptId, physicalCopiesCount: newCount })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to update physical copies')
+      }
+
+      // Update local state
+      setPublishedBooks(prev => 
+        prev.map(book => 
+          book.manuscript_id === manuscriptId 
+            ? { ...book, physical_copies_count: newCount }
+            : book
+        )
+      )
+
+      setEditingCopies(null)
+      setEditCopiesValue('')
+      
+      // Show success message
+      alert(`Physical copies updated successfully!\nNew count: ${newCount} copies`)
+
+    } catch (error) {
+      console.error('Error updating physical copies:', error)
+      alert(`Failed to update physical copies: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setUpdatingCopies(false)
     }
   }
 
@@ -1603,6 +1691,60 @@ MyatPwint Publishing Team`
                               </div>
                             </div>
                             
+                            {/* Physical Inventory Section - Only for books with physical copies */}
+                            {(() => {
+                              const physicalCopies = getPhysicalCopiesCount(manuscript.id)
+                              if (physicalCopies > 0 && manuscript.wants_physical) {
+                                const soldPhysical = salesData.physicalSales
+                                const remaining = physicalCopies - soldPhysical
+                                return (
+                                  <div className="mt-3">
+                                    <div className="bg-white/60 rounded-lg p-3 border border-white/80">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Physical Inventory</p>
+                                            <div className="flex items-center space-x-4 text-sm">
+                                              <span className="font-bold text-gray-900">{physicalCopies} printed</span>
+                                              <span className="text-gray-600">{soldPhysical} sold</span>
+                                              <span className={`font-medium ${remaining > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {remaining} remaining
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end space-y-1">
+                                          <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                            remaining > 10 ? 'bg-green-100 text-green-800' :
+                                            remaining > 0 ? 'bg-amber-100 text-amber-800' :
+                                            'bg-red-100 text-red-800'
+                                          }`}>
+                                            {remaining > 10 ? 'In Stock' : remaining > 0 ? 'Low Stock' : 'Out of Stock'}
+                                          </div>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation() // Prevent opening detail modal
+                                              startEditingCopies(manuscript.id)
+                                            }}
+                                            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                                            title="Edit inventory count"
+                                          >
+                                            ✏️ Edit
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              }
+                              return null
+                            })()}
+                            
                             {salesData.sales === 0 && (
                               <div className="mt-3 text-center py-2">
                                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -1704,7 +1846,7 @@ MyatPwint Publishing Team`
         isOpen={!!selectedManuscript}
         onClose={() => {
           setSelectedManuscript(null)
-          setPublishData({ finalPrice: '', edition: 'First Edition' })
+          setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
         }}
         title={`Publish: ${selectedManuscript?.title || ''}`}
         size="lg"
@@ -1744,12 +1886,32 @@ MyatPwint Publishing Team`
               </select>
             </div>
 
+            {/* Physical copies field - only show if manuscript wants physical copies */}
+            {selectedManuscript.wants_physical && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Physical Copies Count
+                </label>
+                <input
+                  type="number"
+                  value={publishData.physicalCopiesCount}
+                  onChange={(e) => setPublishData(prev => ({ ...prev, physicalCopiesCount: e.target.value }))}
+                  placeholder="Enter number of physical copies to print"
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave blank or set to 0 for digital-only publication
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <Button
                 variant="secondary"
                 onClick={() => {
                   setSelectedManuscript(null)
-                  setPublishData({ finalPrice: '', edition: 'First Edition' })
+                  setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
                 }}
                 disabled={publishing}
               >
@@ -1911,6 +2073,59 @@ MyatPwint Publishing Team`
                       {selectedDetailManuscript.wants_physical ? 'Requested' : 'Digital only'}
                     </span>
                   </div>
+                  {selectedDetailManuscript.status === 'published' && selectedDetailManuscript.wants_physical && (() => {
+                    const physicalCopies = getPhysicalCopiesCount(selectedDetailManuscript.id)
+                    const salesData = getSalesDataForManuscript(selectedDetailManuscript.id)
+                    const isEditing = editingCopies === selectedDetailManuscript.id
+                    
+                    if (physicalCopies > 0 || isEditing) {
+                      return (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Physical Copies Printed:</span>
+                          <div className="flex items-center space-x-2">
+                            {isEditing ? (
+                              <>
+                                <input
+                                  type="number"
+                                  value={editCopiesValue}
+                                  onChange={(e) => setEditCopiesValue(e.target.value)}
+                                  min={salesData.physicalSales}
+                                  className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                  disabled={updatingCopies}
+                                />
+                                <button
+                                  onClick={() => updatePhysicalCopies(selectedDetailManuscript.id)}
+                                  disabled={updatingCopies}
+                                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {updatingCopies ? '...' : '✓'}
+                                </button>
+                                <button
+                                  onClick={cancelEditingCopies}
+                                  disabled={updatingCopies}
+                                  className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium">{physicalCopies.toLocaleString()} copies</span>
+                                <button
+                                  onClick={() => startEditingCopies(selectedDetailManuscript.id)}
+                                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                                  title="Click to edit physical copies count"
+                                >
+                                  ✏️
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Status:</span>
                     <span className={`font-medium ${
@@ -2064,6 +2279,90 @@ MyatPwint Publishing Team`
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Physical Copies Edit Modal */}
+      <Modal
+        isOpen={!!editingCopies && !showDetailModal}
+        onClose={cancelEditingCopies}
+        title="Edit Physical Copies"
+        size="sm"
+      >
+        {editingCopies && (() => {
+          const manuscript = manuscripts.find(m => m.id === editingCopies)
+          const salesData = getSalesDataForManuscript(editingCopies)
+          const currentCount = getPhysicalCopiesCount(editingCopies)
+          const soldPhysical = salesData.physicalSales
+          const remaining = parseInt(editCopiesValue || '0') - soldPhysical
+
+          return (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">
+                <p><strong>Book:</strong> {manuscript?.title}</p>
+                <p><strong>Current:</strong> {currentCount.toLocaleString()} copies</p>
+                <p><strong>Sold:</strong> {soldPhysical.toLocaleString()} copies</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Physical Copies Count *
+                </label>
+                <input
+                  type="number"
+                  value={editCopiesValue}
+                  onChange={(e) => setEditCopiesValue(e.target.value)}
+                  min={soldPhysical}
+                  placeholder={`Minimum: ${soldPhysical}`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  disabled={updatingCopies}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Must be at least {soldPhysical} (number already sold)
+                </p>
+              </div>
+
+              {editCopiesValue && !isNaN(parseInt(editCopiesValue)) && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Impact Summary:</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>New total:</span>
+                      <span className="font-medium">{parseInt(editCopiesValue).toLocaleString()} copies</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Already sold:</span>
+                      <span>{soldPhysical.toLocaleString()} copies</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-1">
+                      <span>Will remain:</span>
+                      <span className={`font-medium ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {remaining.toLocaleString()} copies
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={cancelEditingCopies}
+                  disabled={updatingCopies}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={() => updatePhysicalCopies(editingCopies)}
+                  disabled={updatingCopies || !editCopiesValue || parseInt(editCopiesValue) < soldPhysical}
+                  loading={updatingCopies}
+                >
+                  {updatingCopies ? 'Updating...' : 'Update Copies'}
+                </Button>
+              </div>
+            </div>
+          )
+        })()}
       </Modal>
     </div>
   )

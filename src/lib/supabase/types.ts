@@ -67,6 +67,7 @@ export interface Database {
           edition: string
           image_url: string
           published_date: string
+          physical_copies_count: number
           created_at: string
         }
       }
