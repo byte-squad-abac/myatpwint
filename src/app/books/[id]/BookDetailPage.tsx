@@ -178,7 +178,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   }
 
   const buttonState = getButtonState()
-  // Current quantity calculation removed as unused
 
   const renderStars = (rating: number = 4.5) => {
     return (

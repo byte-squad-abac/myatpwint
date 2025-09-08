@@ -28,38 +28,14 @@ export default function BooksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [categories, setCategories] = useState<string[]>([])
-  const [purchasedBookIds, setPurchasedBookIds] = useState<string[]>([])
-
   const fetchBooks = useCallback(async () => {
     try {
       setLoading(true)
       
-      let query = supabase
+      const query = supabase
         .from('books')
         .select('*')
         .order('published_date', { ascending: false })
-
-      // If user is logged in, get their purchase history but don't exclude books
-      // (Users should be able to see books they've purchased to buy different formats)
-      if (user) {
-        const { data: userPurchases } = await supabase
-          .from('purchases')
-          .select('book_id, delivery_type')
-          .eq('user_id', user.id)
-          .eq('status', 'completed')
-
-        if (userPurchases && userPurchases.length > 0) {
-          // Only store book IDs where user owns DIGITAL version (to show "Already Owned" badge)
-          const digitalPurchases = userPurchases
-            .filter(purchase => purchase.delivery_type === 'digital')
-            .map(purchase => purchase.book_id)
-          setPurchasedBookIds(digitalPurchases)
-        } else {
-          setPurchasedBookIds([])
-        }
-      } else {
-        setPurchasedBookIds([])
-      }
 
       const { data, error } = await query
 
@@ -75,7 +51,7 @@ export default function BooksPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, user])
+  }, [supabase])
 
   useEffect(() => {
     fetchBooks()
