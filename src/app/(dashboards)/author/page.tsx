@@ -23,7 +23,11 @@ type BookSales = {
   book_id: string
   manuscript_id: string
   total_sales: number
+  digital_sales: number
+  physical_sales: number
   total_revenue: number
+  digital_revenue: number
+  physical_revenue: number
 }
 
 type Manuscript = {
@@ -362,7 +366,21 @@ export default function AuthorPage() {
 
   const getSalesData = (manuscriptId: string) => {
     const sale = bookSales.find(s => s.manuscript_id === manuscriptId)
-    return sale ? { sales: sale.total_sales, revenue: sale.total_revenue } : { sales: 0, revenue: 0 }
+    return sale ? { 
+      totalSales: sale.total_sales, 
+      digitalSales: sale.digital_sales,
+      physicalSales: sale.physical_sales,
+      totalRevenue: sale.total_revenue,
+      digitalRevenue: sale.digital_revenue,
+      physicalRevenue: sale.physical_revenue
+    } : { 
+      totalSales: 0, 
+      digitalSales: 0,
+      physicalSales: 0,
+      totalRevenue: 0,
+      digitalRevenue: 0,
+      physicalRevenue: 0
+    }
   }
 
   const resubmitManuscript = async (manuscript: Manuscript) => {
@@ -1156,7 +1174,7 @@ export default function AuthorPage() {
                           <div className="mt-4 pt-4 border-t border-white/40">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-gray-600">Sales Performance</span>
-                              {salesData.sales > 0 && (
+                              {salesData.totalSales > 0 && (
                                 <div className="flex items-center space-x-1">
                                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                                   <span className="text-xs text-green-600 font-medium">Active</span>
@@ -1164,7 +1182,8 @@ export default function AuthorPage() {
                               )}
                             </div>
                             
-                            <div className="mt-3 grid grid-cols-2 gap-4">
+                            <div className="mt-3 space-y-3">
+                              {/* Total Sales Summary */}
                               <div className="bg-white/60 rounded-lg p-3 border border-white/80">
                                 <div className="flex items-center space-x-2">
                                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -1172,29 +1191,50 @@ export default function AuthorPage() {
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                     </svg>
                                   </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
-                                    <p className="text-lg font-bold text-gray-900">{salesData.sales}</p>
+                                  <div className="flex-1">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Copies Sold</p>
+                                    <p className="text-lg font-bold text-gray-900">{salesData.totalSales}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
+                                    <p className="text-lg font-bold text-gray-900">{Number(salesData.totalRevenue).toLocaleString()} <span className="text-sm font-normal text-gray-600">MMK</span></p>
                                   </div>
                                 </div>
                               </div>
-                              
-                              <div className="bg-white/60 rounded-lg p-3 border border-white/80">
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                    </svg>
+
+                              {/* Digital vs Physical Breakdown */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white/40 rounded-lg p-3 border border-white/60">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-500 font-medium">Digital</p>
+                                      <p className="text-sm font-bold text-gray-900">{salesData.digitalSales}</p>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Revenue</p>
-                                    <p className="text-lg font-bold text-gray-900">{Number(salesData.revenue).toLocaleString()} <span className="text-sm font-normal text-gray-600">MMK</span></p>
+                                </div>
+                                
+                                <div className="bg-white/40 rounded-lg p-3 border border-white/60">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-6 h-6 bg-orange-100 rounded-md flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-500 font-medium">Physical</p>
+                                      <p className="text-sm font-bold text-gray-900">{salesData.physicalSales}</p>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                             
-                            {salesData.sales === 0 && (
+                            {salesData.totalSales === 0 && (
                               <div className="mt-3 text-center py-2">
                                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                                   <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1585,7 +1625,7 @@ export default function AuthorPage() {
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-bold text-gray-800 text-lg">Sales Performance</h3>
-                      {salesData.sales > 0 && (
+                      {salesData.totalSales > 0 && (
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                           <span className="text-sm text-green-600 font-medium">Active Sales</span>
@@ -1593,26 +1633,65 @@ export default function AuthorPage() {
                       )}
                     </div>
                     
-                    {salesData.sales > 0 ? (
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                            </svg>
+                    {salesData.totalSales > 0 ? (
+                      <div className="space-y-6">
+                        {/* Total Summary */}
+                        <div className="grid grid-cols-2 gap-6">
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                            </div>
+                            <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.totalSales}</p>
+                            <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">Total Copies</p>
                           </div>
-                          <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.sales}</p>
-                          <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">Copies Sold</p>
+                          
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                              </svg>
+                            </div>
+                            <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.totalRevenue).toLocaleString()}</p>
+                            <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">MMK Revenue</p>
+                          </div>
                         </div>
-                        
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
+
+                        {/* Digital vs Physical Breakdown */}
+                        <div className="border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Sales Breakdown</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white/70 rounded-lg p-4 border border-blue-100">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="text-lg font-bold text-gray-900">{salesData.digitalSales}</p>
+                                  <p className="text-xs text-gray-600 font-medium">Digital Copies</p>
+                                  <p className="text-xs text-gray-500">{Number(salesData.digitalRevenue).toLocaleString()} MMK</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-white/70 rounded-lg p-4 border border-blue-100">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="text-lg font-bold text-gray-900">{salesData.physicalSales}</p>
+                                  <p className="text-xs text-gray-600 font-medium">Physical Copies</p>
+                                  <p className="text-xs text-gray-500">{Number(salesData.physicalRevenue).toLocaleString()} MMK</p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
-                          <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">MMK Revenue</p>
                         </div>
                       </div>
                     ) : (
