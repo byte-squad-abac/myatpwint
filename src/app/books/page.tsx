@@ -39,18 +39,21 @@ export default function BooksPage() {
         .select('*')
         .order('published_date', { ascending: false })
 
-      // If user is logged in, exclude books they have already purchased
+      // If user is logged in, get their purchase history but don't exclude books
+      // (Users should be able to see books they've purchased to buy different formats)
       if (user) {
         const { data: userPurchases } = await supabase
           .from('purchases')
-          .select('book_id')
+          .select('book_id, delivery_type')
           .eq('user_id', user.id)
           .eq('status', 'completed')
 
         if (userPurchases && userPurchases.length > 0) {
-          const purchasedIds = userPurchases.map(purchase => purchase.book_id)
-          setPurchasedBookIds(purchasedIds)
-          query = query.not('id', 'in', `(${purchasedIds.join(',')})`)
+          // Only store book IDs where user owns DIGITAL version (to show "Already Owned" badge)
+          const digitalPurchases = userPurchases
+            .filter(purchase => purchase.delivery_type === 'digital')
+            .map(purchase => purchase.book_id)
+          setPurchasedBookIds(digitalPurchases)
         } else {
           setPurchasedBookIds([])
         }
@@ -89,15 +92,11 @@ export default function BooksPage() {
     return matchesSearch && matchesCategory
   })
 
-  // Filter out purchased books from search results if user is logged in
+  // Keep all search results - don't filter based on purchases
+  // (purchasedBookIds now only contains digital purchases for badge display)
   const filteredSearchResults = useMemo(() => {
-    if (!hasActiveSearch || !searchResults || !user || purchasedBookIds.length === 0) {
-      return searchResults
-    }
-    
-    // Filter out books that the user has already purchased
-    return searchResults.filter(book => !purchasedBookIds.includes(book.id))
-  }, [hasActiveSearch, searchResults, user, purchasedBookIds])
+    return searchResults
+  }, [searchResults])
 
   // Use search results if there's an active search, otherwise show filtered books
   const displayBooks = hasActiveSearch && filteredSearchResults !== null ? filteredSearchResults : filteredBooks

@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate input
-    const copiesCount = parseInt(physicalCopiesCount);
-    if (isNaN(copiesCount) || copiesCount < 0) {
+    // Validate input - this is now the number of copies to ADD
+    const copiesToAdd = parseInt(physicalCopiesCount);
+    if (isNaN(copiesToAdd) || copiesToAdd < 0) {
       return NextResponse.json(
-        { error: 'Physical copies count must be a non-negative number' },
+        { error: 'Physical copies to add must be a non-negative number' },
         { status: 400 }
       );
     }
@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const currentCopies = book.physical_copies_count || 0;
+    const newTotalCopies = currentCopies + copiesToAdd;
+
     // Get current sales data to validate against sold copies
     const { data: purchases } = await supabase
       .from('purchases')
@@ -51,22 +54,22 @@ export async function POST(request: NextRequest) {
 
     const soldPhysical = purchases?.reduce((sum, purchase) => sum + (purchase.quantity || 0), 0) || 0;
 
-    // Prevent reducing below sold copies
-    if (copiesCount < soldPhysical) {
+    // Prevent reducing below sold copies (should not happen with additions, but safety check)
+    if (newTotalCopies < soldPhysical) {
       return NextResponse.json(
         { 
           error: `Cannot reduce physical copies below ${soldPhysical}. That many copies have already been sold.`,
           soldCopies: soldPhysical,
-          requestedCount: copiesCount
+          requestedCount: newTotalCopies
         },
         { status: 400 }
       );
     }
 
-    // Update the book's physical copies count
+    // Update the book's physical copies count with the NEW TOTAL
     const { error: updateError } = await supabase
       .from('books')
-      .update({ physical_copies_count: copiesCount })
+      .update({ physical_copies_count: newTotalCopies })
       .eq('manuscript_id', manuscriptId);
 
     if (updateError) {
@@ -80,9 +83,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       manuscriptId,
-      newPhysicalCopiesCount: copiesCount,
+      newPhysicalCopiesCount: newTotalCopies,
       soldCopies: soldPhysical,
-      remainingCopies: copiesCount - soldPhysical
+      remainingCopies: newTotalCopies - soldPhysical,
+      addedCopies: copiesToAdd,
+      previousTotal: currentCopies
     });
 
   } catch (error) {

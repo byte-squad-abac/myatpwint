@@ -34,10 +34,11 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   
   const [mounted, setMounted] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('physical')
+  const [quantityInput, setQuantityInput] = useState('1')
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('digital') // Default to digital
   const [activeTab, setActiveTab] = useState<'description' | 'details' | 'reviews'>('description')
   const [isOwned, setIsOwned] = useState(false)
-  // Ownership checking state removed as unused
+  const [physicalCopiesAvailable, setPhysicalCopiesAvailable] = useState(0)
   
   const { addItem, removeItem, isInCart, updateQuantity } = useCartStore()
 
@@ -45,17 +46,52 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
     setMounted(true)
   }, [])
 
+  // Check physical copies availability and set appropriate default delivery type
+  useEffect(() => {
+    const checkPhysicalAvailability = async () => {
+      try {
+        // Use the new database function to get available copies (bypasses RLS)
+        const { data, error } = await supabase
+          .rpc('get_available_physical_copies', { book_id_param: book.id })
+
+        if (error) {
+          throw error
+        }
+
+        const availableCopies = data || 0
+        setPhysicalCopiesAvailable(availableCopies)
+        
+        // Set default delivery type based on availability
+        if (availableCopies > 0) {
+          setDeliveryType('physical') // Physical available, default to physical
+          // Reset quantity if it exceeds available copies
+          setQuantity(prev => prev > availableCopies ? availableCopies : prev)
+        } else {
+          setDeliveryType('digital') // No physical copies, force digital
+        }
+      } catch (error) {
+        console.error('❌ Error checking physical availability:', error)
+        setPhysicalCopiesAvailable(0)
+        setDeliveryType('digital')
+      }
+    }
+    
+    checkPhysicalAvailability()
+  }, [book.id, supabase])
+
   // Check if user already owns this book
   useEffect(() => {
     if (!user?.id) return
     
     const checkOwnership = async () => {
       try {
+        // Only check for digital ownership - users can buy physical books multiple times
         const { data, error } = await supabase
           .from('purchases')
           .select('id')
           .eq('user_id', user.id)
           .eq('book_id', book.id)
+          .eq('delivery_type', 'digital')
           .limit(1)
         
         if (!error && data && data.length > 0) {
@@ -69,6 +105,17 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
     checkOwnership()
   }, [user?.id, book.id, supabase])
 
+  // Reset quantity when delivery type changes to physical (to ensure it's within limits)
+  useEffect(() => {
+    if (deliveryType === 'physical' && physicalCopiesAvailable > 0) {
+      setQuantity(prev => {
+        const newQty = prev > physicalCopiesAvailable ? 1 : prev
+        setQuantityInput(newQty.toString())
+        return newQty
+      })
+    }
+  }, [deliveryType, physicalCopiesAvailable])
+
   const handleAddToCart = () => {
     if (isInCart(book.id, deliveryType)) {
       removeItem(book.id, deliveryType)
@@ -78,11 +125,40 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   }
 
   const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity >= 1) {
+    // For physical books, limit to available inventory
+    const maxQuantity = deliveryType === 'physical' ? physicalCopiesAvailable : 999
+    
+    if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity)
+      setQuantityInput(newQuantity.toString())
       if (isInCart(book.id, deliveryType)) {
         updateQuantity(book.id, deliveryType, newQuantity)
       }
+    }
+  }
+
+  const handleQuantityInputChange = (value: string) => {
+    setQuantityInput(value)
+    
+    // Only update quantity if it's a valid number
+    const numValue = parseInt(value)
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= physicalCopiesAvailable) {
+      setQuantity(numValue)
+      if (isInCart(book.id, deliveryType)) {
+        updateQuantity(book.id, deliveryType, numValue)
+      }
+    }
+  }
+
+  const handleQuantityInputBlur = () => {
+    // On blur, ensure we have a valid quantity
+    const numValue = parseInt(quantityInput)
+    if (isNaN(numValue) || numValue < 1) {
+      setQuantityInput('1')
+      setQuantity(1)
+    } else if (numValue > physicalCopiesAvailable) {
+      setQuantityInput(physicalCopiesAvailable.toString())
+      setQuantity(physicalCopiesAvailable)
     }
   }
 
@@ -207,20 +283,45 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               <div>
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Choose Type:</h3>
                 <div className="flex space-x-4">
-                  {(['physical', 'digital'] as DeliveryType[]).map(type => (
-                    <label key={type} className="flex items-center">
+                  {/* Always show digital option */}
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deliveryType"
+                      value="digital"
+                      checked={deliveryType === 'digital'}
+                      onChange={e => setDeliveryType(e.target.value as DeliveryType)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Digital
+                    </span>
+                  </label>
+                  
+                  {/* Only show physical option if copies are available */}
+                  {physicalCopiesAvailable > 0 && (
+                    <label className="flex items-center">
                       <input
                         type="radio"
                         name="deliveryType"
-                        value={type}
-                        checked={deliveryType === type}
+                        value="physical"
+                        checked={deliveryType === 'physical'}
                         onChange={e => setDeliveryType(e.target.value as DeliveryType)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700 capitalize">{type}</span>
+                      <span className="ml-2 text-sm text-gray-700">
+                        Physical ({physicalCopiesAvailable} available)
+                      </span>
                     </label>
-                  ))}
+                  )}
                 </div>
+                
+                {/* Show message when only digital is available */}
+                {physicalCopiesAvailable === 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    📱 Only digital version available - physical copies out of stock
+                  </p>
+                )}
               </div>
 
               {/* Quantity Selection for Physical Books */}
@@ -237,18 +338,24 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                     </button>
                     <input
                       type="number"
-                      value={quantity}
-                      onChange={e => handleQuantityChange(parseInt(e.target.value) || 1)}
+                      value={quantityInput}
+                      onChange={e => handleQuantityInputChange(e.target.value)}
+                      onBlur={handleQuantityInputBlur}
                       min="1"
+                      max={physicalCopiesAvailable}
                       className="w-16 text-center border border-gray-300 rounded-md py-1"
                     />
                     <button
                       onClick={() => handleQuantityChange(quantity + 1)}
-                      className="p-1 rounded-md border border-gray-300 hover:bg-gray-50"
+                      disabled={quantity >= physicalCopiesAvailable}
+                      className="p-1 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <PlusIcon className="h-4 w-4" />
                     </button>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Maximum {physicalCopiesAvailable} copies available
+                  </p>
                 </div>
               )}
 

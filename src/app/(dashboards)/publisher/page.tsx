@@ -764,9 +764,8 @@ MyatPwint Publishing Team`
   }
 
   const startEditingCopies = (manuscriptId: string) => {
-    const currentCount = getPhysicalCopiesCount(manuscriptId)
     setEditingCopies(manuscriptId)
-    setEditCopiesValue(currentCount.toString())
+    setEditCopiesValue('')  // Clear the field for adding copies
   }
 
   const cancelEditingCopies = () => {
@@ -775,14 +774,15 @@ MyatPwint Publishing Team`
   }
 
   const updatePhysicalCopies = async (manuscriptId: string) => {
-    const newCount = parseInt(editCopiesValue)
+    const addedCopies = parseInt(editCopiesValue)
     const currentCount = getPhysicalCopiesCount(manuscriptId)
+    const newCount = currentCount + addedCopies
     const salesData = getSalesDataForManuscript(manuscriptId)
     const soldPhysical = salesData.physicalSales
 
     // Validation
-    if (isNaN(newCount) || newCount < 0) {
-      alert('Please enter a valid number of copies (0 or greater)')
+    if (isNaN(addedCopies) || addedCopies < 0) {
+      alert('Please enter a valid number of copies to add (0 or greater)')
       return
     }
 
@@ -791,34 +791,44 @@ MyatPwint Publishing Team`
       return
     }
 
-    // Confirmation for decreases
-    if (newCount < currentCount) {
-      const confirmed = confirm(
-        `Are you sure you want to reduce physical copies from ${currentCount} to ${newCount}?\n\n` +
-        `This could be for damaged inventory, returns, or data correction.\n` +
-        `Sold copies: ${soldPhysical}\nNew remaining: ${newCount - soldPhysical}`
-      )
-      if (!confirmed) return
-    }
+    // Show confirmation with correct calculation
+    const confirmed = confirm(
+      `Add ${addedCopies} physical copies?\n\n` +
+      `Current inventory: ${currentCount} copies\n` +
+      `Adding: ${addedCopies} copies\n` +
+      `New total: ${newCount} copies\n` +
+      `Sold copies: ${soldPhysical}\n` +
+      `New remaining: ${newCount - soldPhysical} copies`
+    )
+    if (!confirmed) return
 
     setUpdatingCopies(true)
     try {
+      console.log('📦 Adding physical copies:', { manuscriptId, addedCopies, currentCount })
+      
       const response = await fetch('/api/books/update-physical-copies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manuscriptId, physicalCopiesCount: newCount })
+        body: JSON.stringify({ manuscriptId, physicalCopiesCount: addedCopies })
       })
 
+      // Get the response data first
+      const result = await response.json()
+      
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to update physical copies')
+        throw new Error(result.error || 'Failed to update physical copies')
       }
 
-      // Update local state
+      // Use the response data
+      const actualNewCount = result.newPhysicalCopiesCount
+      
+      console.log('✅ Physical copies update successful:', result)
+      
+      // Update local state with the actual new count from server
       setPublishedBooks(prev => 
         prev.map(book => 
           book.manuscript_id === manuscriptId 
-            ? { ...book, physical_copies_count: newCount }
+            ? { ...book, physical_copies_count: actualNewCount }
             : book
         )
       )
@@ -826,8 +836,12 @@ MyatPwint Publishing Team`
       setEditingCopies(null)
       setEditCopiesValue('')
       
-      // Show success message
-      alert(`Physical copies updated successfully!\nNew count: ${newCount} copies`)
+      // Show success message with more detail
+      alert(`✅ Physical copies updated successfully!\n\n` +
+        `Added: ${result.addedCopies} copies\n` +
+        `Previous total: ${result.previousTotal}\n` +
+        `New total: ${actualNewCount} copies\n` +
+        `Available: ${result.remainingCopies} copies`)
 
     } catch (error) {
       console.error('Error updating physical copies:', error)
@@ -2285,7 +2299,7 @@ MyatPwint Publishing Team`
       <Modal
         isOpen={!!editingCopies && !showDetailModal}
         onClose={cancelEditingCopies}
-        title="Edit Physical Copies"
+        title="Add Physical Copies"
         size="sm"
       >
         {editingCopies && (() => {
@@ -2293,7 +2307,9 @@ MyatPwint Publishing Team`
           const salesData = getSalesDataForManuscript(editingCopies)
           const currentCount = getPhysicalCopiesCount(editingCopies)
           const soldPhysical = salesData.physicalSales
-          const remaining = parseInt(editCopiesValue || '0') - soldPhysical
+          const addedCopies = parseInt(editCopiesValue || '0')
+          const newTotal = currentCount + addedCopies
+          const remaining = newTotal - soldPhysical
 
           return (
             <div className="space-y-4">
@@ -2305,19 +2321,19 @@ MyatPwint Publishing Team`
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  New Physical Copies Count *
+                  Add More Physical Copies *
                 </label>
                 <input
                   type="number"
                   value={editCopiesValue}
                   onChange={(e) => setEditCopiesValue(e.target.value)}
-                  min={soldPhysical}
-                  placeholder={`Minimum: ${soldPhysical}`}
+                  min="0"
+                  placeholder="Enter number of copies to add"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   disabled={updatingCopies}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Must be at least {soldPhysical} (number already sold)
+                  Enter the number of new copies to add to inventory (e.g., from reprinting)
                 </p>
               </div>
 
@@ -2326,8 +2342,16 @@ MyatPwint Publishing Team`
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Impact Summary:</h4>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
+                      <span>Current inventory:</span>
+                      <span>{currentCount.toLocaleString()} copies</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Adding:</span>
+                      <span className="font-medium text-green-600">+{addedCopies.toLocaleString()} copies</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span>New total:</span>
-                      <span className="font-medium">{parseInt(editCopiesValue).toLocaleString()} copies</span>
+                      <span className="font-medium">{newTotal.toLocaleString()} copies</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Already sold:</span>
@@ -2354,7 +2378,7 @@ MyatPwint Publishing Team`
                 <Button
                   variant="success"
                   onClick={() => updatePhysicalCopies(editingCopies)}
-                  disabled={updatingCopies || !editCopiesValue || parseInt(editCopiesValue) < soldPhysical}
+                  disabled={updatingCopies || !editCopiesValue || parseInt(editCopiesValue) < 0}
                   loading={updatingCopies}
                 >
                   {updatingCopies ? 'Updating...' : 'Update Copies'}

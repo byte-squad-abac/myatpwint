@@ -91,6 +91,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       }
 
       console.log(`✅ Successfully processed ${purchases.length} purchases for session ${session.id}`);
+      
+      // Note: No need to manually update physical_copies_count here
+      // Our database function get_available_physical_copies() automatically calculates:
+      // available_copies = physical_copies_count - SUM(purchases.quantity) 
+      // So just saving the purchase record is enough
+      console.log('📦 Physical purchases recorded - inventory will be calculated dynamically')
     } else {
       console.warn('⚠️ No valid purchases found in session:', session.id);
     }
@@ -120,6 +126,57 @@ async function handleCheckoutSessionAsyncPaymentSucceeded(session: Stripe.Checko
     }
 
     console.log(`✅ Updated payment status for session ${session.id}`);
+
+    // Also decrease physical inventory for async payments that just completed
+    try {
+      const { data: completedPurchases, error: fetchError } = await supabaseServiceRole
+        .from('purchases')
+        .select('*')
+        .eq('stripe_payment_intent_id', session.payment_intent as string)
+        .eq('delivery_type', 'physical')
+        .eq('status', 'completed');
+
+      if (!fetchError && completedPurchases && completedPurchases.length > 0) {
+        console.log('📦 Processing physical inventory decreases for async payment...');
+        
+        for (const purchase of completedPurchases) {
+          try {
+            // Get current physical copies count
+            const { data: currentBook, error: bookFetchError } = await supabaseServiceRole
+              .from('books')
+              .select('physical_copies_count')
+              .eq('id', purchase.book_id)
+              .single();
+
+            if (bookFetchError) {
+              console.error(`❌ Failed to fetch book ${purchase.book_id} for async inventory update:`, bookFetchError);
+              continue;
+            }
+
+            const currentCount = currentBook.physical_copies_count || 0;
+            const newCount = Math.max(0, currentCount - (purchase.quantity || 0));
+
+            // Update physical copies count
+            const { error: updateError } = await supabaseServiceRole
+              .from('books')
+              .update({ physical_copies_count: newCount })
+              .eq('id', purchase.book_id);
+
+            if (updateError) {
+              console.error(`❌ Failed to update async inventory for book ${purchase.book_id}:`, updateError);
+            } else {
+              console.log(`📦 Updated async inventory for book ${purchase.book_id}: ${currentCount} → ${newCount} (sold ${purchase.quantity})`);
+            }
+
+          } catch (inventoryError) {
+            console.error(`❌ Async inventory update error for book ${purchase.book_id}:`, inventoryError);
+          }
+        }
+      }
+    } catch (asyncInventoryError) {
+      console.error('❌ Error processing async inventory updates:', asyncInventoryError);
+      // Don't throw - this is supplementary functionality
+    }
 
   } catch (error) {
     console.error('Error handling async payment succeeded:', error);
