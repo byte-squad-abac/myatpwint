@@ -923,7 +923,7 @@ export default function AuthorPage() {
             variant={showFilters ? 'error' : 'primary'}
             onClick={() => setShowFilters(!showFilters)}
           >
-            {showFilters ? '✕ Hide Filters' : '🔍 Show Filters & Search'}
+            {showFilters ? 'Hide Filters' : 'Show Filters & Search'}
             {getActiveFiltersCount() > 0 && (
               <span className="ml-2 px-2 py-1 bg-white/30 rounded-full text-xs">
                 {getActiveFiltersCount()}
@@ -1001,7 +1001,7 @@ export default function AuthorPage() {
                       className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                     />
                     <span className="text-sm font-medium text-gray-700">
-                      📦 Physical books only
+                      Physical books only
                     </span>
                   </label>
                   
@@ -1013,7 +1013,7 @@ export default function AuthorPage() {
                       className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                     />
                     <span className="text-sm font-medium text-gray-700">
-                      💬 Unread messages only
+                      Unread messages only
                     </span>
                   </label>
                 </div>
@@ -1464,9 +1464,9 @@ export default function AuthorPage() {
               <div className="border-l-4 border-blue-500 pl-4">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900">
-                    {selectedFeedbackManuscript.status === 'rejected' ? '❌ Latest Rejection' :
-                     selectedFeedbackManuscript.status === 'approved' ? '✅ Approval' :
-                     selectedFeedbackManuscript.status === 'published' ? '✅ Published' : '📝 Latest Feedback'}
+                    {selectedFeedbackManuscript.status === 'rejected' ? 'Latest Rejection' :
+                     selectedFeedbackManuscript.status === 'approved' ? 'Approval' :
+                     selectedFeedbackManuscript.status === 'published' ? 'Published' : 'Latest Feedback'}
                   </h4>
                   <span className="text-sm text-gray-500">
                     {selectedFeedbackManuscript.reviewed_at ? 
@@ -1483,7 +1483,7 @@ export default function AuthorPage() {
                 {selectedFeedbackManuscript.status === 'rejected' && (
                   <div className="mt-3">
                     <p className="text-sm text-orange-600 font-medium">
-                      💡 You can edit and resubmit this manuscript
+                      Tip: You can edit and resubmit this manuscript
                     </p>
                   </div>
                 )}
@@ -1494,7 +1494,7 @@ export default function AuthorPage() {
             {selectedFeedbackManuscript.feedback_history && selectedFeedbackManuscript.feedback_history.length > 0 && (
               <div>
                 <h4 className="font-medium text-gray-900 mb-3">
-                  📚 Previous Feedback History ({selectedFeedbackManuscript.feedback_history.length})
+                  Previous Feedback History ({selectedFeedbackManuscript.feedback_history.length})
                 </h4>
                 <div className="space-y-4">
                   {selectedFeedbackManuscript.feedback_history
@@ -1504,8 +1504,8 @@ export default function AuthorPage() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <span>
-                            {feedback.action === 'rejected' ? '❌' :
-                             feedback.action === 'approved' ? '✅' : '📝'}
+                            {feedback.action === 'rejected' ? 'REJECTED' :
+                             feedback.action === 'approved' ? 'APPROVED' : 'REVIEW'}
                           </span>
                           <span className="font-medium text-gray-900">
                             {feedback.action === 'rejected' ? 'Rejected' :
@@ -1534,7 +1534,7 @@ export default function AuthorPage() {
 
             {/* Manuscript Metadata */}
             <div className="bg-blue-50 p-4 rounded-md">
-              <h4 className="font-medium text-blue-900 mb-2">📋 Manuscript Details</h4>
+              <h4 className="font-medium text-blue-900 mb-2">Manuscript Details</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium text-blue-800">Status:</span>
@@ -1561,7 +1561,7 @@ export default function AuthorPage() {
             {!selectedFeedbackManuscript.editor_feedback && 
              (!selectedFeedbackManuscript.feedback_history || selectedFeedbackManuscript.feedback_history.length === 0) && (
               <div className="text-center py-8">
-                <div className="text-gray-400 text-5xl mb-4">📝</div>
+                <div className="text-gray-400 text-5xl mb-4">MS</div>
                 <p className="text-gray-500">
                   No feedback available yet. Your manuscript is {selectedFeedbackManuscript.status === 'submitted' ? 'awaiting review' : selectedFeedbackManuscript.status}.
                 </p>

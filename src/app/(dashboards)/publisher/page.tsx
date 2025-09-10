@@ -877,7 +877,7 @@ MyatPwint Publishing Team`
 
     setUpdatingCopies(true)
     try {
-      console.log('📦 Adding physical copies:', { manuscriptId, addedCopies, currentCount })
+      console.log('Adding physical copies:', { manuscriptId, addedCopies, currentCount })
       
       const response = await fetch('/api/books/update-physical-copies', {
         method: 'POST',
@@ -895,7 +895,7 @@ MyatPwint Publishing Team`
       // Use the response data
       const actualNewCount = result.newPhysicalCopiesCount
       
-      console.log('✅ Physical copies update successful:', result)
+      console.log('Physical copies update successful:', result)
       
       // Update local state with the actual new count from server
       setPublishedBooks(prev => 
@@ -910,7 +910,7 @@ MyatPwint Publishing Team`
       setEditCopiesValue('')
       
       // Show success message with more detail
-      alert(`✅ Physical copies updated successfully!\n\n` +
+      alert(`Physical copies updated successfully!\n\n` +
         `Added: ${result.addedCopies} copies\n` +
         `Previous total: ${result.previousTotal}\n` +
         `New total: ${actualNewCount} copies\n` +
@@ -1020,7 +1020,7 @@ MyatPwint Publishing Team`
             onClick={() => router.push('/publisher/authors')}
             variant="outline"
           >
-            📝 Author Management
+            Author Management
           </Button>
         </div>
       </div>
@@ -1355,11 +1355,11 @@ MyatPwint Publishing Team`
               <p className="text-gray-600 mb-4">Top performers and analytics will appear here once you have book sales.</p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h5 className="font-medium text-blue-900 mb-2">📚 Top Books</h5>
+                  <h5 className="font-medium text-blue-900 mb-2">Top Books</h5>
                   <p className="text-sm text-blue-700">Track your highest earning publications and bestsellers</p>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h5 className="font-medium text-green-900 mb-2">✍️ Top Authors</h5>
+                  <h5 className="font-medium text-green-900 mb-2">Top Authors</h5>
                   <p className="text-sm text-green-700">Identify your most profitable and successful authors</p>
                 </div>
               </div>
@@ -1374,7 +1374,7 @@ MyatPwint Publishing Team`
           variant={showFilters ? 'error' : 'primary'}
           onClick={() => setShowFilters(!showFilters)}
         >
-          {showFilters ? '✕ Hide Filters' : '🔍 Show Filters & Search'}
+          {showFilters ? 'Hide Filters' : 'Show Filters & Search'}
           {getActiveFiltersCount() > 0 && (
             <span className="ml-2 px-2 py-1 bg-white/30 rounded-full text-xs">
               {getActiveFiltersCount()}
@@ -1474,7 +1474,7 @@ MyatPwint Publishing Team`
                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                   />
                   <span className="text-sm font-medium text-gray-700">
-                    📦 Physical books only
+                    Physical books only
                   </span>
                 </label>
                 
@@ -1486,7 +1486,7 @@ MyatPwint Publishing Team`
                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                   />
                   <span className="text-sm font-medium text-gray-700">
-                    💬 Unread messages only
+                    Unread messages only
                   </span>
                 </label>
               </div>
@@ -1590,7 +1590,7 @@ MyatPwint Publishing Team`
                   accent: 'bg-blue-500',
                   text: 'text-blue-700',
                   iconBg: 'bg-blue-500',
-                  iconSymbol: '📚'
+                  iconSymbol: 'P'
                 },
                 approved: { 
                   bg: 'bg-gradient-to-br from-green-50 to-green-100', 
@@ -1598,7 +1598,7 @@ MyatPwint Publishing Team`
                   accent: 'bg-green-500',
                   text: 'text-green-700',
                   iconBg: 'bg-green-500',
-                  iconSymbol: '✅'
+                  iconSymbol: 'A'
                 }
               }
               const config = statusConfig[manuscript.status as keyof typeof statusConfig] || {
@@ -1607,7 +1607,7 @@ MyatPwint Publishing Team`
                 accent: 'bg-gray-500',
                 text: 'text-gray-700',
                 iconBg: 'bg-gray-500',
-                iconSymbol: '📄'
+                iconSymbol: 'M'
               }
               
               return (
@@ -1851,7 +1851,7 @@ MyatPwint Publishing Team`
                                             className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
                                             title="Edit inventory count"
                                           >
-                                            ✏️ Edit
+                                            Edit
                                           </button>
                                         </div>
                                       </div>
@@ -2257,7 +2257,7 @@ MyatPwint Publishing Team`
                                   disabled={updatingCopies}
                                   className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
                                 >
-                                  ✕
+                                  ×
                                 </button>
                               </>
                             ) : (
@@ -2268,7 +2268,7 @@ MyatPwint Publishing Team`
                                   className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
                                   title="Click to edit physical copies count"
                                 >
-                                  ✏️
+                                  Edit
                                 </button>
                               </>
                             )}
