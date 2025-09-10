@@ -600,9 +600,14 @@ export default function PublisherPage() {
       filtered = filtered.filter(m => m.author_id === filterAuthor)
     }
 
-    // Physical books only filter
+    // Physical books only filter - show only published books that actually have physical copies
     if (filterPhysicalOnly) {
-      filtered = filtered.filter(m => m.wants_physical === true)
+      filtered = filtered.filter(m => {
+        if (m.status !== 'published') return false
+        // Check if the published book has physical copies
+        const bookData = publishedBooks.find(book => book.manuscript_id === m.id)
+        return bookData && bookData.physical_copies_count > 0
+      })
     }
 
     // Date range filter
