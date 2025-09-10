@@ -125,6 +125,7 @@ export default function EditorPage() {
       console.error('Error in fetchManuscripts:', error)
       setManuscripts([])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]) // fetchUnreadCounts is stable and doesn't need to be in dependencies
 
   const fetchUnreadCounts = useCallback(async (manuscriptIds: string[]) => {
@@ -238,7 +239,7 @@ export default function EditorPage() {
         .single()
 
       // Create new feedback history entry
-      const newFeedbackEntry = {
+      const newFeedbackEntry: FeedbackHistory = {
         feedback: feedback.trim() || 'No feedback provided',
         editor_id: user.id,
         editor_name: editorData?.name || 'Unknown Editor',
@@ -252,15 +253,8 @@ export default function EditorPage() {
         newFeedbackEntry
       ]
 
-      // If approving, get the publisher ID to auto-assign
-      let updateData: any = {
-        status: approved ? 'approved' : 'rejected',
-        editor_feedback: feedback.trim() || null,
-        reviewed_at: new Date().toISOString(),
-        feedback_history: updatedFeedbackHistory
-      }
-
-      // Auto-assign to publisher when approving (since there's only one publisher)
+      // Get publisher ID if approving
+      let publisherId: string | undefined = undefined
       if (approved) {
         const { data: publisherData } = await supabase
           .from('profiles')
@@ -269,8 +263,23 @@ export default function EditorPage() {
           .single()
         
         if (publisherData) {
-          updateData.publisher_id = publisherData.id
+          publisherId = publisherData.id
         }
+      }
+
+      // Create update data object
+      const updateData: {
+        status: string
+        editor_feedback: string | null
+        reviewed_at: string
+        feedback_history: FeedbackHistory[]
+        publisher_id?: string
+      } = {
+        status: approved ? 'approved' : 'rejected',
+        editor_feedback: feedback.trim() || null,
+        reviewed_at: new Date().toISOString(),
+        feedback_history: updatedFeedbackHistory,
+        ...(publisherId && { publisher_id: publisherId })
       }
 
       const { error } = await supabase

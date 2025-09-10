@@ -9,7 +9,6 @@ import { APPLICATION_STATUSES } from '@/types'
 interface ApplicationStatusProps {
   application: AuthorApplication | null
   loading?: boolean
-  onResubmit?: () => void
   userRole?: string
   userProfile?: {
     banned_from_applying?: boolean
@@ -42,7 +41,6 @@ const STATUS_CONFIG = {
 export default function ApplicationStatus({ 
   application, 
   loading = false,
-  onResubmit,
   userRole,
   userProfile
 }: ApplicationStatusProps) {

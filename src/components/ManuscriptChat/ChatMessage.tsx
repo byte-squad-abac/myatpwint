@@ -16,10 +16,9 @@ interface ChatMessageProps {
     }
   }
   isOwnMessage: boolean
-  currentUserRole?: string
 }
 
-export function ChatMessage({ message, isOwnMessage, currentUserRole }: ChatMessageProps) {
+export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
   const getSenderName = () => {
     if (isOwnMessage) return 'You'
     return message.sender?.name || 'Unknown User'

@@ -20,6 +20,7 @@ interface ChatMessage {
 
 interface UseChatRealtimeReturn {
   // No more unread count functionality
+  isReady: boolean
 }
 
 export function useChatRealtime(
@@ -66,10 +67,9 @@ export function useChatRealtime(
     if (!enabled || !chatType || !addMessage) return
     
     let pollInterval: NodeJS.Timeout
-    let pollTimeout: NodeJS.Timeout
     
     // Start polling after 3 seconds (if real-time hasn't kicked in)
-    pollTimeout = setTimeout(() => {
+    const pollTimeout = setTimeout(() => {
       pollInterval = setInterval(pollForNewMessages, 3000)
       
       // Stop polling after 30 seconds (real-time should be working by then)
@@ -92,7 +92,8 @@ export function useChatRealtime(
 
     setIsRealtimeReady(false)
     
-    let channel: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let channel: any // Supabase channel type
 
     const setupRealtimeSubscription = async () => {
       // Force a fresh Supabase connection by removing any existing channels first
@@ -185,6 +186,6 @@ export function useChatRealtime(
   }, [manuscriptId, chatType, enabled, addMessage])
 
   return {
-    // No more unread count functionality
+    isReady: isRealtimeReady
   }
 }

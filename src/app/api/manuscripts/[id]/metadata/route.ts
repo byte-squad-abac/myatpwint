@@ -3,11 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
-    const manuscriptId = params.id
+    const { id } = await params
+    const manuscriptId = id
 
     // Get user from session
     const { data: { user }, error: authError } = await supabase.auth.getUser()

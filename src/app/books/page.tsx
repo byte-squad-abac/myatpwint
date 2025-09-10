@@ -9,7 +9,6 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 
 // Hooks
-import { useAuth } from '@/hooks/useAuth'
 
 // Types
 import type { Book } from '@/types'
@@ -21,7 +20,6 @@ import { SemanticSearch, useSearchContext } from '@/components'
 export default function BooksPage() {
   const router = useRouter()
   const supabase = createClient()
-  const { user } = useAuth()
   const { searchResults, hasActiveSearch, setSearchResults } = useSearchContext()
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)

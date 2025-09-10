@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase/client'
@@ -40,15 +40,7 @@ function FirstManuscriptUploadContent() {
     manuscript_url: ''
   })
 
-  useEffect(() => {
-    if (applicationId) {
-      fetchApplication()
-    } else {
-      setLoading(false)
-    }
-  }, [applicationId])
-
-  const fetchApplication = async () => {
+  const fetchApplication = useCallback(async () => {
     try {
       const response = await fetch(`/api/author-applications/${applicationId}`)
       if (response.ok) {
@@ -68,7 +60,15 @@ function FirstManuscriptUploadContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [applicationId, router])
+
+  useEffect(() => {
+    if (applicationId) {
+      fetchApplication()
+    } else {
+      setLoading(false)
+    }
+  }, [applicationId, fetchApplication])
 
   const handleFileUpload = async (file: File, type: 'cover' | 'manuscript') => {
     setUploadingFiles(prev => ({ ...prev, [type]: true }))

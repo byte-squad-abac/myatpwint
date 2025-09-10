@@ -483,7 +483,8 @@ export default function PublisherPage() {
       console.error('Error in fetchManuscripts:', error)
       setManuscripts([])
     }
-  }, [user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]) // fetchUnreadCounts is stable and doesn't need to be in dependencies
 
   const fetchUnreadCounts = useCallback(async (manuscriptIds: string[]) => {
     if (!user || manuscriptIds.length === 0) {

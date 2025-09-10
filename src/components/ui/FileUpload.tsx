@@ -41,7 +41,7 @@ export default function FileUpload({
     }
   }, [])
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (maxSize && file.size > maxSize) {
       return `File size must be less than ${(maxSize / (1024 * 1024)).toFixed(1)}MB`
     }
@@ -61,7 +61,7 @@ export default function FileUpload({
     }
     
     return null
-  }
+  }, [maxSize, accept])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -81,7 +81,7 @@ export default function FileUpload({
       }
       onFileSelect?.(file)
     }
-  }, [disabled, onFileSelect, maxSize, accept])
+  }, [disabled, onFileSelect, validateFile])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalError('')

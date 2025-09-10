@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase/client'
@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
-import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import type { AuthorApplicationWithProfile } from '@/types'
 
 type AuthorWithDetails = {
@@ -43,6 +42,17 @@ export default function PublisherAuthorsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      await Promise.all([fetchApplications(), fetchAuthors()])
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     // Don't check auth while still loading
     if (authLoading) return
@@ -65,18 +75,7 @@ export default function PublisherAuthorsPage() {
     if (user && (!profile || profile.role === 'publisher')) {
       fetchData()
     }
-  }, [user, profile, router, authLoading])
-
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      await Promise.all([fetchApplications(), fetchAuthors()])
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [user, profile, router, authLoading, fetchData])
 
   const fetchApplications = async () => {
     try {

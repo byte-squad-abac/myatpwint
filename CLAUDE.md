@@ -117,12 +117,27 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Multiple format support (PDF, EPUB planned)
 
 **6. Role-Based Dashboards**
-- Author dashboard: manuscript management and submissions
-- Editor dashboard: review workflow and collaboration tools  
+- Author dashboard: manuscript management and submissions with advanced filtering
+- Editor dashboard: review workflow and collaboration tools with status-aware filtering
 - Publisher dashboard: publication management, author applications, and analytics
 - Library dashboard: user's purchased books and reading progress
 
-**7. Realtime Communication System**
+**7. Dashboard Filtering System**
+- **Physical Books Filter**: Filter manuscripts/books by physical availability across all dashboards
+- **Unread Messages Filter**: Show only manuscripts with unread chat messages, with status-aware logic:
+  - Author Dashboard: Shows all manuscripts with unread messages
+  - Editor Dashboard: Only shows submitted/under_review/rejected manuscripts with unread messages 
+  - Publisher Dashboard: Shows all manuscripts with unread messages
+- **Bulk Unread Count API**: Efficient endpoint (`/api/manuscripts/bulk-unread-counts`) supporting all user roles
+- **Real-time Updates**: Unread counts update automatically via existing ChatIcon components
+
+**8. Physical Inventory Management**
+- **Low Stock Alerts**: Configurable threshold-based email notifications when physical book stock runs low
+- **Automated Monitoring**: Triggered automatically after physical book purchases via Stripe webhook
+- **Publisher Controls**: Publishers set low stock thresholds during book publishing process
+- **Email Integration**: Uses Resend API for professional low stock alert emails
+
+**9. Realtime Communication System**
 - Integrated chat system between authors, editors, and publishers
 - Context-aware chat availability based on manuscript status
 - Real-time message delivery with read status tracking
@@ -194,6 +209,9 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 
 ### Recent Major Changes
 
+- **Unread Messages Filter**: Added unread messages filter to all dashboards (author, editor, publisher) with status-aware filtering and bulk unread count API
+- **Physical Inventory Management**: Implemented low stock email alerts with configurable thresholds and automated notifications via Stripe webhook integration
+- **Dashboard Filtering Enhancements**: Added physical books filters across all dashboards with proper UI alignment and category filtering improvements
 - **Realtime Chat System**: Implemented comprehensive chat system for author↔editor and author↔publisher communication
 - **Permanent Ban System**: Rejected author applications result in permanent account bans from future applications
 - **Enhanced Security**: Removed role selection from registration (users default to 'user' role)

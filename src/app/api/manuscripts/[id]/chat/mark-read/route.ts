@@ -35,8 +35,10 @@ export async function POST(
 
     // Validate user can access this chat type
     const canAccess = (
-      (chat_type === 'author_editor' && availability.can_chat_author_editor) ||
-      (chat_type === 'author_publisher' && availability.can_chat_author_publisher)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (chat_type === 'author_editor' && (availability as any).can_chat_author_editor) ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (chat_type === 'author_publisher' && (availability as any).can_chat_author_publisher)
     )
 
     if (!canAccess) {

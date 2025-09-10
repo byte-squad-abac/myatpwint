@@ -85,7 +85,7 @@ export function ChatIcon({
         schema: 'public',
         table: 'chat_read_status',
         filter: `manuscript_id=eq.${manuscriptId}`
-      }, (payload) => {
+      }, () => {
         fetchUnreadCount()
       })
       .on('postgres_changes', {

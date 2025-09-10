@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase/client'
@@ -24,29 +24,7 @@ export default function ProfilePage() {
   const [showResubmitForm, setShowResubmitForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      Promise.all([fetchApplication(), fetchUserProfile()])
-    }
-  }, [user])
-
-  const fetchUserProfile = async () => {
-    if (!user) return
-    
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('banned_from_applying, ban_reason, banned_at')
-        .eq('id', user.id)
-        .single()
-      
-      setUserProfile(profileData)
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error)
-    }
-  }
-
-  const fetchApplication = async () => {
+  const fetchApplication = useCallback(async () => {
     try {
       console.log('Fetching user application...')
       const response = await fetch('/api/author-applications')
@@ -72,11 +50,31 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const handleResubmit = () => {
-    setShowResubmitForm(true)
-  }
+  const fetchUserProfile = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('banned_from_applying, ban_reason, banned_at')
+        .eq('id', user.id)
+        .single()
+      
+      setUserProfile(profileData)
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      Promise.all([fetchApplication(), fetchUserProfile()])
+    }
+  }, [user, fetchApplication, fetchUserProfile])
+
+
 
   const handleResubmitSubmit = async (formData: AuthorApplicationFormData) => {
     if (!application) return
@@ -232,7 +230,6 @@ export default function ProfilePage() {
               <ApplicationStatus
                 application={application}
                 loading={loading}
-                onResubmit={handleResubmit}
                 userRole={profile?.role}
                 userProfile={userProfile || undefined}
               />

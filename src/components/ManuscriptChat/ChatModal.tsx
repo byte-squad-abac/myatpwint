@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -219,7 +219,6 @@ export function ChatModal({
               key={message.id}
               message={message}
               isOwnMessage={message.sender_id === user?.id}
-              currentUserRole={profile?.role}
             />
           ))}
           
