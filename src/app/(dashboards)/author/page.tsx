@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import { MetadataEditor } from '@/components/MetadataEditor'
+import { ChatModal, ChatIcon } from '@/components/ManuscriptChat'
 
 type FeedbackHistory = {
   feedback: string
@@ -47,6 +48,9 @@ type Manuscript = {
   submission_count: number
   feedback_history: FeedbackHistory[]
   last_resubmitted_at: string | null
+  author_id: string
+  editor_id: string | null
+  publisher_id: string | null
 }
 
 export default function AuthorPage() {
@@ -97,6 +101,10 @@ export default function AuthorPage() {
   // Metadata editor modal
   const [showMetadataEditor, setShowMetadataEditor] = useState(false)
   const [selectedMetadataManuscript, setSelectedMetadataManuscript] = useState<Manuscript | null>(null)
+
+  // Chat modal
+  const [showChatModal, setShowChatModal] = useState(false)
+  const [selectedChatManuscript, setSelectedChatManuscript] = useState<Manuscript | null>(null)
 
   const fetchManuscripts = useCallback(async () => {
     if (!user) return
@@ -1269,6 +1277,22 @@ export default function AuthorPage() {
                           <span>View DOCX</span>
                         </a>
 
+                        {/* Chat button - show for manuscripts where chat is available */}
+                        {['submitted', 'under_review', 'rejected', 'approved', 'published'].includes(manuscript.status) && (
+                          <ChatIcon
+                            manuscriptId={manuscript.id}
+                            manuscriptStatus={manuscript.status}
+                            authorId={manuscript.author_id}
+                            editorId={manuscript.editor_id}
+                            publisherId={manuscript.publisher_id}
+                            onClick={() => {
+                              setSelectedChatManuscript(manuscript)
+                              setShowChatModal(true)
+                            }}
+                            className="text-sm"
+                          />
+                        )}
+
                         {/* Status-specific actions */}
                         {manuscript.status === 'rejected' && (
                           <>
@@ -1804,6 +1828,23 @@ export default function AuthorPage() {
             fetchManuscripts()
             fetchBookSales()
           }}
+        />
+      )}
+
+      {/* Chat Modal */}
+      {showChatModal && selectedChatManuscript && (
+        <ChatModal
+          isOpen={showChatModal}
+          onClose={() => {
+            setShowChatModal(false)
+            setSelectedChatManuscript(null)
+          }}
+          manuscriptId={selectedChatManuscript.id}
+          manuscriptStatus={selectedChatManuscript.status}
+          manuscriptTitle={selectedChatManuscript.title}
+          authorId={selectedChatManuscript.author_id}
+          editorId={selectedChatManuscript.editor_id}
+          publisherId={selectedChatManuscript.publisher_id}
         />
       )}
     </div>

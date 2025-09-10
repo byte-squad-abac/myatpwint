@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import { ChatModal, ChatIcon } from '@/components/ManuscriptChat'
 
 type FeedbackHistory = {
   feedback: string
@@ -66,6 +67,10 @@ export default function EditorPage() {
   
   // Feedback modal
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  
+  // Chat modal
+  const [showChatModal, setShowChatModal] = useState(false)
+  const [selectedChatManuscript, setSelectedChatManuscript] = useState<Manuscript | null>(null)
   const [selectedFeedbackManuscript, setSelectedFeedbackManuscript] = useState<Manuscript | null>(null)
 
   // Detail modal
@@ -210,14 +215,30 @@ export default function EditorPage() {
         newFeedbackEntry
       ]
 
+      // If approving, get the publisher ID to auto-assign
+      let updateData: any = {
+        status: approved ? 'approved' : 'rejected',
+        editor_feedback: feedback.trim() || null,
+        reviewed_at: new Date().toISOString(),
+        feedback_history: updatedFeedbackHistory
+      }
+
+      // Auto-assign to publisher when approving (since there's only one publisher)
+      if (approved) {
+        const { data: publisherData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'publisher')
+          .single()
+        
+        if (publisherData) {
+          updateData.publisher_id = publisherData.id
+        }
+      }
+
       const { error } = await supabase
         .from('manuscripts')
-        .update({
-          status: approved ? 'approved' : 'rejected',
-          editor_feedback: feedback.trim() || null,
-          reviewed_at: new Date().toISOString(),
-          feedback_history: updatedFeedbackHistory
-        })
+        .update(updateData)
         .eq('id', selectedManuscript.id)
 
       if (error) throw error
@@ -815,6 +836,22 @@ export default function EditorPage() {
                           <span>View DOCX</span>
                         </a>
 
+                        {/* Chat button - show for manuscripts where editor can chat with author */}
+                        {['submitted', 'under_review', 'rejected'].includes(manuscript.status) && (
+                          <ChatIcon
+                            manuscriptId={manuscript.id}
+                            manuscriptStatus={manuscript.status}
+                            authorId={manuscript.author_id}
+                            editorId={manuscript.editor_id}
+                            publisherId={null}
+                            onClick={() => {
+                              setSelectedChatManuscript(manuscript)
+                              setShowChatModal(true)
+                            }}
+                            className="text-sm"
+                          />
+                        )}
+
                         {/* Status-specific actions */}
                         {(manuscript.status === 'submitted' || manuscript.status === 'under_review') && (
                           <Button
@@ -1312,6 +1349,23 @@ export default function EditorPage() {
           </div>
         )}
       </Modal>
+
+      {/* Chat Modal */}
+      {showChatModal && selectedChatManuscript && (
+        <ChatModal
+          isOpen={showChatModal}
+          onClose={() => {
+            setShowChatModal(false)
+            setSelectedChatManuscript(null)
+          }}
+          manuscriptId={selectedChatManuscript.id}
+          manuscriptStatus={selectedChatManuscript.status}
+          manuscriptTitle={selectedChatManuscript.title}
+          authorId={selectedChatManuscript.author_id}
+          editorId={selectedChatManuscript.editor_id}
+          publisherId={null}
+        />
+      )}
     </div>
   )
 }

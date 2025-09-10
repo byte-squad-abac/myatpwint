@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import SalesOverviewCards from '@/components/publisher/SalesOverviewCards'
 import CurrentMonthPerformance from '@/components/publisher/CurrentMonthPerformance'
+import { ChatModal, ChatIcon } from '@/components/ManuscriptChat'
 
 type FeedbackHistory = {
   feedback: string
@@ -153,6 +154,10 @@ export default function PublisherPage() {
   // Detail modal state
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedDetailManuscript, setSelectedDetailManuscript] = useState<Manuscript | null>(null)
+  
+  // Chat modal state
+  const [showChatModal, setShowChatModal] = useState(false)
+  const [selectedChatManuscript, setSelectedChatManuscript] = useState<Manuscript | null>(null)
   
   // Sales filter state
   const [showOnlyBooksWithSales, setShowOnlyBooksWithSales] = useState(false)
@@ -860,7 +865,8 @@ MyatPwint Publishing Team`
       uniqueCustomersCount: Math.max(acc.uniqueCustomersCount, month.unique_customers)
     }), { totalSales: 0, totalRevenue: 0, digitalSales: 0, physicalSales: 0, uniqueCustomersCount: 0 })
     
-    // Count unique books from bookSalesData (books that actually have sales)
+    // Count unique book
+    // s from bookSalesData (books that actually have sales)
     const uniqueBooksCount = bookSalesData.filter(book => book.total_sales > 0).length
     
     const currentMonth = salesData[0] || { 
@@ -1794,6 +1800,22 @@ MyatPwint Publishing Team`
                           <span>View DOCX</span>
                         </a>
 
+                        {/* Chat button for approved and published manuscripts */}
+                        {['approved', 'published'].includes(manuscript.status) && (
+                          <ChatIcon
+                            manuscriptId={manuscript.id}
+                            manuscriptStatus={manuscript.status}
+                            authorId={manuscript.author_id}
+                            editorId={manuscript.editor_id}
+                            publisherId={manuscript.publisher_id}
+                            onClick={() => {
+                              setSelectedChatManuscript(manuscript)
+                              setShowChatModal(true)
+                            }}
+                            className="text-sm"
+                          />
+                        )}
+
                         {/* View/Edit Button */}
                         <Button
                           size="sm"
@@ -2388,6 +2410,23 @@ MyatPwint Publishing Team`
           )
         })()}
       </Modal>
+
+      {/* Chat Modal */}
+      {showChatModal && selectedChatManuscript && (
+        <ChatModal
+          isOpen={showChatModal}
+          onClose={() => {
+            setShowChatModal(false)
+            setSelectedChatManuscript(null)
+          }}
+          manuscriptId={selectedChatManuscript.id}
+          manuscriptStatus={selectedChatManuscript.status}
+          manuscriptTitle={selectedChatManuscript.title}
+          authorId={selectedChatManuscript.author_id}
+          editorId={selectedChatManuscript.editor_id}
+          publisherId={selectedChatManuscript.publisher_id}
+        />
+      )}
     </div>
   )
 }
