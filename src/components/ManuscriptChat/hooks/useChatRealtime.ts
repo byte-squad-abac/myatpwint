@@ -51,7 +51,6 @@ export function useChatRealtime(
         // Add any new messages
         newMessages.forEach((message: ChatMessage) => {
           if (!lastMessageId || message.id !== lastMessageId) {
-            console.log('📨 Polling found new message:', message.message)
             addMessage(message)
             setLastMessageId(message.id)
           }
@@ -71,13 +70,11 @@ export function useChatRealtime(
     
     // Start polling after 3 seconds (if real-time hasn't kicked in)
     pollTimeout = setTimeout(() => {
-      console.log('🔄 Starting backup polling mechanism')
       pollInterval = setInterval(pollForNewMessages, 3000)
       
       // Stop polling after 30 seconds (real-time should be working by then)
       setTimeout(() => {
         if (pollInterval) {
-          console.log('⏹️ Stopping backup polling')
           clearInterval(pollInterval)
         }
       }, 30000)
@@ -93,21 +90,17 @@ export function useChatRealtime(
   useEffect(() => {
     if (!enabled || !chatType || !addMessage) return
 
-    console.log('Setting up realtime subscription for:', manuscriptId, chatType)
     setIsRealtimeReady(false)
-    console.log('📡 Subscription filter will be:', `manuscript_id=eq.${manuscriptId}`)
     
     let channel: any
 
     const setupRealtimeSubscription = async () => {
       // Force a fresh Supabase connection by removing any existing channels first
       const existingChannels = supabase.getChannels()
-      console.log('🔍 Existing channels before cleanup:', existingChannels.length)
       
       // Remove all existing channels for this manuscript to prevent conflicts
       existingChannels.forEach(ch => {
         if (ch.topic.includes(manuscriptId)) {
-          console.log('🗑️ Removing existing channel:', ch.topic)
           supabase.removeChannel(ch)
         }
       })
@@ -116,8 +109,7 @@ export function useChatRealtime(
       await new Promise(resolve => setTimeout(resolve, 500))
       
       // Create completely fresh channel
-      const channelName = `manuscript_chat_${manuscriptId}_${chatType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      console.log('📻 Creating fresh channel:', channelName)
+      const channelName = `manuscript_chat_${manuscriptId}_${chatType}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
       
       channel = supabase
         .channel(channelName)
@@ -127,12 +119,8 @@ export function useChatRealtime(
           table: 'manuscript_chats',
           filter: `manuscript_id=eq.${manuscriptId}`
         }, async (payload) => {
-          console.log('🚨 RAW POSTGRES EVENT RECEIVED:', payload)
-          console.log('🔥 New message received via realtime:', payload.new)
-          
           // Only handle messages for the current chat type
           if (payload.new.chat_type === chatType) {
-            console.log('✅ Message matches current chat type:', chatType)
             
             
             // Fetch complete message data with sender info and add to messages
@@ -147,24 +135,36 @@ export function useChatRealtime(
                 .single()
               
               if (completeMessage) {
-                console.log('💬 Adding message to UI:', completeMessage.message)
                 setLastMessageId(completeMessage.id) // Track this message
                 addMessage(completeMessage)
+                
+                // Mark as read immediately since user is actively viewing the chat
+                if (completeMessage.sender_id !== (await supabase.auth.getUser()).data.user?.id) {
+                  try {
+                    await fetch(`/api/manuscripts/${manuscriptId}/chat/mark-read`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        chat_type: chatType,
+                        last_message_id: completeMessage.id
+                      }),
+                    })
+                  } catch (err) {
+                    console.error('Failed to auto-mark message as read:', err)
+                  }
+                }
               }
             } catch (error) {
               console.error('❌ Failed to fetch complete message:', error)
             }
-          } else {
-            console.log('⏭️ Message for different chat type, ignoring')
           }
         })
         .subscribe(async (status) => {
-          console.log('📡 Realtime subscription status:', status)
-          
           // When subscription is ready, set a more conservative ready state
           if (status === 'SUBSCRIBED') {
             setTimeout(() => {
-              console.log('✅ Real-time subscription fully established')
               setIsRealtimeReady(true)
             }, 2000) // Increased delay to 2 seconds
           } else if (status === 'CLOSED') {
@@ -177,7 +177,6 @@ export function useChatRealtime(
 
     // Cleanup subscription
     return () => {
-      console.log('🧹 Cleaning up realtime subscription')
       setIsRealtimeReady(false)
       if (channel) {
         supabase.removeChannel(channel)

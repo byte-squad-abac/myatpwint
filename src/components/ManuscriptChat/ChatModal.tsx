@@ -81,6 +81,35 @@ export function ChatModal({
     addMessage
   )
 
+  // Mark messages as read when messages are loaded and visible
+  useEffect(() => {
+    if (isOpen && canChat && chatType && messages.length > 0) {
+      const markAsRead = async () => {
+        try {
+          // Get the latest message ID to mark as read up to that point
+          const latestMessage = messages[messages.length - 1]
+          
+          await fetch(`/api/manuscripts/${manuscriptId}/chat/mark-read`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_type: chatType,
+              last_message_id: latestMessage.id
+            }),
+          })
+        } catch (err) {
+          console.error('Failed to mark messages as read:', err)
+        }
+      }
+      
+      // Mark as read after a short delay to ensure messages are visible
+      const timeout = setTimeout(markAsRead, 500)
+      return () => clearTimeout(timeout)
+    }
+  }, [isOpen, canChat, chatType, messages, manuscriptId])
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {

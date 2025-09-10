@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase/client'
 
 interface ChatIconProps {
   manuscriptId: string
@@ -11,6 +12,7 @@ interface ChatIconProps {
   publisherId?: string | null
   onClick: () => void
   className?: string
+  onChatOpen?: () => void // Callback when chat is opened
 }
 
 export function ChatIcon({
@@ -20,10 +22,12 @@ export function ChatIcon({
   editorId,
   publisherId,
   onClick,
-  className = ''
+  className = '',
+  onChatOpen
 }: ChatIconProps) {
   const { user, profile } = useAuth()
   const [isVisible, setIsVisible] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   // Determine if chat is available and what type
   const getChatInfo = () => {
@@ -46,21 +50,75 @@ export function ChatIcon({
 
   const { available, chatType } = getChatInfo()
 
-  // Check if chat is available
+  // Check if chat is available and fetch unread count
   useEffect(() => {
-    if (!available) {
+    if (!available || !chatType) {
       setIsVisible(false)
+      setUnreadCount(0)
       return
     }
 
     setIsVisible(true)
-  }, [available])
+    
+    // Fetch unread count
+    const fetchUnreadCount = async () => {
+      try {
+        const params = new URLSearchParams({ chat_type: chatType })
+        const response = await fetch(`/api/manuscripts/${manuscriptId}/chat/unread-count?${params}`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          setUnreadCount(data.unreadCount || 0)
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread count:', err)
+      }
+    }
+
+    fetchUnreadCount()
+    
+    // Set up real-time subscription for read status changes
+    const channel = supabase
+      .channel(`chat_icon_${manuscriptId}_${chatType}_${Date.now()}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_read_status',
+        filter: `manuscript_id=eq.${manuscriptId}`
+      }, (payload) => {
+        fetchUnreadCount()
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'manuscript_chats',
+        filter: `manuscript_id=eq.${manuscriptId}`
+      }, (payload) => {
+        if (payload.new.chat_type === chatType) {
+          fetchUnreadCount()
+        }
+      })
+      .subscribe()
+    
+    // Poll for updates every 30 seconds as backup
+    const interval = setInterval(fetchUnreadCount, 30000)
+    
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
+  }, [available, chatType, manuscriptId])
 
   if (!isVisible) return null
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        onClick()
+        // Clear unread count immediately when chat is opened
+        setUnreadCount(0)
+        if (onChatOpen) onChatOpen()
+      }}
       className={`relative inline-flex items-center justify-center p-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200 ${className}`}
       title="Open chat"
     >
@@ -79,6 +137,12 @@ export function ChatIcon({
         />
       </svg>
 
+      {/* Unread Count Badge */}
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
     </button>
   )
 }
