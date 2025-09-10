@@ -60,6 +60,7 @@ export default function EditorPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterAuthor, setFilterAuthor] = useState('')
+  const [filterPhysicalOnly, setFilterPhysicalOnly] = useState(false)
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -274,6 +275,7 @@ export default function EditorPage() {
     setFilterStatus('')
     setFilterCategory('')
     setFilterAuthor('')
+    setFilterPhysicalOnly(false)
     setFilterDateFrom('')
     setFilterDateTo('')
     setActiveStatusTab('all')
@@ -307,6 +309,7 @@ export default function EditorPage() {
     if (filterStatus) count++
     if (filterCategory) count++
     if (filterAuthor) count++
+    if (filterPhysicalOnly) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
     return count
@@ -365,6 +368,11 @@ export default function EditorPage() {
       filtered = filtered.filter(m => 
         (m.author?.name || 'Unknown') === filterAuthor
       )
+    }
+
+    // Filter by physical books only
+    if (filterPhysicalOnly) {
+      filtered = filtered.filter(m => m.wants_physical === true)
     }
 
     // Filter by date range
@@ -593,6 +601,20 @@ export default function EditorPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2 pt-6">
+                  <input
+                    type="checkbox"
+                    checked={filterPhysicalOnly}
+                    onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    📦 Physical books only
+                  </span>
+                </label>
               </div>
 
               <Input

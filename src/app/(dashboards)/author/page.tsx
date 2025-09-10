@@ -86,6 +86,7 @@ export default function AuthorPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
+  const [filterPhysicalOnly, setFilterPhysicalOnly] = useState(false)
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -275,6 +276,7 @@ export default function AuthorPage() {
     if (searchQuery) count++
     if (filterCategory) count++
     if (filterTag) count++
+    if (filterPhysicalOnly) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
     return count
@@ -284,6 +286,7 @@ export default function AuthorPage() {
     setSearchQuery('')
     setFilterCategory('')
     setFilterTag('')
+    setFilterPhysicalOnly(false)
     setFilterDateFrom('')
     setFilterDateTo('')
   }
@@ -320,6 +323,11 @@ export default function AuthorPage() {
       filtered = filtered.filter(m => 
         m.tags.some(tag => tag.toLowerCase().includes(filterTag.toLowerCase()))
       )
+    }
+
+    // Apply physical books filter
+    if (filterPhysicalOnly) {
+      filtered = filtered.filter(m => m.wants_physical === true)
     }
 
     // Apply date filters
@@ -939,6 +947,20 @@ export default function AuthorPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2 pt-6">
+                  <input
+                    type="checkbox"
+                    checked={filterPhysicalOnly}
+                    onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    📦 Physical books only
+                  </span>
+                </label>
               </div>
 
               <Input

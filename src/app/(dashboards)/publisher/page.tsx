@@ -362,12 +362,15 @@ export default function PublisherPage() {
         .eq('role', 'author')
 
       if (categoriesData) {
-        const categories = categoriesData
+        const allCategories = categoriesData
           .map(item => item.category)
           .filter(Boolean)
-          .filter((category, index, arr) => arr.indexOf(category) === index)
+          .flatMap(category => category.split(', ')) // Split comma-separated categories
+          .map(category => category.trim()) // Clean whitespace
+          .filter(category => category.length > 0) // Remove empty strings
+          .filter((category, index, arr) => arr.indexOf(category) === index) // Remove duplicates
           .sort()
-        setExistingCategories(categories)
+        setExistingCategories(allCategories)
       }
 
       if (authorsData) {
@@ -590,9 +593,11 @@ export default function PublisherPage() {
       filtered = filtered.filter(m => m.status === filterStatus)
     }
 
-    // Category filter
+    // Category filter - check if the selected category is included in the manuscript's comma-separated categories
     if (filterCategory) {
-      filtered = filtered.filter(m => m.category === filterCategory)
+      filtered = filtered.filter(m => 
+        m.category.split(', ').map(cat => cat.trim()).includes(filterCategory)
+      )
     }
 
     // Author filter
