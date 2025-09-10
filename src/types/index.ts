@@ -324,3 +324,25 @@ export interface AuthorApplicationsResponse {
 export interface AuthorApplicationResponse {
   data: AuthorApplication
 }
+
+// N8N Marketing Automation types
+export interface N8NWebhookPayload {
+  id: string
+  name: string
+  author: string
+  description: string
+  category: string
+  tags: string[]
+  price: number
+  image_url: string
+  published_date: string
+  edition: string
+  timestamp: string
+  event: 'book_published'
+}
+
+export interface N8NResponse {
+  success: boolean
+  message?: string
+  error?: string
+}

@@ -1,0 +1,314 @@
+{
+  "name": "Book Marketing Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "6960fcf1-92c8-4a9c-b54a-7ba6eb296d10",
+        "options": {
+          "responseData": ""
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        32
+      ],
+      "id": "96167fc7-2359-46a9-949b-6ef4d7279024",
+      "name": "Webhook",
+      "webhookId": "6960fcf1-92c8-4a9c-b54a-7ba6eb296d10"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-1.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-1.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Create marketing content for Myanmar book publishing house:\n\n  Book Details:\n\n  - Title: {{ $json.body.name }}\n\n  - Author: {{ $json.body.author }}\n\n  - Description: {{ $json.body.description }}\n\n  - Category: {{ $json.body.category }}\n\n  - Price:{{ $json.body.price }} MMK\n\n  - Tags:{{ $json.body.tags }}\n\n  Generate JSON response with exactly these keys:\n\n  {\n\n    \"facebook_post\": \"250 chars max, Myanmar + English, hashtags #မြန်မာစာ #Books\",\n\n    \"twitter_post\": \"280 chars max, engaging with hashtags\",\n\n    \"email_subject\": \"Compelling subject for Myanmar book lovers\",\n\n    \"email_body\": \"150 words, bilingual Myanmar/English marketing email\"\n\n  }\n\n  Return ONLY valid JSON, no extra text."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        208,
+        32
+      ],
+      "id": "460d9420-03e3-486a-bd9d-2a2e03149171",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SokmskRJgpz6z7Yc",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get Gemini response\n  const geminiOutput = $input.first().json;\n  const webhookData = $('Webhook').first().json.body;\n\n  // Parse the AI-generated JSON content \n  const parsedContent = JSON.parse(geminiOutput.content.parts[0].text);\n\n  // Return clean data for HTTP nodes\n  return [{\n    json: {\n      facebook_post: parsedContent.facebook_post,\n      twitter_post: parsedContent.twitter_post,\n      email_subject: parsedContent.email_subject,\n      email_body: parsedContent.email_body,\n      book_id: webhookData.id,\n      book_name: webhookData.name,\n      book_author: webhookData.author\n    }\n  }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        32
+      ],
+      "id": "cbff2db7-71c5-43cd-a123-55bceedbb2ff",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "me",
+        "edge": "feed",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "message",
+                "value": "={{ $json.facebook_post }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        864,
+        -208
+      ],
+      "id": "c47c8226-8f33-4917-83ce-ca696353c8fa",
+      "name": "Facebook Graph API",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "iXHHONV4IuZBDDjr",
+          "name": "Facebook Graph account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "@myatpwintbook",
+        "text": "={{ $json.twitter_post }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        384
+      ],
+      "id": "7cfbc38d-ccf6-49e9-b1ac-98570b5901b2",
+      "name": "Send a text message",
+      "webhookId": "9b0369e6-bc65-4e73-ae50-aca1d32a0654",
+      "credentials": {
+        "telegramApi": {
+          "id": "JUWEWpl6Er0L5Y1X",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "myatpwint25byte@gmail.com",
+        "toEmail": "luphonemaw2004@gmail.com",
+        "subject": "={{ $json.email_subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.email_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        848,
+        176
+      ],
+      "id": "e7ed7b64-d8de-4f66-9ee6-7795aa166687",
+      "name": "Send email",
+      "webhookId": "2a2b4a7b-9047-469f-8cfd-93b49e330b3b",
+      "credentials": {
+        "smtp": {
+          "id": "7EVGqagglSMdMRrk",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "=17841476505328383",
+        "edge": "media",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "image_url",
+                "value": "={{ $('Webhook').item.json.body.image_url || $('Webhook').item.json.body.image  }}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $json.facebook_post }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        848,
+        0
+      ],
+      "id": "7df4dbc2-7704-4c94-94c1-07d8dd91ea22",
+      "name": "container",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "LTXsoLlJVQvmD94C",
+          "name": "Instagram_working"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "17841476505328383",
+        "edge": "media_publish",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "creation_id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "image_url",
+                "value": "={{ $('Webhook').item.json.body.image_url || $('Webhook').item.json.body.image  }}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $('Code').item.json.facebook_post }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "cde05f22-b680-4daf-a08e-792d3476f030",
+      "name": "Facebook Graph API1",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "LTXsoLlJVQvmD94C",
+          "name": "Instagram_working"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Instagram\n",
+        "height": 192,
+        "width": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        816,
+        -48
+      ],
+      "typeVersion": 1,
+      "id": "147405f6-9a18-4c35-8b92-f883b41f4a74",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "container": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8fb8e7e7-493b-4ec3-8ec2-5b98ed679130",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "846245a4e551e5678cbf800096cbe42441291f5dd623ebc355caa95dbe14865d"
+  },
+  "id": "9LUKUE8bLyD4ttly",
+  "tags": []
+}

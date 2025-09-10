@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal'
 import SalesOverviewCards from '@/components/publisher/SalesOverviewCards'
 import CurrentMonthPerformance from '@/components/publisher/CurrentMonthPerformance'
 import { ChatModal, ChatIcon } from '@/components/ManuscriptChat'
+import { N8NService } from '@/lib/services/n8n.service'
 
 type FeedbackHistory = {
   feedback: string
@@ -783,6 +784,21 @@ MyatPwint Publishing Team`
         }
       } catch (embeddingError) {
         console.warn('Embedding generation error (book still published):', embeddingError)
+      }
+
+      // Trigger N8N marketing automation as final step
+      setPublishingProgress('Triggering marketing automation...')
+      
+      try {
+        const marketingResult = await N8NService.triggerBookPublishedWorkflow(bookData_result)
+        
+        if (marketingResult.success) {
+          console.log('✅ Marketing automation triggered successfully')
+        } else {
+          console.warn('⚠️ Marketing automation failed:', marketingResult.error)
+        }
+      } catch (marketingError) {
+        console.warn('⚠️ Marketing automation error (book still published):', marketingError)
       }
 
       setPublishingProgress('Complete!')
