@@ -18,10 +18,11 @@ This is **MyatPwint v2**, a Myanmar digital publishing platform built with Next.
 ### Core Technology Stack
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4
-- **Backend**: Supabase (PostgreSQL with RLS, Auth, Storage)
-- **Payments**: Stripe integration with webhooks
+- **Backend**: Supabase (PostgreSQL 17.4 with RLS, Auth, Storage, Realtime)
+- **Payments**: Stripe integration with webhooks for digital/physical book sales
 - **AI/ML**: Hugging Face Transformers for embeddings, semantic search
 - **Document Editing**: OnlyOffice integration for collaborative manuscript editing
+- **Communication**: Realtime chat system with read status tracking
 - **State Management**: Zustand for client-side state, React Context for themes
 - **Marketing Automation**: N8N webhook integration
 
@@ -78,6 +79,10 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - `document_revisions` - Version control for manuscripts
 - `n8n_marketing_analytics` - Marketing automation tracking
 - `tags` - Global tag management
+- `manuscript_chats` - Realtime chat system for author↔editor and author↔publisher communication
+- `chat_read_status` - Message read tracking for chat system
+- `notifications` - System notifications with email support
+- `notification_preferences` - User notification preferences
 
 ### Key Features & Workflows
 
@@ -117,17 +122,25 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Publisher dashboard: publication management, author applications, and analytics
 - Library dashboard: user's purchased books and reading progress
 
+**7. Realtime Communication System**
+- Integrated chat system between authors, editors, and publishers
+- Context-aware chat availability based on manuscript status
+- Real-time message delivery with read status tracking
+- Workflow-based chat routing (author↔editor during review, author↔publisher post-approval)
+
 ### Important Integration Details
 
 **Supabase Integration:**
 - Project ID: `bsmbqekevilajlapldan` (myat-pwint_polish)
-- RLS policies enabled for data security
-- Vector extension enabled for AI search capabilities
+- PostgreSQL 17.4 with comprehensive RLS policies enabled for data security
+- Vector extension enabled for AI search capabilities (768-dimensional embeddings)
+- Realtime subscriptions enabled for chat system
 - Storage buckets:
   - `documents` (50MB, DOCX + images for applications/manuscripts)
-  - `manuscripts` (50MB, DOCX only)
+  - `manuscripts` (50MB, DOCX only) 
   - `covers` (10MB, images only)
 - Database trigger `handle_new_user()` creates profile with 'user' role automatically
+- 17 tables with proper foreign key relationships and constraints
 
 **OnlyOffice Configuration:**
 - Server URL: `ONLYOFFICE_SERVER_URL` (localhost for development)
@@ -181,12 +194,13 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 
 ### Recent Major Changes
 
-- Implemented permanent ban system for rejected author applications
-- Removed role selection from registration (users default to 'user' role)
-- Enhanced duplicate email detection during registration
-- Fixed profile name population from approved author applications
-- Restricted manuscript uploads to DOCX only for security
-- Implemented comprehensive file upload validation and storage policies
+- **Realtime Chat System**: Implemented comprehensive chat system for author↔editor and author↔publisher communication
+- **Permanent Ban System**: Rejected author applications result in permanent account bans from future applications
+- **Enhanced Security**: Removed role selection from registration (users default to 'user' role)
+- **File Upload Security**: Restricted manuscript uploads to DOCX only with magic number validation
+- **Database Optimization**: Implemented comprehensive RLS policies and foreign key constraints
+- **Communication Enhancement**: Added notification system with email preferences
+- **Physical Inventory**: Added physical book inventory management for publishers
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.

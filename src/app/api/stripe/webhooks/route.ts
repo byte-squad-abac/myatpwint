@@ -17,6 +17,58 @@ const supabaseServiceRole = createClient(
 // Disable body parsing for webhook signature verification
 export const dynamic = 'force-dynamic';
 
+async function checkAndSendLowStockAlert(bookId: string) {
+  try {
+    // Get book details and current stock
+    const { data: book, error: bookError } = await supabaseServiceRole
+      .from('books')
+      .select('id, name, low_stock_threshold')
+      .eq('id', bookId)
+      .single();
+
+    if (bookError || !book) {
+      console.error('❌ Error fetching book for low stock check:', bookError);
+      return;
+    }
+
+    // Get current available stock
+    const { data: availableStock, error: stockError } = await supabaseServiceRole
+      .rpc('get_available_stock', { book_id_param: bookId });
+
+    if (stockError) {
+      console.error('❌ Error getting available stock:', stockError);
+      return;
+    }
+
+    const threshold = book.low_stock_threshold || 10;
+    
+    // If stock is at or below threshold, send alert
+    if (availableStock <= threshold) {
+      console.log(`📧 Low stock detected for "${book.name}": ${availableStock} <= ${threshold}`);
+      
+      // Call our email API
+      const response = await fetch('http://localhost:3000/api/send-low-stock-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: book.id,
+          bookName: book.name,
+          availableStock,
+          threshold
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✅ Low stock email sent successfully for "${book.name}"`);
+      } else {
+        console.error(`❌ Failed to send low stock email for "${book.name}":`, response.status);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error in checkAndSendLowStockAlert:', error);
+  }
+}
+
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   try {
     console.log('🚀 Processing checkout session completed:', session.id);
@@ -91,6 +143,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       }
 
       console.log(`✅ Successfully processed ${purchases.length} purchases for session ${session.id}`);
+      
+      // Check for low stock alerts on physical purchases
+      for (const purchase of purchases) {
+        if (purchase.delivery_type === 'physical') {
+          await checkAndSendLowStockAlert(purchase.book_id);
+        }
+      }
       
       // Note: No need to manually update physical_copies_count here
       // Our database function get_available_physical_copies() automatically calculates:

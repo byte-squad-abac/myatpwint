@@ -137,7 +137,8 @@ export default function PublisherPage() {
   const [publishData, setPublishData] = useState({
     finalPrice: '',
     edition: 'First Edition',
-    physicalCopiesCount: ''
+    physicalCopiesCount: '',
+    lowStockThreshold: '10'
   })
   const [publishing, setPublishing] = useState(false)
   const [publishingProgress, setPublishingProgress] = useState('')
@@ -666,7 +667,8 @@ MyatPwint Publishing Team`
         edition: publishData.edition,
         image_url: selectedManuscript.cover_image_url,
         published_date: new Date().toISOString(),
-        physical_copies_count: publishData.physicalCopiesCount ? parseInt(publishData.physicalCopiesCount) : 0
+        physical_copies_count: publishData.physicalCopiesCount ? parseInt(publishData.physicalCopiesCount) : 0,
+        low_stock_threshold: publishData.lowStockThreshold ? parseInt(publishData.lowStockThreshold) : 10
       }
 
       setPublishingProgress('Creating book record...')
@@ -719,7 +721,7 @@ MyatPwint Publishing Team`
 
       setPublishingProgress('Complete!')
       setSelectedManuscript(null)
-      setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
+      setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '', lowStockThreshold: '10' })
       fetchManuscripts()
       fetchSalesData() // Refresh sales data
       
@@ -1882,7 +1884,7 @@ MyatPwint Publishing Team`
         isOpen={!!selectedManuscript}
         onClose={() => {
           setSelectedManuscript(null)
-          setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
+          setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '', lowStockThreshold: '10' })
         }}
         title={`Publish: ${selectedManuscript?.title || ''}`}
         size="lg"
@@ -1924,21 +1926,40 @@ MyatPwint Publishing Team`
 
             {/* Physical copies field - only show if manuscript wants physical copies */}
             {selectedManuscript.wants_physical && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Physical Copies Count
-                </label>
-                <input
-                  type="number"
-                  value={publishData.physicalCopiesCount}
-                  onChange={(e) => setPublishData(prev => ({ ...prev, physicalCopiesCount: e.target.value }))}
-                  placeholder="Enter number of physical copies to print"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave blank or set to 0 for digital-only publication
-                </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Physical Copies Count
+                  </label>
+                  <input
+                    type="number"
+                    value={publishData.physicalCopiesCount}
+                    onChange={(e) => setPublishData(prev => ({ ...prev, physicalCopiesCount: e.target.value }))}
+                    placeholder="Enter number of physical copies to print"
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave blank or set to 0 for digital-only publication
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Low Stock Alert Threshold
+                  </label>
+                  <input
+                    type="number"
+                    value={publishData.lowStockThreshold}
+                    onChange={(e) => setPublishData(prev => ({ ...prev, lowStockThreshold: e.target.value }))}
+                    placeholder="Enter threshold for low stock alerts"
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Email alerts will be sent when stock reaches this number
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1947,7 +1968,7 @@ MyatPwint Publishing Team`
                 variant="secondary"
                 onClick={() => {
                   setSelectedManuscript(null)
-                  setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '' })
+                  setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '', lowStockThreshold: '10' })
                 }}
                 disabled={publishing}
               >
