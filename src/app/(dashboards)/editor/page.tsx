@@ -61,6 +61,8 @@ export default function EditorPage() {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterAuthor, setFilterAuthor] = useState('')
   const [filterPhysicalOnly, setFilterPhysicalOnly] = useState(false)
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -113,9 +115,43 @@ export default function EditorPage() {
       }))
 
       setManuscripts(manuscriptsWithAuthors)
+      
+      // Fetch unread counts for all manuscripts
+      const manuscriptIds = manuscriptsWithAuthors.map(m => m.id)
+      if (manuscriptIds.length > 0) {
+        fetchUnreadCounts(manuscriptIds)
+      }
     } catch (error) {
       console.error('Error in fetchManuscripts:', error)
       setManuscripts([])
+    }
+  }, [user]) // fetchUnreadCounts is stable and doesn't need to be in dependencies
+
+  const fetchUnreadCounts = useCallback(async (manuscriptIds: string[]) => {
+    if (!user || manuscriptIds.length === 0) {
+      setUnreadCounts({})
+      return
+    }
+
+    try {
+      const response = await fetch('/api/manuscripts/bulk-unread-counts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ manuscriptIds }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUnreadCounts(data.unreadCounts || {})
+      } else {
+        console.error('Failed to fetch unread counts')
+        setUnreadCounts({})
+      }
+    } catch (error) {
+      console.error('Error fetching unread counts:', error)
+      setUnreadCounts({})
     }
   }, [user])
 
@@ -310,6 +346,7 @@ export default function EditorPage() {
     if (filterCategory) count++
     if (filterAuthor) count++
     if (filterPhysicalOnly) count++
+    if (filterUnreadOnly) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
     return count
@@ -373,6 +410,16 @@ export default function EditorPage() {
     // Filter by physical books only
     if (filterPhysicalOnly) {
       filtered = filtered.filter(m => m.wants_physical === true)
+    }
+
+    // Unread messages filter - show only manuscripts with unread messages
+    // Only apply to manuscripts where editor-author communication is relevant
+    if (filterUnreadOnly) {
+      filtered = filtered.filter(m => {
+        // Only show manuscripts with unread messages AND in statuses where editor-author chat is available
+        const hasEditorAuthorChat = ['submitted', 'under_review', 'rejected'].includes(m.status)
+        return hasEditorAuthorChat && (unreadCounts[m.id] || 0) > 0
+      })
     }
 
     // Filter by date range
@@ -604,17 +651,31 @@ export default function EditorPage() {
               </div>
 
               <div>
-                <label className="flex items-center space-x-2 pt-6">
-                  <input
-                    type="checkbox"
-                    checked={filterPhysicalOnly}
-                    onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    📦 Physical books only
-                  </span>
-                </label>
+                <div className="space-y-2 pt-6">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={filterPhysicalOnly}
+                      onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      📦 Physical books only
+                    </span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={filterUnreadOnly}
+                      onChange={(e) => setFilterUnreadOnly(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      💬 Unread messages only
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <Input

@@ -87,6 +87,8 @@ export default function AuthorPage() {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
   const [filterPhysicalOnly, setFilterPhysicalOnly] = useState(false)
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -107,18 +109,6 @@ export default function AuthorPage() {
   const [showChatModal, setShowChatModal] = useState(false)
   const [selectedChatManuscript, setSelectedChatManuscript] = useState<Manuscript | null>(null)
 
-  const fetchManuscripts = useCallback(async () => {
-    if (!user) return
-    
-    const { data } = await supabase
-      .from('manuscripts')
-      .select('*')
-      .eq('author_id', user.id)
-      .order('submitted_at', { ascending: false })
-    
-    setManuscripts(data || [])
-  }, [user])
-
   const fetchBookSales = useCallback(async () => {
     if (!user) return
     
@@ -133,6 +123,52 @@ export default function AuthorPage() {
       setBookSales([])
     }
   }, [user])
+
+  const fetchUnreadCounts = useCallback(async (manuscriptIds: string[]) => {
+    if (!user || manuscriptIds.length === 0) {
+      setUnreadCounts({})
+      return
+    }
+
+    try {
+      const response = await fetch('/api/manuscripts/bulk-unread-counts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ manuscriptIds }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUnreadCounts(data.unreadCounts || {})
+      } else {
+        console.error('Failed to fetch unread counts')
+        setUnreadCounts({})
+      }
+    } catch (error) {
+      console.error('Error fetching unread counts:', error)
+      setUnreadCounts({})
+    }
+  }, [user])
+
+  const fetchManuscripts = useCallback(async () => {
+    if (!user) return
+    
+    const { data } = await supabase
+      .from('manuscripts')
+      .select('*')
+      .eq('author_id', user.id)
+      .order('submitted_at', { ascending: false })
+    
+    setManuscripts(data || [])
+    
+    // Fetch unread counts for all manuscripts
+    const manuscriptIds = (data || []).map(m => m.id)
+    if (manuscriptIds.length > 0) {
+      fetchUnreadCounts(manuscriptIds)
+    }
+  }, [user, fetchUnreadCounts])
 
   const fetchExistingData = useCallback(async () => {
     try {
@@ -277,6 +313,7 @@ export default function AuthorPage() {
     if (filterCategory) count++
     if (filterTag) count++
     if (filterPhysicalOnly) count++
+    if (filterUnreadOnly) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
     return count
@@ -328,6 +365,11 @@ export default function AuthorPage() {
     // Apply physical books filter
     if (filterPhysicalOnly) {
       filtered = filtered.filter(m => m.wants_physical === true)
+    }
+
+    // Unread messages filter - show only manuscripts with unread messages
+    if (filterUnreadOnly) {
+      filtered = filtered.filter(m => (unreadCounts[m.id] || 0) > 0)
     }
 
     // Apply date filters
@@ -950,17 +992,31 @@ export default function AuthorPage() {
               </div>
 
               <div>
-                <label className="flex items-center space-x-2 pt-6">
-                  <input
-                    type="checkbox"
-                    checked={filterPhysicalOnly}
-                    onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    📦 Physical books only
-                  </span>
-                </label>
+                <div className="space-y-2 pt-6">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={filterPhysicalOnly}
+                      onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      📦 Physical books only
+                    </span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={filterUnreadOnly}
+                      onChange={(e) => setFilterUnreadOnly(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      💬 Unread messages only
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <Input
