@@ -1812,10 +1812,10 @@ MyatPwint Publishing Team`
 
                     {/* Action buttons */}
                     <div 
-                      className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/50"
+                      className="flex flex-wrap items-center gap-3 pt-4 border-t border-white/50"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {/* View DOCX */}
                         <a
                           href={manuscript.file_url}
