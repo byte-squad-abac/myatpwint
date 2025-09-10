@@ -128,6 +128,7 @@ export default function PublisherPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterAuthor, setFilterAuthor] = useState('')
+  const [filterPhysicalOnly, setFilterPhysicalOnly] = useState(false)
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -536,6 +537,7 @@ export default function PublisherPage() {
     setFilterStatus('')
     setFilterCategory('')
     setFilterAuthor('')
+    setFilterPhysicalOnly(false)
     setFilterDateFrom('')
     setFilterDateTo('')
     setShowOnlyBooksWithSales(false)
@@ -547,6 +549,7 @@ export default function PublisherPage() {
     if (filterStatus) count++
     if (filterCategory) count++
     if (filterAuthor) count++
+    if (filterPhysicalOnly) count++
     if (filterDateFrom) count++
     if (filterDateTo) count++
     if (showOnlyBooksWithSales) count++
@@ -595,6 +598,11 @@ export default function PublisherPage() {
     // Author filter
     if (filterAuthor) {
       filtered = filtered.filter(m => m.author_id === filterAuthor)
+    }
+
+    // Physical books only filter
+    if (filterPhysicalOnly) {
+      filtered = filtered.filter(m => m.wants_physical === true)
     }
 
     // Date range filter
@@ -1396,6 +1404,20 @@ MyatPwint Publishing Team`
                   <option key={author.id} value={author.id}>{author.name}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="flex items-center space-x-2 pt-6">
+                <input
+                  type="checkbox"
+                  checked={filterPhysicalOnly}
+                  onChange={(e) => setFilterPhysicalOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  📦 Physical books only
+                </span>
+              </label>
             </div>
 
             <Input
