@@ -1,0 +1,1328 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer $OPENROUTER_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"model\": \"google/gemini-2.5-flash-image-preview\",\n\"messages\": [\n{\n\"role\": \"user\",\n\"content\": [\n{\n\"type\": \"text\",\n\"text\": \"{{ $json.output['Image Prompt'] }}\"\n}\n]\n}\n]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1024,
+        180
+      ],
+      "id": "b5a3aa53-0da1-4632-9715-b787273342a2",
+      "name": "Nano 🍌",
+      "retryOnFail": true,
+      "credentials": {
+        "openRouterApi": {
+          "id": "yBeX4VWjikM3hWgQ",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -8
+      ],
+      "id": "668b1984-fde8-4592-9043-334b8ad3166e",
+      "name": "2.5 Flash",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SokmskRJgpz6z7Yc",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "AI Content Uploader",
+        "formDescription": "Give a Topic Just AI will do Rest of The Work",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Content Topic",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -2944,
+        112
+      ],
+      "id": "e8b17d1b-4f4f-4f7a-ac90-6c2b8cbcc48b",
+      "name": "Input",
+      "webhookId": "3dc28997-3cdd-4084-92a5-7d1896c98bd5"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "=luphonemaw2004@gmail.com",
+        "subject": "=Approval for {{ $('Edit Fields1').item.json.prompt_for_ai }} Post\n",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Social Media Captions</title>\n  <style>\n    body { font-family: Inter, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f3f6fb; margin:0; padding:20px; }\n    .container { background:#fff; padding:28px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.08); max-width:850px; margin:0 auto; }\n    h1 { color:#0d47a1; text-align:center; margin:0 0 24px; font-size:24px; }\n    .section { margin-bottom:20px; background:#f5f9ff; border-left:6px solid #0d47a1; padding:14px 16px; border-radius:12px; }\n    .section-title { font-weight:600; font-size:15px; color:#0d47a1; margin-bottom:8px; }\n    p { margin:0; line-height:1.6; color:#444; font-size:14px; }\n    .pre { white-space:pre-wrap; font-family:inherit; }\n    .image-container { text-align:center; margin-top:24px; padding-top:18px; border-top:1px dashed #cbd5e1; }\n    .image-container img { max-width:100%; border-radius:12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>✨ Social Media Content ✨</h1>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Facebook Caption</div>\n      <p>{{ $json.output.facebook_caption }}</p>\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Instagram Caption</div>\n      <p>{{ $json.output.instagram_caption }}</p>\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Telegram Message</div>\n      <p class=\"pre\">{{ $json.output.telegram_message }}</p>\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Gmail — Subject</div>\n      <p>{{ $json.output.gmail_subject }}</p>\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Gmail — Body (Plain-text Preview)</div>\n      {{ $json.output.gmail_text }}\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Gmail — Body (HTML Preview)</div>\n      {{ $json.output.gmail_html }}\n    </div>\n\n    <div class=\"section\">\n      <div class=\"section-title\">Need changes?</div>\n      <p>Open the feedback form, submit your notes, then click “Regenerate”.</p>\n      <p>\n        <a href=\"https://YOUR-N8N-HOST/form/775366aa-5890-41fa-a8a3-b369b93546e4?topic=${ encodeURIComponent($('Input').item.json?.['Content Topic'] ?? '') }\"\n           style=\"display:inline-block;padding:10px 14px;border-radius:8px;background:#0d47a1;color:#fff;text-decoration:none\">\n          Open Feedback Form\n        </a>\n      </p>\n    </div>\n\n    <div class=\"image-container\">\n      <div class=\"section-title\">Generated Image</div>\n      <img\n  src=\"{{ $json.image_url\n        || $('Edit Fields3').item.json?.image_url\n        || $('Edit Fields2').item.json?.image_url\n        || $('Load Image').item.json?.image_url\n        || '' }}\"\n  alt=\"Generated Image\">\n\n    </div>\n  </div>\n</body>\n</html>",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Regenerate",
+            "buttonDisapprovalStyle": "primary"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1232,
+        20
+      ],
+      "id": "93e3a33f-91cd-481d-ac6b-de015a348cd6",
+      "name": "Send a message",
+      "webhookId": "cd7468d8-a844-48e5-80a0-2aaa38a24907",
+      "retryOnFail": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FLwFyosRWTpQqO0J",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data.approved }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "36244d46-7d7f-4fd2-9023-bfac55d6fc13"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approved"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7b03acd8-46d3-44a6-a7e2-479b392a3b63",
+                    "leftValue": "={{ $json.data.approved }}",
+                    "rightValue": "false",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Regenerate"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e7b40816-5693-470f-a579-c353869fead6",
+                    "leftValue": "={{ $json.data.approved }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "empty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "No Action"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1456,
+        4
+      ],
+      "id": "6f671da2-6bd5-4fb7-93f1-b1eb810bfad7",
+      "name": "Switch"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        688
+      ],
+      "id": "4f3bef58-8ec1-45d8-a0fc-daee246726f4",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2720,
+        112
+      ],
+      "id": "c6fc22ea-81c3-4a96-97fa-653063a2ca4d",
+      "name": "Wait",
+      "webhookId": "174efe1b-258b-4112-ac91-32b682600e6a"
+    },
+    {
+      "parameters": {
+        "text": "=Topic: {{ $('Input').item.json[\"Content Topic\"] }}\n\nFrom this Your Task to generate perfect Image prompt.",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Image Prompt",
+              "description": "Prompt of the Image. Perfect for google/gemini-2.5-flash-image-preview:free model.\nEscape all double quotes inside a JSON string with a backslash (like this: \\\")",
+              "required": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -1376,
+        180
+      ],
+      "id": "0cb029a7-0133-4f3f-b0d2-97eabc01b607",
+      "name": "Image Prompt Generator"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Edit Fields1').item.json.prompt_for_ai }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are “SocialCopyAgent,” a social copy specialist.\n\nInput: a single topic string.\nOutput: JSON ONLY (no prose), optimized for Instagram, Facebook, Telegram, and an email (Gmail).\n\nRules\n- Platform fits:\n  • Instagram ≤ 2200 chars, 3–8 relevant hashtags, natural tone.\n  • Facebook ≤ 3000 chars, 3–8 hashtags, add a mild CTA.\n  • Telegram ≤ 4096 chars, plain text (avoid Markdown/HTML).\n  • Gmail: produce a concise subject (≤ 78 chars) and HTML + plain-text bodies.\n- No asterisks, no code fences, no quotes around the copy.\n- American English; sentence case; no clickbait, no spammy tag stuffing.\n- If the topic is vague, make sensible choices for a general consumer brand.\nYou are a helpful assistant"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        -232
+      ],
+      "id": "3ee8b0c0-7726-4e09-b0b0-685cecf2c773",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"instagram_caption\": { \"type\": \"string\", \"maxLength\": 2200 },\n    \"facebook_caption\":  { \"type\": \"string\", \"maxLength\": 3000 },\n    \"telegram_message\":  { \"type\": \"string\", \"maxLength\": 4096 },\n    \"gmail_subject\":     { \"type\": \"string\", \"maxLength\": 78 },\n    \"gmail_html\":        { \"type\": \"string\", \"maxLength\": 6000 },\n    \"gmail_text\":        { \"type\": \"string\", \"maxLength\": 6000 }\n  },\n  \"required\": [\n    \"instagram_caption\",\n    \"facebook_caption\",\n    \"telegram_message\",\n    \"gmail_subject\",\n    \"gmail_html\",\n    \"gmail_text\"\n  ],\n  \"additionalProperties\": false\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        -8
+      ],
+      "id": "4ba382b9-e8b8-4a8c-ad6e-a73e2a98bc89",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Feedback",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Change image too",
+              "fieldType": "checkbox",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Change image too"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "limitWaitTime": true,
+        "options": {
+          "formTitle": "FEEDBACK"
+        }
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        112
+      ],
+      "id": "2053556b-d6b0-4a68-a0d3-039060e4ca0f",
+      "name": "Form",
+      "webhookId": "b2f56ad6-098a-4174-ba28-f69d38611230"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $execution.id }}",
+        "tableName": "n8n_chat_memory"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        -8
+      ],
+      "id": "911b7f00-2fbe-41ca-880f-09f3db3be7f8",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "WjIM0DGyQfr8jLEw",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "baa2f072-ac28-4452-ac33-58ee83d1d825",
+              "name": "prompt_for_ai",
+              "value": "={{ $json.Feedback ? $json.Feedback : $json['Content Topic'] }}",
+              "type": "string"
+            },
+            {
+              "id": "8a22ae92-cf7b-49ef-9461-1bd357eb72d9",
+              "name": "content_id",
+              "value": "={{ $('Input').item.json['Content Topic'] }}",
+              "type": "string"
+            },
+            {
+              "id": "95488740-12ff-4e15-867c-0fc4021c2d2c",
+              "name": "update_image",
+              "value": "={{ Array.isArray($json['Change image too']) && $json['Change image too'].includes('Change image too') }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2496,
+        -32
+      ],
+      "id": "96fc7139-7fe7-45fd-a090-afa9486dcb2e",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "content_images",
+          "mode": "list",
+          "cachedResultName": "content_images"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "content_id",
+              "value": "={{ $('Edit Fields1').item.json.content_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2272,
+        584
+      ],
+      "id": "792044a1-9fad-46fd-ba87-b927b831a780",
+      "name": "Load Image",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "WjIM0DGyQfr8jLEw",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.should_update }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "b56f3663-3e51-41a7-99b1-a6aa34efbbb0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Update"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b391ca32-05a8-434b-916d-f8ea8f78ab23",
+                    "leftValue": "={{ $json.has_stored_image }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "UseStored"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b6dc50c3-f705-443c-a62a-7a69935e8c62",
+                    "leftValue": "={{ $json.should_generate }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Generate"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1600,
+        172
+      ],
+      "id": "c3283d94-f86a-4838-a997-18c1479b94a4",
+      "name": "Should Update Image?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19db5d44-1ca4-4870-b39b-df6d0a624912",
+              "name": "image_url",
+              "value": "={{ (($items(\"Load Image\")[0]?.json?.image_url) || '').trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        664,
+        584
+      ],
+      "id": "a7ae0b63-825c-40fe-b2c2-d9ec45f8eefc",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "content_images",
+          "mode": "list",
+          "cachedResultName": "content_images"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content_id": "={{ $('Edit Fields1').item.json.content_id }}",
+            "image_url": "={{ $('Make Public URL').item.json.image_url }}\n"
+          },
+          "matchingColumns": [
+            "content_id"
+          ],
+          "schema": [
+            {
+              "id": "content_id",
+              "displayName": "content_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "image_url",
+              "displayName": "image_url",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        180
+      ],
+      "id": "979ea682-a067-495e-b962-5ddf877375b4",
+      "name": "Insert or update rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "WjIM0DGyQfr8jLEw",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "59d0f20b-dc42-484e-8769-9687a316ba89",
+              "name": "image_url",
+              "value": "={{ $('Nano 🍌').item.json.choices[0].message.images[0].image_url.url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        664,
+        180
+      ],
+      "id": "5d4af0fc-0951-46e1-b894-a9e60cd144c9",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -2048,
+        -32
+      ],
+      "id": "582ea56f-ed27-4e24-bf9a-f636600f74bf",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1008,
+        20
+      ],
+      "id": "2559cbde-d177-437f-a439-8f208b803ef3",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0560ebe5-ea49-4243-a7e4-bd8316f6d9b2",
+              "name": "stored_url",
+              "value": "={{ ($items(\"Load Image\")[0]?.json?.image_url || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "0e88b765-147e-4082-a255-0641095cd37c",
+              "name": "should_update",
+              "value": "={{ !!$json.update_image }}",
+              "type": "boolean"
+            },
+            {
+              "id": "d4f3a39f-9060-4333-bee5-3277e635a6e9",
+              "name": "has_stored_image",
+              "value": "={{ (($items(\"Load Image\")[0]?.json?.image_url || '').trim().length) > 0 }}",
+              "type": "boolean"
+            },
+            {
+              "id": "1bd772e9-a517-479d-acbb-8da635e8e0a0",
+              "name": "should_generate",
+              "value": "={{ !$json.should_update && !$json.has_stored_image }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1824,
+        188
+      ],
+      "id": "00cd5e25-cb53-45a6-8815-9a71b4453998",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "me",
+        "edge": "photos",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "url",
+                "value": "={{$items('Make Public URL').last().json.image_url}}"
+              },
+              {
+                "name": "caption",
+                "value": "={{$('Merge1').item.json.output.facebook_caption}}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -416
+      ],
+      "id": "b96d8006-92fe-407e-9157-77c36a5dd802",
+      "name": "Facebook Graph API4",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "iXHHONV4IuZBDDjr",
+          "name": "Facebook Graph account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "myatpwint25byte@gmail.com",
+        "toEmail": "luphonemaw2004@gmail.com",
+        "subject": "={{ $('Merge1').item.json.output.gmail_subject }}",
+        "html": "={{ $('Merge1').item.json.output.gmail_html }}\n<img src=\"{{$items('Make Public URL').last().json.image_url}}\" alt=\"Generated Image\" style=\"max-width:100%;border-radius:12px;\">\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1680,
+        304
+      ],
+      "id": "ae61890b-46d3-4b9c-99a5-6ba979e0b44b",
+      "name": "Send email1",
+      "webhookId": "2a2b4a7b-9047-469f-8cfd-93b49e330b3b",
+      "credentials": {
+        "smtp": {
+          "id": "7EVGqagglSMdMRrk",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "=17841476505328383",
+        "edge": "media",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "image_url",
+                "value": "={{ \n  $items(\"Make Public URL\").last().json.image_url \n  || $items(\"Edit Fields2\").last().json.image_url \n  || $items(\"Load Image\")[0].json.image_url \n}}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $('Merge1').item.json.output.instagram_caption }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -224
+      ],
+      "id": "1cf0efb2-a251-4c83-8bfa-7fbe6f67dc7d",
+      "name": "container1",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "LTXsoLlJVQvmD94C",
+          "name": "Instagram_working"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "17841476505328383",
+        "edge": "media_publish",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "creation_id",
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        -224
+      ],
+      "id": "d610f5ca-66d4-4d3b-9099-756d28a36899",
+      "name": "Facebook Graph API5",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "LTXsoLlJVQvmD94C",
+          "name": "Instagram_working"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Grab the OpenRouter response\nconst resp = $('Nano 🍌').item.json;\n\n// Try a couple of possible shapes OpenRouter might return\nconst dataUrl =\n  resp?.choices?.[0]?.message?.images?.[0]?.image_url?.url ||\n  (resp?.choices?.[0]?.message?.content || [])\n    .find(c => c?.type === 'output_image')?.image_url?.url ||\n  '';\n\n// Validate\nif (!dataUrl) {\n  throw new Error('No image data URL produced by the model.');\n}\n\nconst m = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);\nif (!m) {\n  throw new Error('Expected \"data:*;base64,...\" but got: ' + dataUrl.slice(0, 60) + '...');\n}\n\n// Return a SINGLE object\nreturn {\n  json: {\n    mime: m[1],\n    base64: m[2],\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        180
+      ],
+      "id": "9406aea5-34d3-440d-9bf4-5815783e3c1c",
+      "name": "Parse DataURL"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "binaryPropertyName": "image",
+        "options": {
+          "fileName": "ai-image.png",
+          "mimeType": "={{$json.mime || 'image/png'}}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -576,
+        180
+      ],
+      "id": "2bfd5fc2-af76-4393-80eb-c9fcfb74ca34",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://bsmbqekevilajlapldan.supabase.co/storage/v1/object/{{$json.bucket}}/{{ encodeURIComponent($json.object_path) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzbWJxZWtldmlsYWpsYXBsZGFuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTc4NTY4NywiZXhwIjoyMDcxMzYxNjg3fQ.jiSCAbOxUtjH8Bcjr6NZoMrNwXMNSat_5DPhoRH_aR4"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "image",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -128,
+        180
+      ],
+      "id": "e79711dc-a642-4f71-a36f-78083dcd4532",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "68d9eae5-3b6e-46c0-9a5a-a1ddaaa7b919",
+              "name": "bucket",
+              "value": "public-images",
+              "type": "string"
+            },
+            {
+              "id": "025b138f-0593-43bb-8c1c-33ae0677578f",
+              "name": "object_path",
+              "value": "={{ ($json.content_id || 'untitled') + '/' + $now.toMillis() + '.png' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -352,
+        180
+      ],
+      "id": "6350986d-4ac7-4e39-b26e-f6780d83b646",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ba424e2-4e58-40ca-86c6-da1f7f1691a2",
+              "name": "image_url",
+              "value": "=https://bsmbqekevilajlapldan.supabase.co/storage/v1/object/public/{{ $json.Key }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        180
+      ],
+      "id": "12e6da12-1c41-4afd-9d07-920c47c6ba6c",
+      "name": "Make Public URL"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "@myatpwintbook",
+        "file": "={{$items('Make Public URL').last().json.image_url}}",
+        "additionalFields": {
+          "caption": "={{ $('Merge1').item.json.output.telegram_message }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        496
+      ],
+      "id": "3384e456-2569-4788-ac21-e0de04ab66fe",
+      "name": "Send a photo message",
+      "webhookId": "9b0369e6-bc65-4e73-ae50-aca1d32a0654",
+      "credentials": {
+        "telegramApi": {
+          "id": "JUWEWpl6Er0L5Y1X",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Nano 🍌": {
+      "main": [
+        [
+          {
+            "node": "Parse DataURL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.5 Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Image Prompt Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send email1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "container1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Graph API4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Prompt Generator": {
+      "main": [
+        [
+          {
+            "node": "Nano 🍌",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Load Image",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Image": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Should Update Image?": {
+      "main": [
+        [
+          {
+            "node": "Image Prompt Generator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image Prompt Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Should Update Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "container1": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse DataURL": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Make Public URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Public URL": {
+      "main": [
+        [
+          {
+            "node": "Insert or update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "846245a4e551e5678cbf800096cbe42441291f5dd623ebc355caa95dbe14865d"
+  }
+}

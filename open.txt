@@ -1,0 +1,11 @@
+Merchant Name :	OPENEYES PUBLISHING HOUSE	
+
+Merchant ID   :	205104001711159
+
+FrontEndUrl   : https://myatpwint-pre.netlify.app/
+
+BackEndUrl    : https://myatpwint-pre.netlify.app/
+
+SecretKey     : N8CWYXRDGW85SJK46XKS7228K26RJCCU
+
+open@160925
