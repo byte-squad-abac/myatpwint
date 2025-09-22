@@ -24,7 +24,6 @@ This is **MyatPwint v2**, a Myanmar digital publishing platform built with Next.
 - **Document Editing**: OnlyOffice integration for collaborative manuscript editing
 - **Communication**: Realtime chat system with read status tracking
 - **State Management**: Zustand for client-side state, React Context for themes
-- **Marketing Automation**: N8N webhook integration
 
 ### Application Structure
 
@@ -77,7 +76,6 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - `manuscript_activity` - Audit trail for manuscript changes
 - `manuscript_comments` - External commenting system (separate from OnlyOffice)
 - `document_revisions` - Version control for manuscripts
-- `n8n_marketing_analytics` - Marketing automation tracking
 - `tags` - Global tag management
 - `manuscript_chats` - Realtime chat system for author↔editor and author↔publisher communication
 - `chat_read_status` - Message read tracking for chat system
@@ -193,8 +191,7 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - Path aliases configured: `@/*` maps to `src/*`
 - Tailwind CSS v4 with custom configuration
 - ESLint configured with Next.js recommended rules
-- Environment variables stored in `.env.local` (requires Supabase, Stripe, OnlyOffice, Hugging Face, and N8N configuration)
-- Marketing automation via N8N webhooks for book promotions
+- Environment variables stored in `.env.local` (requires Supabase, Stripe, OnlyOffice, and Hugging Face configuration)
 - MCP integration available for Supabase operations
 
 ### Critical Dependencies

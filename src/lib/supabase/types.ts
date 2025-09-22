@@ -100,19 +100,6 @@ export interface Database {
           created_at: string
         }
       }
-      n8n_marketing_analytics: {
-        Row: {
-          id: string
-          book_id: string
-          campaign_type: string
-          status: string
-          error_message: string | null
-          platforms_posted: string[]
-          content_generated: Record<string, unknown> | null
-          triggered_at: string
-          completed_at: string | null
-        }
-      }
     }
   }
 }
