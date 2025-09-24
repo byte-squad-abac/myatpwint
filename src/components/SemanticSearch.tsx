@@ -11,26 +11,31 @@ const styleSheet = `
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.7; transform: scale(1.05); }
   }
-  
+
   @keyframes blink {
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0; }
   }
-  
+
   @keyframes slideInUp {
-    from { 
-      opacity: 0; 
-      transform: translateY(20px) scale(0.95); 
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
     }
-    to { 
-      opacity: 1; 
-      transform: translateY(0) scale(1); 
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
-  
+
   @keyframes shimmer {
     0% { background-position: -200px 0; }
     100% { background-position: calc(200px + 100%) 0; }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 
@@ -150,12 +155,15 @@ export default function SemanticSearch({
         throw new Error('Search failed');
       }
 
-      const data: SemanticSearchResult = await response.json();
+      const responseData = await response.json();
+      // Handle wrapped response from successResponse helper
+      const data: SemanticSearchResult = responseData.data || responseData;
+
       setResults(data.results || []);
       setSearchMethod(data.searchMethod);
       setShowDropdown(true);
-      
-      // Only update page results when Enter is pressed
+
+      // Update page results
       if (forPageUpdate) {
         onResults?.(data.results || [], true); // Update books page
       }
@@ -172,20 +180,21 @@ export default function SemanticSearch({
     }
   }, [query, category, onResults]);
 
-  // Debounced search for dropdown only
+  // Debounced search that updates both dropdown and page
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.length >= 2) {
-        handleSearch(false); // Don't update page, only dropdown
+        handleSearch(true); // Update both dropdown and page
       } else {
         setResults([]);
         setShowDropdown(false);
-        // Don't reset page results here - only when Enter is pressed with empty query
+        // Clear search when query is empty
+        onResults?.([], false);
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query, category, handleSearch]);
+  }, [query, category, handleSearch, onResults]);
 
   const handleResultClick = useCallback((bookId: string) => {
     setShowDropdown(false);
@@ -195,7 +204,7 @@ export default function SemanticSearch({
     }
   }, [autoNavigate, router]);
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (query.trim().length >= 2) {
@@ -224,7 +233,7 @@ export default function SemanticSearch({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={query.length > 0 || isFocused ? '' : currentPlaceholder}
             style={{
               width: '100%',
@@ -497,24 +506,83 @@ export default function SemanticSearch({
     );
   }
 
-  // Original full page mode (simplified version)
+  // Original full page mode (dark theme version)
   return (
-    <div style={{ padding: '20px' }}>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder={placeholder}
-        style={{
-          width: '100%',
-          padding: '12px 16px',
-          fontSize: '16px',
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          outline: 'none'
-        }}
-      />
+    <div style={{ position: 'relative', width: '100%' }}>
+      <div style={{
+        position: 'relative',
+        background: 'transparent',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <svg
+          style={{
+            position: 'absolute',
+            left: '24px',
+            width: '20px',
+            height: '20px',
+            color: '#9CA3AF'
+          }}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={query.length > 0 || isFocused ? placeholder : currentPlaceholder}
+          style={{
+            width: '100%',
+            padding: '16px 60px 16px 56px',
+            fontSize: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            outline: 'none',
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            backdropFilter: 'blur(10px)'
+          }}
+          onFocus={() => {
+            setIsFocused(true);
+            if (results.length > 0) setShowDropdown(true);
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            setTimeout(() => setShowDropdown(false), 200);
+          }}
+        />
+        {loading && (
+          <div style={{
+            position: 'absolute',
+            right: '24px',
+            width: '20px',
+            height: '20px',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            borderTopColor: 'white',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        )}
+        {!loading && results.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            right: '24px',
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            color: 'white',
+            padding: '4px 8px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: '600'
+          }}>
+            {results.length}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
