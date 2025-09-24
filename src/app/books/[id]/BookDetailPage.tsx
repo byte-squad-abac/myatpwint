@@ -94,7 +94,9 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   const handleAddToCart = () => {
     if (!mounted) return
 
-    addItem(book, deliveryType, quantity)
+    // Digital books always have quantity 1, physical books use selected quantity
+    const itemQuantity = deliveryType === 'digital' ? 1 : quantity
+    addItem(book, deliveryType, itemQuantity)
   }
 
   const handleRemoveFromCart = () => {
@@ -283,7 +285,10 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
-                    onClick={() => setDeliveryType('digital')}
+                    onClick={() => {
+                      setDeliveryType('digital')
+                      setQuantity(1) // Reset quantity for digital books
+                    }}
                     className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
                       deliveryType === 'digital'
                         ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
@@ -329,34 +334,46 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 </div>
               </div>
 
-              {/* Quantity Selector */}
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <span className="text-lg font-semibold text-white">Quantity:</span>
-                  <div className="flex items-center bg-gray-800/80 rounded-xl border border-gray-700/50">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="p-3 hover:bg-gray-700 rounded-l-xl transition-colors text-white font-bold"
-                    >
-                      −
-                    </button>
-                    <span className="px-6 py-3 text-xl font-bold text-white min-w-16 text-center">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors text-white font-bold"
-                    >
-                      +
-                    </button>
+              {/* Quantity Selector - Only for Physical Books */}
+              {deliveryType === 'physical' && (
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <span className="text-lg font-semibold text-white">Quantity:</span>
+                    <div className="flex items-center bg-gray-800/80 rounded-xl border border-gray-700/50">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="p-3 hover:bg-gray-700 rounded-l-xl transition-colors text-white font-bold"
+                      >
+                        −
+                      </button>
+                      <span className="px-6 py-3 text-xl font-bold text-white min-w-16 text-center">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors text-white font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm text-gray-400">Total:</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                      ${(book.price * quantity).toFixed(2)}
+                    </p>
                   </div>
                 </div>
+              )}
 
-                <div className="text-right">
-                  <p className="text-sm text-gray-400">Total:</p>
+              {/* Price Display for Digital Books */}
+              {deliveryType === 'digital' && (
+                <div className="text-center mb-8">
                   <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                    ${(book.price * quantity).toFixed(2)}
+                    ${book.price}
                   </p>
+                  <p className="text-sm text-gray-400 mt-1">Digital Copy - Instant Download</p>
                 </div>
-              </div>
+              )}
 
               {/* Action Buttons */}
               <div className="space-y-4">
