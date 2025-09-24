@@ -1,26 +1,15 @@
 'use client'
 
-// React and Next.js
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { ArrowLeftIcon, ShoppingCartIcon, PlayIcon, BookOpenIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, SparklesIcon } from '@heroicons/react/24/solid'
 
-// External libraries
-import { MinusIcon, PlusIcon, StarIcon } from '@heroicons/react/24/outline'
-import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
-
-// Types
 import type { Book, DeliveryType } from '@/types'
-
-// Components
-import { Button, Card, Badge } from '@/components/ui'
 import { BookRecommendations } from '@/components'
-
-// Services
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/store/cartStore'
-
-// Hooks
 import { useAuth } from '@/hooks/useAuth'
 
 interface BookDetailPageProps {
@@ -31,378 +20,401 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   const router = useRouter()
   const { user } = useAuth()
   const supabase = createClient()
-  
+
   const [mounted, setMounted] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [quantityInput, setQuantityInput] = useState('1')
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('digital') // Default to digital
-  const [activeTab, setActiveTab] = useState<'description' | 'details' | 'reviews'>('description')
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('digital')
   const [isOwned, setIsOwned] = useState(false)
   const [physicalCopiesAvailable, setPhysicalCopiesAvailable] = useState(0)
-  
-  const { addItem, removeItem, isInCart, updateQuantity } = useCartStore()
+  const [showFullDescription, setShowFullDescription] = useState(false)
+
+  const { addItem, isInCart, removeItem } = useCartStore()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Check physical copies availability and set appropriate default delivery type
+  // Check physical copies availability
   useEffect(() => {
     const checkPhysicalAvailability = async () => {
       try {
-        // Use the new database function to get available copies (bypasses RLS)
         const { data, error } = await supabase
           .rpc('get_available_physical_copies', { book_id_param: book.id })
 
-        if (error) {
-          throw error
-        }
+        if (error) throw error
 
         const availableCopies = data || 0
         setPhysicalCopiesAvailable(availableCopies)
-        
-        // Set default delivery type based on availability
-        if (availableCopies > 0) {
-          setDeliveryType('physical') // Physical available, default to physical
-          // Reset quantity if it exceeds available copies
-          setQuantity(prev => prev > availableCopies ? availableCopies : prev)
-        } else {
-          setDeliveryType('digital') // No physical copies, force digital
+
+        if (availableCopies === 0) {
+          setDeliveryType('digital')
         }
       } catch (error) {
-        console.error('❌ Error checking physical availability:', error)
+        console.error('Error checking physical availability:', error)
         setPhysicalCopiesAvailable(0)
-        setDeliveryType('digital')
       }
     }
-    
-    checkPhysicalAvailability()
-  }, [book.id, supabase])
 
-  // Check if user already owns this book
+    if (mounted && book.id) {
+      checkPhysicalAvailability()
+    }
+  }, [book.id, mounted, supabase])
+
+  // Check if user owns this book
   useEffect(() => {
-    if (!user?.id) return
-    
     const checkOwnership = async () => {
+      if (!user) return
+
       try {
-        // Only check for digital ownership - users can buy physical books multiple times
         const { data, error } = await supabase
           .from('purchases')
           .select('id')
           .eq('user_id', user.id)
           .eq('book_id', book.id)
-          .eq('delivery_type', 'digital')
+          .eq('status', 'completed')
           .limit(1)
-        
-        if (!error && data && data.length > 0) {
-          setIsOwned(true)
-        }
+
+        if (error) throw error
+        setIsOwned(data && data.length > 0)
       } catch (error) {
-        console.error('Error checking book ownership:', error)
+        console.error('Error checking ownership:', error)
       }
     }
-    
-    checkOwnership()
-  }, [user?.id, book.id, supabase])
 
-  // Reset quantity when delivery type changes to physical (to ensure it's within limits)
-  useEffect(() => {
-    if (deliveryType === 'physical' && physicalCopiesAvailable > 0) {
-      setQuantity(prev => {
-        const newQty = prev > physicalCopiesAvailable ? 1 : prev
-        setQuantityInput(newQty.toString())
-        return newQty
-      })
+    if (mounted && user && book.id) {
+      checkOwnership()
     }
-  }, [deliveryType, physicalCopiesAvailable])
+  }, [user, book.id, mounted, supabase])
+
+  const bookCategories = useMemo(() => {
+    if (!book.category) return []
+    return book.category.split(',').map((cat: string) => cat.trim()).filter((cat: string) => cat.length > 0)
+  }, [book.category])
 
   const handleAddToCart = () => {
-    if (isInCart(book.id, deliveryType)) {
-      removeItem(book.id, deliveryType)
-    } else {
-      addItem(book, deliveryType, deliveryType === 'physical' ? quantity : 1)
-    }
+    if (!mounted) return
+
+    addItem(book, deliveryType, quantity)
   }
 
-  const handleQuantityChange = (newQuantity: number) => {
-    // For physical books, limit to available inventory
-    const maxQuantity = deliveryType === 'physical' ? physicalCopiesAvailable : 999
-    
-    if (newQuantity >= 1 && newQuantity <= maxQuantity) {
-      setQuantity(newQuantity)
-      setQuantityInput(newQuantity.toString())
-      if (isInCart(book.id, deliveryType)) {
-        updateQuantity(book.id, deliveryType, newQuantity)
-      }
-    }
+  const handleRemoveFromCart = () => {
+    removeItem(book.id, deliveryType)
   }
 
-  const handleQuantityInputChange = (value: string) => {
-    setQuantityInput(value)
-    
-    // Only update quantity if it's a valid number
-    const numValue = parseInt(value)
-    if (!isNaN(numValue) && numValue >= 1 && numValue <= physicalCopiesAvailable) {
-      setQuantity(numValue)
-      if (isInCart(book.id, deliveryType)) {
-        updateQuantity(book.id, deliveryType, numValue)
-      }
-    }
-  }
 
-  const handleQuantityInputBlur = () => {
-    // On blur, ensure we have a valid quantity
-    const numValue = parseInt(quantityInput)
-    if (isNaN(numValue) || numValue < 1) {
-      setQuantityInput('1')
-      setQuantity(1)
-    } else if (numValue > physicalCopiesAvailable) {
-      setQuantityInput(physicalCopiesAvailable.toString())
-      setQuantity(physicalCopiesAvailable)
-    }
-  }
-
-  const handleCheckout = () => {
-    if (!isInCart(book.id, deliveryType)) {
-      addItem(book, deliveryType, deliveryType === 'physical' ? quantity : 1)
-    }
-    router.push('/checkout')
-  }
-
-  // Pre-compute button state to avoid hydration mismatch
-  const getButtonState = () => {
-    if (!mounted) return { text: 'Add to Cart', variant: 'primary' as const, disabled: false }
-    if (isOwned) return { text: 'Already Owned', variant: 'success' as const, disabled: true }
-    if (isInCart(book.id, deliveryType)) return { text: 'Remove from Cart', variant: 'error' as const, disabled: false }
-    return { text: 'Add to Cart', variant: 'primary' as const, disabled: false }
-  }
-
-  const buttonState = getButtonState()
-
-  const renderStars = (rating: number = 4.5) => {
+  if (!mounted) {
     return (
-      <div className="flex items-center space-x-1">
-        {[...Array(5)].map((_, i) => (
-          i < Math.floor(rating) ? (
-            <StarSolidIcon key={i} className="h-4 w-4 text-yellow-400" />
-          ) : (
-            <StarIcon key={i} className="h-4 w-4 text-gray-300" />
-          )
-        ))}
-        <span className="ml-2 text-sm text-gray-600">({rating})</span>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="relative">
+          <div className="w-24 h-24 border-4 border-white/10 rounded-full"></div>
+          <div className="absolute inset-0 w-24 h-24 border-4 border-t-white rounded-full animate-spin"></div>
+        </div>
       </div>
     )
   }
 
+  const inCart = isInCart(book.id, deliveryType)
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Book Cover */}
-            <div className="flex justify-center lg:justify-start">
-              <div className="relative w-80 h-96">
-                <Image
-                  src={book.image_url}
-                  alt={book.name}
-                  fill
-                  className="object-cover rounded-lg shadow-lg"
-                  priority
-                />
+    <div className="min-h-screen bg-black text-white">
+      {/* Hero Section with Background */}
+      <div className="relative overflow-hidden">
+        {/* Background Image with Blur */}
+        {book.image_url && (
+          <div className="absolute inset-0 z-0">
+            <Image
+              src={book.image_url}
+              alt={book.name}
+              fill
+              className="object-cover opacity-10 blur-lg scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black"></div>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="relative z-10 bg-black/30 backdrop-blur-sm border-b border-gray-800/30">
+          <div className="container mx-auto px-6 py-4">
+            <button
+              onClick={() => router.back()}
+              className="group flex items-center gap-3 text-gray-400 hover:text-white transition-all"
+            >
+              <div className="p-2 rounded-full bg-gray-900/50 group-hover:bg-gray-800/50 transition-colors">
+                <ArrowLeftIcon className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Back to Books</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Main Hero Content */}
+        <div className="relative z-10 container mx-auto px-6 py-16">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
+            {/* Book Cover - Much larger and more prominent */}
+            <div className="xl:col-span-6 flex justify-center xl:justify-start">
+              <div className="relative group w-full max-w-lg">
+                <div className="absolute -inset-8 bg-gradient-to-r from-purple-600/30 via-pink-600/30 to-purple-600/30 rounded-3xl blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-700"></div>
+                <div className="relative">
+                  <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/30 shadow-2xl">
+                    {book.image_url ? (
+                      <Image
+                        src={book.image_url}
+                        alt={book.name}
+                        width={800}
+                        height={1200}
+                        className="w-full h-auto rounded-xl shadow-2xl"
+                      />
+                    ) : (
+                      <div className="aspect-[2/3] bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center w-full">
+                        <BookOpenIcon className="w-24 h-24 text-gray-500" />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Book Details */}
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{book.name}</h1>
-                <p className="text-xl text-blue-600 font-semibold mb-4">{book.author}</p>
-                {renderStars()}
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <div className="text-3xl font-bold text-green-600">
-                  {book.price.toLocaleString()} MMK
+            {/* Book Information */}
+            <div className="xl:col-span-6 space-y-8">
+              {/* Title Section */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <SparklesIcon className="w-6 h-6 text-purple-400" />
+                  <span className="px-3 py-1 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-600/30 rounded-full text-sm text-purple-300">
+                    Featured Book
+                  </span>
                 </div>
-                {deliveryType === 'physical' && (
-                  <div className="text-sm text-red-600">
-                    +5,000 MMK shipping fee
-                  </div>
-                )}
-              </div>
 
-              <div className="flex space-x-2">
-                <Badge variant="primary">{book.category}</Badge>
-                <Badge variant="secondary">Edition {book.edition}</Badge>
-              </div>
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight tracking-tight">
+                  <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                    {book.name}
+                  </span>
+                </h1>
 
-              {/* Tabs */}
-              <div className="border-b">
-                <nav className="flex space-x-8">
-                  {[
-                    { id: 'description', label: 'Description' },
-                    { id: 'details', label: 'Details' },
-                    { id: 'reviews', label: 'Reviews' },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === tab.id
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </nav>
-              </div>
+                <p className="text-xl md:text-2xl text-gray-300">by <span className="text-white font-medium">{book.author}</span></p>
 
-              {/* Tab Content */}
-              <div className="min-h-[120px]">
-                {activeTab === 'description' && (
-                  <p className="text-gray-700 leading-relaxed">{book.description}</p>
-                )}
-                {activeTab === 'details' && (
-                  <div className="space-y-2">
-                    <p><strong>Author:</strong> {book.author}</p>
-                    <p><strong>Edition:</strong> {book.edition}</p>
-                    <p><strong>Published Date:</strong> {new Date(book.published_date).toLocaleDateString()}</p>
-                    <p><strong>Category:</strong> {book.category}</p>
-                    <p><strong>Tags:</strong> {book.tags?.join(', ') || 'No tags'}</p>
-                  </div>
-                )}
-                {activeTab === 'reviews' && (
-                  <p className="text-gray-500">No reviews yet. (Reviews feature coming soon!)</p>
-                )}
-              </div>
-
-              {/* Delivery Type Selection */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Choose Type:</h3>
-                <div className="flex space-x-4">
-                  {/* Always show digital option */}
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="deliveryType"
-                      value="digital"
-                      checked={deliveryType === 'digital'}
-                      onChange={e => setDeliveryType(e.target.value as DeliveryType)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Digital
-                    </span>
-                  </label>
-                  
-                  {/* Only show physical option if copies are available */}
-                  {physicalCopiesAvailable > 0 && (
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="deliveryType"
-                        value="physical"
-                        checked={deliveryType === 'physical'}
-                        onChange={e => setDeliveryType(e.target.value as DeliveryType)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">
-                        Physical ({physicalCopiesAvailable} available)
+                {/* Categories */}
+                {bookCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {bookCategories.map((category, index) => (
+                      <span
+                        key={index}
+                        className="px-4 py-2 bg-gradient-to-r from-gray-900/60 to-gray-800/60 backdrop-blur-lg border border-gray-700/50 rounded-full text-sm text-gray-300 hover:text-white transition-colors"
+                      >
+                        {category}
                       </span>
-                    </label>
-                  )}
-                </div>
-                
-                {/* Show message when only digital is available */}
-                {physicalCopiesAvailable === 0 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    📱 Only digital version available - physical copies out of stock
-                  </p>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Quantity Selection for Physical Books */}
-              {deliveryType === 'physical' && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">Quantity:</h3>
-                  <div className="flex items-center space-x-3">
+              {/* Description */}
+              <div className="bg-gradient-to-r from-gray-900/60 to-gray-800/60 backdrop-blur-xl rounded-2xl p-8 border border-gray-700/30">
+                <h3 className="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                  <BookOpenIcon className="w-6 h-6 text-purple-400" />
+                  About This Book
+                </h3>
+                <div className="text-gray-300 leading-relaxed text-lg">
+                  {showFullDescription ? (
+                    <p>{book.description}</p>
+                  ) : (
+                    <p>{book.description.substring(0, 400)}...</p>
+                  )}
+                  {book.description.length > 400 && (
                     <button
-                      onClick={() => handleQuantityChange(quantity - 1)}
-                      disabled={quantity <= 1}
-                      className="p-1 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                      onClick={() => setShowFullDescription(!showFullDescription)}
+                      className="text-purple-400 hover:text-purple-300 mt-4 text-sm font-semibold flex items-center gap-2 transition-colors"
                     >
-                      <MinusIcon className="h-4 w-4" />
+                      {showFullDescription ? 'Show Less' : 'Read More'}
+                      <ArrowLeftIcon className={`w-4 h-4 transform transition-transform ${showFullDescription ? 'rotate-90' : '-rotate-90'}`} />
                     </button>
-                    <input
-                      type="number"
-                      value={quantityInput}
-                      onChange={e => handleQuantityInputChange(e.target.value)}
-                      onBlur={handleQuantityInputBlur}
-                      min="1"
-                      max={physicalCopiesAvailable}
-                      className="w-16 text-center border border-gray-300 rounded-md py-1"
-                    />
-                    <button
-                      onClick={() => handleQuantityChange(quantity + 1)}
-                      disabled={quantity >= physicalCopiesAvailable}
-                      className="p-1 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <PlusIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Maximum {physicalCopiesAvailable} copies available
-                  </p>
+                  )}
                 </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex space-x-4 pt-4">
-                <Button
-                  variant={buttonState.variant}
-                  onClick={isOwned ? () => router.push('/library') : handleAddToCart}
-                  disabled={buttonState.disabled}
-                  className="flex-1 py-3 text-base font-medium"
-                >
-                  {isOwned ? 'Go to Library' : buttonState.text}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={isOwned ? () => router.push('/library') : handleCheckout}
-                  disabled={isOwned}
-                  className="flex-1 py-3 text-base font-medium"
-                >
-                  {isOwned ? 'Read Now' : 'Buy Now'}
-                </Button>
               </div>
 
-              {/* Additional Info */}
-              <div className="pt-4 border-t">
-                <p className="text-sm text-gray-600 mb-2">
-                  Published: {new Date(book.published_date).toLocaleDateString()}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {book.tags?.map(tag => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  )) || (
-                    <span className="text-sm text-gray-500">No tags available</span>
-                  )}
+              {/* Book Details Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-gray-900/40 backdrop-blur-lg rounded-xl p-4 border border-gray-800/50">
+                  <span className="text-gray-400 text-sm block mb-1">Published</span>
+                  <span className="text-white font-semibold">
+                    {new Date(book.published_date).toLocaleDateString()}
+                  </span>
+                </div>
+                {book.edition && (
+                  <div className="bg-gray-900/40 backdrop-blur-lg rounded-xl p-4 border border-gray-800/50">
+                    <span className="text-gray-400 text-sm block mb-1">Edition</span>
+                    <span className="text-white font-semibold">{book.edition}</span>
+                  </div>
+                )}
+                <div className="bg-gray-900/40 backdrop-blur-lg rounded-xl p-4 border border-gray-800/50">
+                  <span className="text-gray-400 text-sm block mb-1">Language</span>
+                  <span className="text-white font-semibold">Myanmar</span>
                 </div>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
+      </div>
 
-        {/* AI-Powered Recommendations */}
-        <BookRecommendations 
-          currentBookId={book.id}
-          title="Similar Books You Might Like"
-          limit={5}
-        />
+      {/* Purchase Section */}
+      <div className="bg-gradient-to-b from-gray-900/50 to-black border-t border-gray-800/50">
+        <div className="container mx-auto px-6 py-16">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl">
+              {/* Price Header */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-4 mb-4">
+                  <span className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                    ${book.price}
+                  </span>
+                  <div className="text-left">
+                    <p className="text-gray-400 text-sm">
+                      {deliveryType === 'digital' ? 'Digital Copy' : 'Physical Copy'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {deliveryType === 'digital' ? 'Instant Download' : 'Ships in 2-3 days'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Options */}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setDeliveryType('digital')}
+                    className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
+                      deliveryType === 'digital'
+                        ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
+                        : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-full ${deliveryType === 'digital' ? 'bg-purple-500' : 'bg-gray-700'} transition-colors`}>
+                        <PlayIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-lg text-white">Digital Edition</div>
+                        <div className="text-sm text-gray-400">Read instantly on any device</div>
+                        <div className="text-xs text-green-400 font-medium">✓ Available now</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setDeliveryType('physical')}
+                    disabled={physicalCopiesAvailable === 0}
+                    className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
+                      deliveryType === 'physical'
+                        ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
+                        : physicalCopiesAvailable === 0
+                        ? 'border-gray-700 bg-gray-800/30 opacity-50 cursor-not-allowed'
+                        : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-full ${deliveryType === 'physical' ? 'bg-purple-500' : physicalCopiesAvailable === 0 ? 'bg-gray-700' : 'bg-gray-700'} transition-colors`}>
+                        <BookOpenIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-lg text-white">Physical Book</div>
+                        <div className="text-sm text-gray-400">Premium paperback edition</div>
+                        <div className={`text-xs font-medium ${physicalCopiesAvailable === 0 ? 'text-red-400' : 'text-orange-400'}`}>
+                          {physicalCopiesAvailable === 0 ? '✗ Out of stock' : `✓ ${physicalCopiesAvailable} copies left`}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-lg font-semibold text-white">Quantity:</span>
+                  <div className="flex items-center bg-gray-800/80 rounded-xl border border-gray-700/50">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="p-3 hover:bg-gray-700 rounded-l-xl transition-colors text-white font-bold"
+                    >
+                      −
+                    </button>
+                    <span className="px-6 py-3 text-xl font-bold text-white min-w-16 text-center">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors text-white font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-sm text-gray-400">Total:</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                    ${(book.price * quantity).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-4">
+                {isOwned ? (
+                  <div className="flex items-center justify-center gap-3 py-6 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-2xl">
+                    <CheckIcon className="w-6 h-6 text-green-400" />
+                    <span className="text-lg font-semibold text-green-400">You Already Own This Book</span>
+                    <button className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                      Read Now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {inCart ? (
+                      <button
+                        onClick={handleRemoveFromCart}
+                        className="py-4 px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all text-lg shadow-lg hover:shadow-xl"
+                      >
+                        Remove from Cart
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleAddToCart}
+                        className="py-4 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg"
+                      >
+                        <ShoppingCartIcon className="w-6 h-6" />
+                        Add to Cart
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        handleAddToCart()
+                        router.push('/checkout')
+                      }}
+                      className="py-4 px-8 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl text-lg"
+                    >
+                      Buy Now
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      {/* Book Recommendations */}
+      <div className="border-t border-gray-800/50 bg-gradient-to-b from-gray-900/20 to-black">
+        <div className="container mx-auto px-6 py-16">
+          <BookRecommendations
+            currentBookId={book.id}
+            title="You Might Also Like"
+            limit={6}
+          />
+        </div>
       </div>
     </div>
   )

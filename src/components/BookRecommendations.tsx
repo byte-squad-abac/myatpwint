@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import type { BookWithRecommendationMetadata } from '@/types'
-import Card from '@/components/ui/Card'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 
 interface BookRecommendationsProps {
@@ -64,10 +62,10 @@ export default function BookRecommendations({
   if (loading) {
     return (
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">{title}</h2>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading recommendations...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <span className="ml-3 text-gray-300">Loading recommendations...</span>
         </div>
       </div>
     )
@@ -76,10 +74,10 @@ export default function BookRecommendations({
   if (error) {
     return (
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">{title}</h2>
         <div className="text-center py-12">
-          <p className="text-gray-600 mb-4">Unable to load recommendations</p>
-          <Button 
+          <p className="text-gray-300 mb-4">Unable to load recommendations</p>
+          <Button
             onClick={fetchRecommendations}
             variant="outline"
             size="sm"
@@ -94,10 +92,10 @@ export default function BookRecommendations({
   if (recommendations.length === 0) {
     return (
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">{title}</h2>
         <div className="text-center py-8">
-          <p className="text-gray-600">No similar books found yet.</p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-gray-300">No similar books found yet.</p>
+          <p className="text-sm text-gray-400 mt-2">
             Recommendations will improve as more books are added to the platform.
           </p>
         </div>
@@ -107,65 +105,83 @@ export default function BookRecommendations({
 
   return (
     <div className="mt-8">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-        <div className="flex items-center text-sm text-gray-600">
-          <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-bold text-white">{title}</h2>
+        <div className="flex items-center text-sm text-purple-400">
+          <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></span>
           AI-powered recommendations
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
         {recommendations.map((book, index) => {
           const bookData = book as unknown as Record<string, unknown>
           return (
-          <Card key={bookData.id as string || `recommendation-${index}`} className="h-full hover:shadow-lg transition-shadow cursor-pointer">
-            <div 
-              className="p-4"
+            <div
+              key={bookData.id as string || `recommendation-${index}`}
+              className="group cursor-pointer"
               onClick={() => router.push(`/books/${bookData.id}`)}
             >
-              {(bookData.image_url as string) && (
-                <div className="aspect-[3/4] bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                  <Image 
-                    src={bookData.image_url as string} 
-                    alt={bookData.name as string}
-                    width={150}
-                    height={200}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
-                  {bookData.name as string}
-                </h3>
-                
-                <p className="text-xs text-gray-600 mb-2">by {bookData.author as string}</p>
-                
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="outline" size="sm">{bookData.category as string}</Badge>
-                  <span className="text-sm font-bold text-green-600">
-                    {bookData.price as number} MMK
-                  </span>
+              <div className="relative overflow-hidden rounded-lg">
+                <div className="aspect-[3/4] bg-gradient-to-br from-gray-900 to-gray-800 relative">
+                  {(bookData.image_url as string) && (
+                    <Image
+                      src={bookData.image_url as string}
+                      alt={bookData.name as string}
+                      width={200}
+                      height={300}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  )}
+
+                  {/* Overlay on Hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 transform transition-transform duration-300 translate-y-2 group-hover:translate-y-0">
+                      <p className="text-white text-sm font-medium line-clamp-2 mb-1">
+                        {bookData.name as string}
+                      </p>
+                      <p className="text-gray-300 text-xs mb-2">
+                        {bookData.author as string}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-400 font-bold text-sm">
+                          ${bookData.price as number}
+                        </span>
+                        {Boolean(bookData.recommendationMetadata) && (
+                          <span className="text-xs bg-purple-500/80 backdrop-blur px-2 py-1 rounded text-white">
+                            {Math.round(((bookData.recommendationMetadata as Record<string, unknown>)?.similarity as number || 0) * 100)}% match
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {Boolean(bookData.recommendationMetadata) && (
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>
-                      {Math.round(((bookData.recommendationMetadata as Record<string, unknown>)?.similarity as number || 0) * 100)}% match
-                    </span>
-                    <span>🤖 AI</span>
+                {/* Quick Action Button */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Book Info Below */}
+              <div className="mt-3 space-y-1">
+                <h3 className="text-white font-medium text-sm line-clamp-1 group-hover:text-purple-400 transition-colors">
+                  {bookData.name as string}
+                </h3>
+                <p className="text-gray-500 text-xs">
+                  {bookData.author as string}
+                </p>
               </div>
             </div>
-          </Card>
           )
         })}
       </div>
-      
-      <div className="text-center mt-6">
+
+      <div className="text-center mt-8">
         <p className="text-xs text-gray-500">
           Based on content similarity using multilingual AI • {recommendations.length} recommendations
         </p>
