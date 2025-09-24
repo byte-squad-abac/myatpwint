@@ -10,8 +10,6 @@ import { TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 // Types
 import type { CartItem } from '@/lib/store/cartStore'
 
-// Components
-import { Button } from '@/components/ui'
 
 // Services
 import { useCartStore } from '@/lib/store/cartStore'

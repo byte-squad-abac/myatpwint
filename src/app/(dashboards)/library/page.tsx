@@ -122,7 +122,7 @@ export default function LibraryPage() {
   }
 
   const getFilteredBooks = () => {
-    let filtered = purchases.filter(purchase => {
+    const filtered = purchases.filter(purchase => {
       const book = purchase.books
       const matchesSearch = book.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            book.author.toLowerCase().includes(searchTerm.toLowerCase())
@@ -200,7 +200,7 @@ export default function LibraryPage() {
             ].map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => setFilter(key as any)}
+                onClick={() => setFilter(key as 'all' | 'digital' | 'physical' | 'continue')}
                 className={`px-4 py-3 rounded-xl font-medium transition-all ${
                   filter === key
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
