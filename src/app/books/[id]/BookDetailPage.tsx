@@ -11,6 +11,7 @@ import { BookRecommendations } from '@/components'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/store/cartStore'
 import { useAuth } from '@/hooks/useAuth'
+import { formatMMK } from '@/lib/utils/currency'
 
 interface BookDetailPageProps {
   book: Book
@@ -267,7 +268,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-4 mb-4">
                   <span className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                    ${book.price}
+                    {formatMMK(book.price)}
                   </span>
                   <div className="text-left">
                     <p className="text-gray-400 text-sm">
@@ -359,7 +360,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                   <div className="text-right">
                     <p className="text-sm text-gray-400">Total:</p>
                     <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                      ${(book.price * quantity).toFixed(2)}
+                      {formatMMK(book.price * quantity)}
                     </p>
                   </div>
                 </div>
@@ -369,7 +370,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               {deliveryType === 'digital' && (
                 <div className="text-center mb-8">
                   <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                    ${book.price}
+                    {formatMMK(book.price)}
                   </p>
                   <p className="text-sm text-gray-400 mt-1">Digital Copy - Instant Download</p>
                 </div>

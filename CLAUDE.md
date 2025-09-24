@@ -222,3 +222,60 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+- \
+\
+## Error Type
+Console AuthApiError
+
+## Error Message
+Invalid Refresh Token: Refresh Token Not Found
+
+
+    at handleError (file:///Users/richard/Desktop/Comparison/myatpwintv2/.next/static/chunks/node_modules_46e3d85a._.js:7591:11)
+    at async _handleRequest (file:///Users/richard/Desktop/Comparison/myatpwintv2/.next/static/chunks/node_modules_46e3d85a._.js:7641:9)
+    at async _request (file:///Users/richard/Desktop/Comparison/myatpwintv2/.next/static/chunks/node_modules_46e3d85a._.js:7621:18)
+    at async (file:///Users/richard/Desktop/Comparison/myatpwintv2/.next/static/chunks/node_modules_46e3d85a._.js:10020:24)
+    at async (file:///Users/richard/Desktop/Comparison/myatpwintv2/.next/static/chunks/node_modules_46e3d85a._.js:7368:36)
+
+Next.js version: 15.5.2 (Turbopack)
+# Error Type
+Console Error
+
+## Error Message
+Profile fetch error: {}
+
+
+    at useAuth.useCallback[fetchProfile] (src/hooks/useAuth.ts:98:19)
+    at async useAuth.useEffect.initializeAuth (src/hooks/useAuth.ts:202:13)
+
+## Code Frame
+   96 |           }
+   97 |         } else {
+>  98 |           console.error('Profile fetch error:', error)
+      |                   ^
+   99 |           setProfile(null)
+  100 |           return
+  101 |         }
+
+Next.js version: 15.5.2 (Turbopack)
+\
+\
+## Error Type
+Console Error
+
+## Error Message
+Profile fetch error: {}
+
+
+    at useAuth.useCallback[fetchProfile] (src/hooks/useAuth.ts:98:19)
+
+## Code Frame
+   96 |           }
+   97 |         } else {
+>  98 |           console.error('Profile fetch error:', error)
+      |                   ^
+   99 |           setProfile(null)
+  100 |           return
+  101 |         }
+
+Next.js version: 15.5.2 (

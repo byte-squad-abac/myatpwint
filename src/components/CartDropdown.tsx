@@ -13,6 +13,7 @@ import type { CartItem } from '@/lib/store/cartStore'
 
 // Services
 import { useCartStore } from '@/lib/store/cartStore'
+import { formatMMK } from '@/lib/utils/currency'
 
 interface CartDropdownProps {
   onClose: () => void
@@ -119,7 +120,7 @@ export default function CartDropdown({ onClose, onCheckout }: CartDropdownProps)
                 </p>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-sm font-bold text-green-400">
-                    ${item.book.price}
+                    {formatMMK(item.book.price)}
                   </span>
                   <span className="text-xs text-purple-400 capitalize bg-purple-500/20 px-2 py-1 rounded-full">
                     {item.deliveryType}
@@ -162,7 +163,7 @@ export default function CartDropdown({ onClose, onCheckout }: CartDropdownProps)
           <div className="flex justify-between items-center mb-4">
             <span className="text-lg font-semibold text-white">Total:</span>
             <span className="text-xl font-bold text-green-400">
-              ${total}
+              {formatMMK(total)}
             </span>
           </div>
           

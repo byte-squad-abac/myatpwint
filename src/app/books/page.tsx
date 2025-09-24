@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import type { Book } from '@/types'
 import { SemanticSearch, useSearchContext } from '@/components'
+import { formatMMK } from '@/lib/utils/currency'
 
 export default function BooksPage() {
   const router = useRouter()
@@ -183,7 +184,7 @@ export default function BooksPage() {
                         </p>
                         <div className="flex items-center justify-between mt-3">
                           <span className="text-green-400 font-bold">
-                            ${book.price}
+                            {formatMMK(book.price)}
                           </span>
                           <span className="text-xs bg-white/20 backdrop-blur px-2 py-1 rounded">
                             {book.category}
