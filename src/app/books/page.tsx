@@ -103,7 +103,7 @@ export default function BooksPage() {
           <div className="max-w-3xl mx-auto text-center space-y-8">
             <h1 className="text-6xl md:text-7xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
-                Discover Books
+                Myat Pwint Books
               </span>
             </h1>
 
