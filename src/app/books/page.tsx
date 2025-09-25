@@ -8,6 +8,10 @@ import type { Book } from '@/types'
 import { SemanticSearch, useSearchContext } from '@/components'
 import { formatMMK } from '@/lib/utils/currency'
 
+// Price range constants based on actual book data
+const MIN_PRICE = 15000
+const MAX_PRICE = 60000
+
 export default function BooksPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -18,7 +22,7 @@ export default function BooksPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [categories, setCategories] = useState<string[]>([])
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
-  const [priceRange, setPriceRange] = useState<[number, number]>([15000, 60000])
+  const [priceRange, setPriceRange] = useState<[number, number]>([MIN_PRICE, MAX_PRICE])
   const [showPriceDropdown, setShowPriceDropdown] = useState(false)
   const [selectedAuthor, setSelectedAuthor] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
@@ -203,7 +207,7 @@ export default function BooksPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                     </svg>
                     <span className="font-medium">
-                      {priceRange[0] === 15000 && priceRange[1] === 60000
+                      {priceRange[0] === MIN_PRICE && priceRange[1] === MAX_PRICE
                         ? 'All Prices'
                         : `${formatMMK(priceRange[0])} - ${formatMMK(priceRange[1])}`}
                     </span>
@@ -442,16 +446,16 @@ export default function BooksPage() {
                 <div
                   className="absolute top-1/2 h-2 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transform -translate-y-1/2"
                   style={{
-                    left: `${((priceRange[0] - 15000) / (60000 - 15000)) * 100}%`,
-                    width: `${((priceRange[1] - priceRange[0]) / (60000 - 15000)) * 100}%`
+                    left: `${((priceRange[0] - MIN_PRICE) / (MAX_PRICE - MIN_PRICE)) * 100}%`,
+                    width: `${((priceRange[1] - priceRange[0]) / (MAX_PRICE - MIN_PRICE)) * 100}%`
                   }}
                 ></div>
 
                 {/* Min slider */}
                 <input
                   type="range"
-                  min={15000}
-                  max={60000}
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
                   step={1000}
                   value={priceRange[0]}
                   onChange={(e) => {
@@ -466,8 +470,8 @@ export default function BooksPage() {
                 {/* Max slider */}
                 <input
                   type="range"
-                  min={15000}
-                  max={60000}
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
                   step={1000}
                   value={priceRange[1]}
                   onChange={(e) => {
@@ -482,15 +486,15 @@ export default function BooksPage() {
 
               {/* Min/Max labels */}
               <div className="flex justify-between text-xs text-gray-500 mt-2">
-                <span>{formatMMK(15000)}</span>
-                <span>{formatMMK(60000)}</span>
+                <span>{formatMMK(MIN_PRICE)}</span>
+                <span>{formatMMK(MAX_PRICE)}</span>
               </div>
             </div>
 
             {/* Reset button */}
             <button
               onClick={() => {
-                setPriceRange([15000, 60000])
+                setPriceRange([MIN_PRICE, MAX_PRICE])
                 setShowPriceDropdown(false)
               }}
               className="w-full py-2 text-gray-400 hover:text-white transition-colors text-sm"
