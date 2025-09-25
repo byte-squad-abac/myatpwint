@@ -2,6 +2,126 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { kbzPayService } from '@/lib/services/kbzpay'
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // Get user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const merchantOrderId = searchParams.get('merchantOrderId')
+
+    if (!merchantOrderId) {
+      return NextResponse.json({ error: 'Merchant order ID is required' }, { status: 400 })
+    }
+
+    // Get order from database
+    const { data: order, error: orderError } = await supabase
+      .from('kbzpay_orders')
+      .select('*')
+      .eq('merchant_order_id', merchantOrderId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (orderError || !order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // If already completed, return success
+    if (order.status === 'completed') {
+      return NextResponse.json({
+        success: true,
+        status: 'paid',
+        paidAt: order.paid_at,
+        orderId: order.id
+      })
+    }
+
+    // Query KBZPay for latest status
+    try {
+      const kbzPayResponse = await kbzPayService.queryOrder(merchantOrderId)
+
+      if (kbzPayResponse.result === 'SUCCESS' && kbzPayResponse.trade_status === 'PAY_SUCCESS') {
+        // Update order status in database
+        const paidAt = kbzPayResponse.pay_success_time
+          ? new Date(parseInt(kbzPayResponse.pay_success_time) * 1000).toISOString()
+          : new Date().toISOString()
+
+        const { error: updateError } = await supabase
+          .from('kbzpay_orders')
+          .update({
+            status: 'completed',
+            kbz_order_id: kbzPayResponse.mm_order_id,
+            paid_amount: parseFloat(kbzPayResponse.total_amount || '0'),
+            paid_at: paidAt,
+            kbzpay_response: kbzPayResponse,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', order.id)
+
+        if (updateError) {
+          console.error('Error updating order status:', updateError)
+        }
+
+        // Create purchase records if payment was successful
+        try {
+          const purchasePromises = order.book_ids.map(async (bookId: string, index: number) => {
+            return supabase.from('purchases').insert({
+              user_id: order.user_id,
+              book_id: bookId,
+              amount: order.amounts[index],
+              currency: 'MMK',
+              payment_method: 'kbzpay',
+              payment_id: kbzPayResponse.mm_order_id,
+              status: 'completed',
+              purchased_at: paidAt
+            })
+          })
+
+          await Promise.all(purchasePromises)
+        } catch (error) {
+          console.error('Error creating purchases:', error)
+        }
+
+        return NextResponse.json({
+          success: true,
+          status: 'paid',
+          paidAt: paidAt,
+          orderId: order.id,
+          kbzOrderId: kbzPayResponse.mm_order_id
+        })
+      }
+
+      // Payment not completed yet
+      return NextResponse.json({
+        success: true,
+        status: 'pending',
+        orderId: order.id
+      })
+
+    } catch (kbzPayError) {
+      console.error('KBZPay status check error:', kbzPayError)
+
+      // Return the current database status if KBZPay query fails
+      return NextResponse.json({
+        success: true,
+        status: order.status,
+        orderId: order.id
+      })
+    }
+
+  } catch (error) {
+    console.error('Check status error:', error)
+    return NextResponse.json({
+      error: 'Internal server error'
+    }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
