@@ -1,11 +1,89 @@
-Merchant Name :	OPENEYES PUBLISHING HOUSE	
+=== MPU NATIONAL PAYMENT GATEWAY CREDENTIALS ===
 
-Merchant ID   :	205104001711159
+Merchant Name     : OPENEYES PUBLISHING HOUSE
+Organization Name : OPENEYES PUBLISHING HOUSE
+Merchant ID       : 205104001711159
+Merchant System IP: 54.252.43.67
 
-FrontEndUrl   : https://myatpwint-pre.netlify.app/
+SecretKey         : N8CWYXRDGW85SJK46XKS7228K26RJCCU
 
-BackEndUrl    : https://myatpwint-pre.netlify.app/
+FrontEndUrl       : http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com/
+BackEndUrl        : http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com/
 
-SecretKey     : N8CWYXRDGW85SJK46XKS7228K26RJCCU
+=== KBZPAY INTEGRATION DETAILS ===
 
-open@160925
+Merchant Code     : 200372
+App ID            : kp82f25bce81dcc92bd70f716c34981b
+App Key           : openeyes@123
+Phone Number      : 9595036275
+
+Payment Methods   : PAY_BY_QRCODE, PWAAPP
+
+Precreat URL      : http://api.kbzpay.com/payment/gateway/uat/precreate
+Notify URL        : http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com/api/mpu/webhook
+Referer URL       : http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com/checkout
+Return URL        : http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com/checkout/success
+
+=== API ENDPOINTS ===
+
+UAT Payment URL   : https://www.mpuecomuat.com/UAT/Payment/Payment/pay
+UAT Action URL    : https://www.mpuecomuat.com/UAT/Payment/Action/api
+
+Production URLs   : https://www.mpu-ecommerce.com/Payment/Payment/pay
+                   https://www.mpu-ecommerce.com/Payment/Action/api
+
+=== TECHNICAL SPECIFICATIONS ===
+
+Version           : 2.0
+Currency Code     : 104 (Myanmar Kyat - MMK)
+Hash Algorithm    : HMACSHA1 (MPU) / SHA256 (KBZPay)
+Card Encryption   : AES 256
+Security          : TLS 1.2 required
+Inquiry Limit     : 180 days
+
+=== KBZPAY SPECIFIC DETAILS ===
+
+Signature Algorithm: SHA256 with App Key
+Data Format       : JSON
+Character Encoding: UTF-8
+Amount Format     : In Ks (MMK), max 2 decimal places
+Order Timeout     : 1-120 minutes (default 120m)
+Callback Frequency: 60s, 600s retry intervals
+
+=== DOCUMENTATION ===
+
+MPU Integration Guide: /payment/MPU National Payment Gateway Merchant Integration Guide V28-7_unlocked.pdf
+KBZPay Dashboard     : https://wap.kbzpay.com/pgw/uat/api/#/en/dashboard
+
+=== TRANSACTION TYPES ===
+
+MPU Gateway:
+1. Payment Request/Response - Sale transactions
+2. Inquiry Request/Response - Transaction status check
+3. Void Request/Response - Cancel approved transactions
+
+KBZPay Gateway:
+1. kbz.payment.precreate - Create payment order (PWAAPP)
+2. kbz.payment.queryorder - Query order status
+3. kbz.payment.queryrefund - Query refund status
+4. Callback Interface - Payment result notifications
+
+=== INTEGRATION METHODS ===
+
+PWAAPP Flow:
+1. Merchant calls precreate API with trade_type=PWAAPP
+2. Get prepay_id from response
+3. Generate signature with order info
+4. Redirect to KBZPay PWA page with signed parameters
+5. KBZPay app launches for payment
+6. Receive callback notification on success
+7. Query order status if needed
+
+=== IMPORTANT NOTES ===
+
+- All amounts must be padded with '0' and no decimal point (e.g., 1.00 = 000000000100)
+- Invoice numbers must be unique within current day
+- Hash signature required for all requests using merchant secret key
+- Supports both UI and Non-UI integration methods
+
+Last Updated: 2025-09-25
