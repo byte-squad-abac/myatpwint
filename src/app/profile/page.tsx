@@ -215,11 +215,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <Button variant="outline" size="sm">
-                  Edit Profile
-                </Button>
-              </div>
             </Card>
 
             {/* Author Application Status */}

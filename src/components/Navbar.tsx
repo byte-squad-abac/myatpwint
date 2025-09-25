@@ -80,12 +80,14 @@ export default function Navbar() {
 
             {user && (
               <>
-                <Link
-                  href={getDashboardLink()}
-                  className="text-gray-300 hover:text-white transition-colors"
-                >
-                  Dashboard
-                </Link>
+                {profile?.role && profile.role !== 'user' && (
+                  <Link
+                    href={getDashboardLink()}
+                    className="text-gray-300 hover:text-white transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 {profile?.role !== 'editor' && (
                   <Link
                     href="/library"

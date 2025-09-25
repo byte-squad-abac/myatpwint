@@ -47,7 +47,8 @@ export default function RegisterPage() {
           data: {
             name: formData.name,
             role: 'user'
-          }
+          },
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL}/login`
         }
       })
 

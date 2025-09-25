@@ -495,15 +495,6 @@ export default function PublisherAuthorsPage() {
                           )}
                         </div>
 
-                        <div className="ml-6">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => router.push(`/author-profile/${author.id}`)}
-                          >
-                            View Profile
-                          </Button>
-                        </div>
                       </div>
                     </Card>
                   ))
