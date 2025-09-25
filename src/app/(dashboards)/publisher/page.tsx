@@ -789,6 +789,13 @@ MyatPwint Publishing Team`
       setPublishingProgress('Triggering marketing automation...')
 
       try {
+        // Generate the book URL based on environment
+        const baseUrl = process.env.NODE_ENV === 'production'
+          ? process.env.NEXT_PUBLIC_PRODUCTION_URL || 'http://myatpwint-alb-1784974809.ap-southeast-2.elb.amazonaws.com'
+          : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+        const bookUrl = `${baseUrl}/books/${bookData_result.id}`
+
         const webhookPayload = {
           book_id: bookData_result.id,
           title: bookData_result.name,
@@ -800,7 +807,8 @@ MyatPwint Publishing Team`
           cover_image_url: bookData_result.image_url,
           physical_copies: bookData_result.physical_copies_count,
           edition: bookData_result.edition,
-          published_date: bookData_result.published_date
+          published_date: bookData_result.published_date,
+          book_url: bookUrl
         }
 
         const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'https://lu5.app.n8n.cloud/webhook/a86eb597-4e3d-4e7e-a7d4-27c475736c1d'

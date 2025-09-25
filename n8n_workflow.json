@@ -191,7 +191,7 @@
         "text": "={{ $json.prompt_for_ai }}",
         "hasOutputParser": true,
         "options": {
-          "systemMessage": "=You are \"SocialCopyAgent\" for Myat Pwint Book Publishing House (Myanmar). Create viral social media content for book promotion.\n\nReturn ONLY a valid JSON object with EXACTLY these keys (no markdown, no backticks, no explanations, no extra keys):\n\n{\n  \"instagram_caption\": \"string\",\n  \"facebook_caption\": \"string\",\n  \"telegram_message\": \"string\",\n  \"gmail_subject\": \"string\",\n  \"gmail_html\": \"string\",\n  \"gmail_text\": \"string\"\n}\n\nConstraints:\n- instagram_caption: ≤ 2200 chars; engaging, emoji ok.\n- facebook_caption: ≤ 3000 chars; detailed + clear CTA.\n- telegram_message: ≤ 4096 chars; community-focused.\n- gmail_subject: ≤ 78 chars (prefer 45–60).\n- gmail_html: ≤ 6000 chars; valid HTML snippet with paragraphs & CTA.\n- gmail_text: ≤ 6000 chars; PLAIN TEXT (no HTML); use \\n\\n for paragraphs.\n\nIf any field risks exceeding its limit, shorten it. Do not add any other keys. Output the JSON object ONLY."
+          "systemMessage": "=You are \"SocialCopyAgent\" for Myat Pwint Book Publishing House (Myanmar). Create viral social media content for book promotion.\n\nReturn ONLY a valid JSON object with EXACTLY these keys (no markdown, no backticks, no explanations, no extra keys):\n\n{\n  \"instagram_caption\": \"string\",\n  \"facebook_caption\": \"string\",\n  \"telegram_message\": \"string\",\n  \"gmail_subject\": \"string\",\n  \"gmail_html\": \"string\",\n  \"gmail_text\": \"string\"\n}\n\nChannel guidelines & hard limits:\n- instagram_caption: ≤ 2200 chars; engaging; 3–6 relevant hashtags; 1 CTA.\n- facebook_caption: ≤ 3000 chars; informative; spacing with short paragraphs; 1 clear CTA link/text.\n- **telegram_message: ≤ 900 chars (STRICT—optimized for photo captions); punchy; 1–2 short lines; minimal emojis; NO long hashtags.**\n- gmail_subject: ≤ 78 chars (prefer 45–60).\n- gmail_html: ≤ 6000 chars; valid HTML snippet with <p>…</p> and a single CTA.\n- gmail_text: ≤ 6000 chars; PLAIN TEXT (no HTML); use \\n\\n for paragraphs.\n\nIf any field risks exceeding its limit, shorten it aggressively (start by removing fluff, long hashtags, repeated emojis, and extra sentences). Output the JSON object ONLY."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -208,7 +208,7 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"instagram_caption\": { \"type\": \"string\", \"maxLength\": 2200 },\n    \"facebook_caption\":  { \"type\": \"string\", \"maxLength\": 3000 },\n    \"telegram_message\":  { \"type\": \"string\", \"maxLength\": 4096 },\n    \"gmail_subject\":     { \"type\": \"string\", \"maxLength\": 78 },\n    \"gmail_html\":        { \"type\": \"string\", \"maxLength\": 6000 },\n    \"gmail_text\":        { \"type\": \"string\", \"maxLength\": 6000 }\n  },\n  \"required\": [\n    \"instagram_caption\",\n    \"facebook_caption\",\n    \"telegram_message\",\n    \"gmail_subject\",\n    \"gmail_html\",\n    \"gmail_text\"\n  ],\n  \"additionalProperties\": false\n}\n"
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"instagram_caption\": { \"type\": \"string\", \"maxLength\": 2200 },\n    \"facebook_caption\":  { \"type\": \"string\", \"maxLength\": 3000 },\n    \"telegram_message\":  { \"type\": \"string\", \"maxLength\": 900 },\n    \"gmail_subject\":     { \"type\": \"string\", \"maxLength\": 78 },\n    \"gmail_html\":        { \"type\": \"string\", \"maxLength\": 6000 },\n    \"gmail_text\":        { \"type\": \"string\", \"maxLength\": 6000 }\n  },\n  \"required\": [\n    \"instagram_caption\",\n    \"facebook_caption\",\n    \"telegram_message\",\n    \"gmail_subject\",\n    \"gmail_html\",\n    \"gmail_text\"\n  ],\n  \"additionalProperties\": false\n}\n"
       },
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -247,7 +247,7 @@
             {
               "id": "baa2f072-ac28-4452-ac33-58ee83d1d825",
               "name": "prompt_for_ai",
-              "value": "={{ \n  $json.Feedback \n  ?? (\n    'Here is the data for the book that you will be marketing: ' +\n    'Title: \"' + ($json.title ?? '') + '\", ' +\n    'Author: ' + ($json.author ?? '') + ', ' +\n    'Genre: ' + (\n      (\n        Array.isArray($json.categories) ? $json.categories :\n        (typeof $json.categories === 'string' && $json.categories.startsWith('[')\n          ? JSON.parse($json.categories || '[]')\n          : String($json.categories ?? '').split(/\\s*,\\s*/).filter(Boolean))\n      ).join(', ')\n    ) + ', ' +\n    'Tags: ' + (\n      (\n        Array.isArray($json.tags) ? $json.tags :\n        (typeof $json.tags === 'string' && $json.tags.startsWith('[')\n          ? JSON.parse($json.tags || '[]')\n          : String($json.tags ?? '').split(/\\s*,\\s*/).filter(Boolean))\n      ).join(', ')\n    ) + ', ' +\n    'Price: $' + ($json.price ?? '') + ', ' +\n    'Description: ' + ($json.description ?? '')\n  )\n}}",
+              "value": "={{\n    $json.Feedback\n    ?? (\n      'Here is the data for the book that you will be marketing: ' +\n      'Title: \"' + ($json.title ?? '') + '\", ' +\n      'Author: ' + ($json.author ?? '') + ', ' +\n      'Genre: ' + (\n        (\n          Array.isArray($json.categories) ? $json.categories :\n          (typeof $json.categories === 'string' && $json.categories.startsWith('[')\n            ? JSON.parse($json.categories || '[]')\n            : String($json.categories ?? '').split(/\\s*,\\s*/).filter(Boolean))\n        ).join(', ')\n      ) + ', ' +\n      'Tags: ' + (\n        (\n          Array.isArray($json.tags) ? $json.tags :\n          (typeof $json.tags === 'string' && $json.tags.startsWith('[')\n            ? JSON.parse($json.tags || '[]')\n            : String($json.tags ?? '').split(/\\s*,\\s*/).filter(Boolean))\n        ).join(', ')\n      ) + ', ' +\n      'Price: $' + ($json.price ?? '') + ', ' +\n      'Description: ' + ($json.description ?? '') + ', ' +\n      'Book Link: ' + ($('Edit Fields').item.json.book_link ?? $json.book_url ?? '')\n    ) + '\\n\\n' +\n    'IMPORTANT: Include the book purchase link in all your marketing content. Use this direct link: ' +\n    ($('Edit Fields').item.json.book_link ?? $json.book_url ?? 'NO LINK PROVIDED')\n  }}",
               "type": "string"
             },
             {
@@ -1006,6 +1006,12 @@
               "id": "86ccee46-43ce-4118-814c-b19ff5cf2a9c",
               "name": "cover_image_url",
               "value": "={{ $json.body.cover_image_url }}",
+              "type": "string"
+            },
+            {
+              "id": "4d476473-22ff-4d8d-90a3-f19533acb157",
+              "name": "book_link",
+              "value": "={{ $json.body.book_url }}",
               "type": "string"
             }
           ]
