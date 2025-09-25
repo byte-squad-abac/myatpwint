@@ -785,12 +785,49 @@ MyatPwint Publishing Team`
         console.warn('Embedding generation error (book still published):', embeddingError)
       }
 
+      // Trigger n8n webhook for marketing automation
+      setPublishingProgress('Triggering marketing automation...')
+
+      try {
+        const webhookPayload = {
+          book_id: bookData_result.id,
+          title: bookData_result.name,
+          author: bookData_result.author,
+          description: bookData_result.description,
+          categories: [bookData_result.category],
+          tags: bookData_result.tags || [],
+          price: bookData_result.price,
+          cover_image_url: bookData_result.image_url,
+          physical_copies: bookData_result.physical_copies_count,
+          edition: bookData_result.edition,
+          published_date: bookData_result.published_date
+        }
+
+        const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'https://lu5.app.n8n.cloud/webhook/a86eb597-4e3d-4e7e-a7d4-27c475736c1d'
+
+        const webhookResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookPayload)
+        })
+
+        if (!webhookResponse.ok) {
+          console.warn('Marketing webhook failed, but book was published successfully')
+        } else {
+          console.log('Marketing automation triggered successfully')
+        }
+      } catch (webhookError) {
+        console.warn('Marketing webhook error (book still published):', webhookError)
+      }
+
       setPublishingProgress('Complete!')
       setSelectedManuscript(null)
       setPublishData({ finalPrice: '', edition: 'First Edition', physicalCopiesCount: '', lowStockThreshold: '10' })
       fetchManuscripts()
       fetchSalesData() // Refresh sales data
-      
+
       alert('Book published successfully!')
 
     } catch (error) {

@@ -17,14 +17,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ \n  {\n    model: \"google/gemini-2.5-flash-image-preview\",\n    messages: [\n      {\n        role: \"user\",\n        content: [\n          {\n            type: \"text\",\n            // Pull “Image Prompt” from the generator node.\n            // Fallbacks included so it never becomes undefined.\n            text:\n              $('Image Prompt Generator1').item.json?.output?.['Image Prompt']\n              ?? $json.output?.['Image Prompt']\n              ?? \"\"\n          }\n        ]\n      }\n    ]\n  }\n}}",
+        "jsonBody": "={{ \n  {\n    model: \"google/gemini-2.5-flash-image-preview\",\n    messages: [\n      {\n        role: \"user\",\n        content: [\n          {\n            type: \"text\",\n            text: $json['Image Prompt']\n          }\n        ]\n      }\n    ]\n  }\n}}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1632,
-        400
+        -1536,
+        96
       ],
       "id": "56e929ef-ccfe-415e-8ed1-f07d29872e49",
       "name": "Nano 🍌1",
@@ -41,7 +41,7 @@
       "parameters": {
         "operation": "sendAndWait",
         "sendTo": "=luphonemaw2004@gmail.com",
-        "subject": "=Approval for {{ $('Merge2').item.json.body.title }} Post\n",
+        "subject": "=Approval for {{ $('Edit Fields').item.json.title }} Post\n",
         "message": "=<!DOCTYPE html>\n<html lang=\"en\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width\">\n  <meta name=\"x-apple-disable-message-reformatting\">\n  <meta name=\"color-scheme\" content=\"light\">\n  <meta name=\"supported-color-schemes\" content=\"light\">\n  <title>Social Media Content</title>\n  <!--[if mso]>\n  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>\n  <![endif]-->\n  <style>\n    html,body{margin:0!important;padding:0!important;height:100%!important;width:100%!important}\n    *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}\n    table,td{mso-table-lspace:0pt!important;mso-table-rspace:0pt!important}\n    img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;display:block}\n    .bg{background:#f3f6fb}\n    .container{width:100%;max-width:860px;margin:0 auto}\n    .card{background:#ffffff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08)}\n    .pad-outer{padding:24px}\n    .pad-inner{padding:10px 16px}\n    .title{font:700 22px/1.3 Segoe UI,Roboto,Arial,sans-serif;color:#0d47a1;margin:0;text-align:center}\n    .h{font:600 14px/1.3 Segoe UI,Roboto,Arial,sans-serif;color:#0d47a1;margin:0 0 6px}\n    .p{font:400 14px/1.7 Segoe UI,Roboto,Arial,sans-serif;color:#444;margin:0}\n    .pre{white-space:pre-wrap}\n    .section{background:#f5f9ff;border-radius:12px;border-left:6px solid #0d47a1}\n    .divider{height:1px;background:#e6ecf6;margin:16px 0}\n    .img-wrap{padding-top:6px;border-top:1px dashed #cbd5e1;text-align:center}\n    .note{font:12px/1.6 Segoe UI,Roboto,Arial,sans-serif;color:#6b7280;text-align:center;padding:10px 16px}\n    @media (max-width:520px){.pad-outer{padding:16px}.title{font-size:20px}}\n  </style>\n</head>\n<body class=\"bg\">\n  <!-- preview text (hidden) -->\n  <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;\">\n    Your generated captions, email copy, and image preview are ready.\n  </div>\n\n  <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" class=\"bg\">\n    <tr>\n      <td align=\"center\" class=\"pad-outer\">\n        <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" class=\"container card\">\n          <tr>\n            <td style=\"padding:28px 24px 8px 24px;\">\n              <h1 class=\"title\">✨ Social Media Content ✨</h1>\n            </td>\n          </tr>\n\n          <!-- Facebook -->\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Facebook Caption</div>\n                  <div class=\"p\">{{ $('Merge3').item.json.output.facebook_caption }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Instagram -->\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Instagram Caption</div>\n                  <div class=\"p\">{{ $('Merge3').item.json.output.instagram_caption }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Telegram -->\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Telegram Message</div>\n                  <div class=\"p pre\">{{ $('Merge3').item.json.output.telegram_message }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Gmail preview -->\n          <tr><td class=\"pad-outer\"><div class=\"divider\"></div></td></tr>\n\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Gmail — Subject</div>\n                  <div class=\"p\">{{ $('Merge3').item.json.output.gmail_subject }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Gmail — Body (Plain-text Preview)</div>\n                  <div class=\"p\">{{ $('Merge3').item.json.output.gmail_text }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Gmail — Body (HTML Preview)</div>\n                  <div class=\"p\">{{ $('Merge3').item.json.output.gmail_html }}</div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Image -->\n          <tr>\n            <td class=\"pad-outer\">\n              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" class=\"section\">\n                <tr><td class=\"pad-inner\">\n                  <div class=\"h\">Generated Image</div>\n                  <div class=\"img-wrap\">\n                    <img alt=\"Generated Image\" width=\"100%\" style=\"max-width:100%;border-radius:12px;height:auto\"\n                      src=\"{{ $json.image_url\n                            || $('Edit Fields7').item.json?.image_url\n                            || $('Edit Fields6').item.json?.image_url\n                            || $('Load Image1').item.json?.image_url\n                            || '' }}\">\n                  </div>\n                </td></tr>\n              </table>\n            </td>\n          </tr>\n\n          <!-- Note pointing to Gmail's form button -->\n          <tr>\n            <td class=\"note\">\n              Use the <strong>Review &amp; Respond</strong> button in this email to approve or request changes.\n            </td>\n          </tr>\n\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n",
         "responseType": "customForm",
         "formFields": {
@@ -94,8 +94,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        624,
-        400
+        720,
+        96
       ],
       "id": "7f597b64-649f-4b90-856a-9f49a8fc31d5",
       "name": "Send a message1",
@@ -167,8 +167,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1072,
-        480
+        1168,
+        176
       ],
       "id": "20b3c1ef-ebd5-4581-8e10-ec0878973c8c",
       "name": "Switch1"
@@ -178,8 +178,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -3328,
-        432
+        -3104,
+        124
       ],
       "id": "de6486d2-c9dd-4b43-bbc7-771623a87396",
       "name": "Wait1",
@@ -187,41 +187,18 @@
     },
     {
       "parameters": {
-        "text": "=You are creating marketing images for Myat Pwint Book Publishing House from Myanmar.\n\nBook Details:\nTitle:{{ $('Merge2').item.json.body.title }}\nAuthor: {{ $('Merge2').item.json.body.author }}\nCategories: {{ $('Merge2').item.json.body.categories }}\nDescription: {{ $('Merge2').item.json.body.description }}\nPrice: ${{ $('Merge2').item.json.body.price }}\n\nCreate a compelling marketing image prompt that:\n- Reflects Myanmar culture and aesthetic\n- Appeals to Myanmar book readers\n- Works well for social media promotion (Instagram, Facebook)\n- Incorporates the book's genre and theme\n- Can include Myanmar architectural elements, traditional colors, or cultural symbols when appropriate\n- Should be visually striking and professional for a publishing house\n\nGenerate the perfect image prompt for this book promotion.\n",
-        "attributes": {
-          "attributes": [
-            {
-              "name": "Image Prompt",
-              "description": "Prompt of the Image. Perfect for google/gemini-2.5-flash-image-preview:free model.\nEscape all double quotes inside a JSON string with a backslash (like this: \\\")",
-              "required": true
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
-      "typeVersion": 1.2,
-      "position": [
-        -1984,
-        400
-      ],
-      "id": "9e546e28-e762-422b-a314-5a47e34c9c15",
-      "name": "Image Prompt Generator1"
-    },
-    {
-      "parameters": {
         "promptType": "define",
         "text": "={{ $json.prompt_for_ai }}",
         "hasOutputParser": true,
         "options": {
-          "systemMessage": "=You are \"SocialCopyAgent\" for Myat Pwint Book Publishing House from Myanmar. Create viral social media content for book promotion.\n\nInput: Book data (title, author, genre, tags, price, description)\nOutput: JSON ONLY - no extra text\n\nCreate engaging social media content for Myanmar audience that makes people want to buy this book immediately.\n\nPlatforms: Instagram, Facebook, Telegram group, Gmail newsletter\n\nMake it viral-worthy!\n"
+          "systemMessage": "=You are \"SocialCopyAgent\" for Myat Pwint Book Publishing House (Myanmar). Create viral social media content for book promotion.\n\nReturn ONLY a valid JSON object with EXACTLY these keys (no markdown, no backticks, no explanations, no extra keys):\n\n{\n  \"instagram_caption\": \"string\",\n  \"facebook_caption\": \"string\",\n  \"telegram_message\": \"string\",\n  \"gmail_subject\": \"string\",\n  \"gmail_html\": \"string\",\n  \"gmail_text\": \"string\"\n}\n\nConstraints:\n- instagram_caption: ≤ 2200 chars; engaging, emoji ok.\n- facebook_caption: ≤ 3000 chars; detailed + clear CTA.\n- telegram_message: ≤ 4096 chars; community-focused.\n- gmail_subject: ≤ 78 chars (prefer 45–60).\n- gmail_html: ≤ 6000 chars; valid HTML snippet with paragraphs & CTA.\n- gmail_text: ≤ 6000 chars; PLAIN TEXT (no HTML); use \\n\\n for paragraphs.\n\nIf any field risks exceeding its limit, shorten it. Do not add any other keys. Output the JSON object ONLY."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
       "position": [
-        0,
-        0
+        88,
+        -304
       ],
       "id": "0ff32c7c-3757-4627-ac5c-c9ce85cff754",
       "name": "AI Agent1",
@@ -236,8 +213,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        192,
-        224
+        288,
+        -80
       ],
       "id": "97d8861d-7ede-4ecf-b34e-1d006d938176",
       "name": "Structured Output Parser1"
@@ -251,8 +228,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1.3,
       "position": [
-        64,
-        224
+        160,
+        -80
       ],
       "id": "acdc0ed7-ad35-449b-a5b8-17097cb3e510",
       "name": "Postgres Chat Memory1",
@@ -270,7 +247,7 @@
             {
               "id": "baa2f072-ac28-4452-ac33-58ee83d1d825",
               "name": "prompt_for_ai",
-              "value": "={{ $json.Feedback ? $json.Feedback : 'Here is the data for the book that you will be marketing: Title: \"' + $json.body.title + '\", Author: ' + $json.body.author + ', Genre: ' + (($json.body.categories || []).join(', ')) + ', Tags: ' + (($json.body.tags || []).join(', ')) + ', Price: $' + $json.body.price + ', Description: ' + $json.body.description }}\n",
+              "value": "={{ \n  $json.Feedback \n  ?? (\n    'Here is the data for the book that you will be marketing: ' +\n    'Title: \"' + ($json.title ?? '') + '\", ' +\n    'Author: ' + ($json.author ?? '') + ', ' +\n    'Genre: ' + (\n      (\n        Array.isArray($json.categories) ? $json.categories :\n        (typeof $json.categories === 'string' && $json.categories.startsWith('[')\n          ? JSON.parse($json.categories || '[]')\n          : String($json.categories ?? '').split(/\\s*,\\s*/).filter(Boolean))\n      ).join(', ')\n    ) + ', ' +\n    'Tags: ' + (\n      (\n        Array.isArray($json.tags) ? $json.tags :\n        (typeof $json.tags === 'string' && $json.tags.startsWith('[')\n          ? JSON.parse($json.tags || '[]')\n          : String($json.tags ?? '').split(/\\s*,\\s*/).filter(Boolean))\n      ).join(', ')\n    ) + ', ' +\n    'Price: $' + ($json.price ?? '') + ', ' +\n    'Description: ' + ($json.description ?? '')\n  )\n}}",
               "type": "string"
             },
             {
@@ -293,8 +270,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3104,
-        352
+        -2880,
+        44
       ],
       "id": "7659a18c-92b2-4ab2-8563-1d1593664710",
       "name": "Edit Fields5"
@@ -327,8 +304,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -2880,
-        592
+        -2656,
+        288
       ],
       "id": "d8de8acb-6bf1-4708-ae64-b9962719b1e1",
       "name": "Load Image1",
@@ -429,8 +406,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        -2208,
-        480
+        -1984,
+        176
       ],
       "id": "0288edbb-3bc6-4e17-945a-bb14ce1f7a8c",
       "name": "Should Update Image?1"
@@ -452,8 +429,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        48,
-        592
+        152,
+        288
       ],
       "id": "290912ec-79f3-4aba-b93f-addb688c40d6",
       "name": "Edit Fields6"
@@ -519,8 +496,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -288,
-        400
+        -192,
+        96
       ],
       "id": "698ef517-b66f-419f-92e6-33e89ad4ab3d",
       "name": "Insert or update rows in a table1",
@@ -548,8 +525,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        48,
-        400
+        152,
+        96
       ],
       "id": "0e3989d1-cd9b-4327-96b6-bece78c9396b",
       "name": "Edit Fields7"
@@ -563,8 +540,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -2656,
-        352
+        -2432,
+        44
       ],
       "id": "1f598bbf-d4f4-4bd5-9df1-a82a563fac91",
       "name": "Merge2"
@@ -578,8 +555,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        400,
-        400
+        496,
+        96
       ],
       "id": "bcee5085-8f88-4a49-94cd-f5bf9fba1a9b",
       "name": "Merge3"
@@ -619,8 +596,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2432,
-        496
+        -2208,
+        192
       ],
       "id": "9da9836a-68fd-45d6-bbb3-0ab54da164a7",
       "name": "Edit Fields8"
@@ -649,8 +626,8 @@
       "type": "n8n-nodes-base.facebookGraphApi",
       "typeVersion": 1,
       "position": [
-        1296,
-        176
+        1392,
+        -128
       ],
       "id": "9c98f80a-9789-48a7-bbe2-1964a9267ec5",
       "name": "Facebook Graph API",
@@ -672,8 +649,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1296,
-        560
+        1392,
+        256
       ],
       "id": "56304b8d-0036-41bb-8500-d7fc6028f6e0",
       "name": "Send email",
@@ -709,8 +686,8 @@
       "type": "n8n-nodes-base.facebookGraphApi",
       "typeVersion": 1,
       "position": [
-        1296,
-        368
+        1392,
+        64
       ],
       "id": "4e3d2c73-20f3-41d6-9462-13bac8bce35f",
       "name": "container",
@@ -741,8 +718,8 @@
       "type": "n8n-nodes-base.facebookGraphApi",
       "typeVersion": 1,
       "position": [
-        1520,
-        368
+        1616,
+        64
       ],
       "id": "1dbe7e12-f439-40c2-8305-019d95e77c4f",
       "name": "Facebook Graph API6",
@@ -761,8 +738,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1408,
-        400
+        -1312,
+        96
       ],
       "id": "d4c5dbf8-b3a8-42da-b944-45b2ffbdea21",
       "name": "Parse DataURL1"
@@ -780,8 +757,8 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        -1184,
-        400
+        -1088,
+        96
       ],
       "id": "61f41f5e-888d-41b2-9460-04f9ac65e059",
       "name": "Convert to File1"
@@ -811,8 +788,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -736,
-        400
+        -640,
+        96
       ],
       "id": "29ab1507-6d84-424d-8f64-23ae68a24d4e",
       "name": "HTTP Request1"
@@ -841,8 +818,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -960,
-        400
+        -864,
+        96
       ],
       "id": "83e49cc5-4fa7-404a-8fd8-92dbdebb203c",
       "name": "Edit Fields9"
@@ -864,8 +841,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -512,
-        400
+        -416,
+        96
       ],
       "id": "d5cb7785-eabe-4e4f-867a-4d16c60ea26a",
       "name": "Make Public URL1"
@@ -882,8 +859,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1296,
-        752
+        1392,
+        448
       ],
       "id": "1cbb43d6-d394-4071-bc7b-f9cadd4a28ee",
       "name": "Send a photo message1",
@@ -905,7 +882,7 @@
       "typeVersion": 2.1,
       "position": [
         -3552,
-        432
+        124
       ],
       "id": "fbb24bbc-4a22-4744-8280-cb64360c075a",
       "name": "Webhook1",
@@ -946,8 +923,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        848,
-        400
+        944,
+        96
       ],
       "id": "6cd4cde1-a279-4514-b481-9293cc7dbe39",
       "name": "Normalize Form Result"
@@ -961,8 +938,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        -64,
-        224
+        32,
+        -80
       ],
       "id": "c603d6b0-c0d8-435c-ad86-a5054637a4d1",
       "name": "2.5 Flash1",
@@ -972,6 +949,100 @@
           "name": "Google Gemini(PaLM) Api account"
         }
       }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c7ce49f2-9d31-4d62-b226-38391903ae18",
+              "name": "title",
+              "value": "={{ $json.body.title }}",
+              "type": "string"
+            },
+            {
+              "id": "2619aa62-fa45-47e4-addb-3f02ebc39e38",
+              "name": "description",
+              "value": "={{ $json.body.description }}",
+              "type": "string"
+            },
+            {
+              "id": "d7796f37-a7f9-4a8e-b573-b535862a9806",
+              "name": "author",
+              "value": "={{ $json.body.author }}",
+              "type": "string"
+            },
+            {
+              "id": "97ba2d00-aad7-46c2-8002-2c9d20beead8",
+              "name": "categories",
+              "value": "={{ $json.body.categories }}",
+              "type": "string"
+            },
+            {
+              "id": "16abdc6c-bf20-4d81-b742-7fdad90b1c86",
+              "name": "tags",
+              "value": "={{ $json.body.tags }}",
+              "type": "string"
+            },
+            {
+              "id": "87c1ee9e-f879-42f2-8e9d-effd64c02242",
+              "name": "price",
+              "value": "={{ $json.body.price }}",
+              "type": "string"
+            },
+            {
+              "id": "4fff57d4-aa3c-48bf-9c1c-1e6e9ec701d8",
+              "name": "book_id",
+              "value": "={{ $json.body.book_id }}",
+              "type": "string"
+            },
+            {
+              "id": "d8c1cfa2-9b67-469d-9dba-72df873a2179",
+              "name": "content_id",
+              "value": "={{ $json.body.book_id }}",
+              "type": "string"
+            },
+            {
+              "id": "86ccee46-43ce-4118-814c-b19ff5cf2a9c",
+              "name": "cover_image_url",
+              "value": "={{ $json.body.cover_image_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3328,
+        124
+      ],
+      "id": "e3c9719c-c67e-42c3-9906-c2a96815e771",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "63df3a27-456e-49ca-b6a5-a2a993fc5ad8",
+              "name": "Image Prompt",
+              "value": "=RETURN AN IMAGE ONLY (no text response). If text would be returned, generate the image instead.\n\nVertical 1080x1350 social MARKETING POSTER (not a story scene). Clean layout with large empty areas for typography.\n\nBook data (context for style only):\n- Title: {{ $('Edit Fields').item.json.title }}\n- Author: {{ $('Edit Fields').item.json.author }}\n- Categories/Genre: {{ $('Edit Fields').item.json.categories }}\n- Description: {{ $('Edit Fields').item.json.description }}\n- Price: {{ $('Edit Fields').item.json.price }} MMK\n\nRequired layout:\n- Headline area at TOP: \"Out Now\"\n- Large TITLE zone: \"{{ $('Edit Fields').item.json.title }}\"\n- Byline zone: \"by {{ $('Edit Fields').item.json.author }}\"\n- CTA ribbon/button: \"Read in Myanmar • {{ $('Edit Fields').item.json.price }} MMK\"\n- ~80px safe margins on all sides; strong visual hierarchy; ample negative space\n\nVisual direction:\n- Central motif: an abstract emblem related to the theme (e.g., symbolic icon) or a simple stylized 3D paperback mockup with a blank generic cover;\n- Background: soft gradient with subtle Myanmar cues (e.g., gentle pagoda silhouettes, lacquer texture, river haze); modern, minimal, elegant\n- Lighting: soft, commercial; high contrast; crisp edges; professional publishing-house quality\n- Avoid busy textures behind text",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1760,
+        96
+      ],
+      "id": "24e0814e-0e99-4402-9215-41ba40ea1a26",
+      "name": "Poster Prompt"
     }
   ],
   "connections": {
@@ -1035,17 +1106,6 @@
         [
           {
             "node": "Edit Fields5",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Image Prompt Generator1": {
-      "main": [
-        [
-          {
-            "node": "Nano 🍌1",
             "type": "main",
             "index": 0
           }
@@ -1116,7 +1176,7 @@
       "main": [
         [
           {
-            "node": "Image Prompt Generator1",
+            "node": "Poster Prompt",
             "type": "main",
             "index": 0
           }
@@ -1130,7 +1190,7 @@
         ],
         [
           {
-            "node": "Image Prompt Generator1",
+            "node": "Poster Prompt",
             "type": "main",
             "index": 0
           }
@@ -1278,7 +1338,7 @@
       "main": [
         [
           {
-            "node": "Wait1",
+            "node": "Edit Fields",
             "type": "main",
             "index": 0
           }
@@ -1303,10 +1363,27 @@
             "node": "AI Agent1",
             "type": "ai_languageModel",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
           {
-            "node": "Image Prompt Generator1",
-            "type": "ai_languageModel",
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poster Prompt": {
+      "main": [
+        [
+          {
+            "node": "Nano 🍌1",
+            "type": "main",
             "index": 0
           }
         ]
