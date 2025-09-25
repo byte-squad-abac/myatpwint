@@ -18,8 +18,23 @@ export default function BooksPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [categories, setCategories] = useState<string[]>([])
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [selectedPriceRange, setSelectedPriceRange] = useState('')
+  const [priceRanges] = useState([
+    { label: 'Under 25,000 MMK', min: 0, max: 25000 },
+    { label: '25,000 - 35,000 MMK', min: 25000, max: 35000 },
+    { label: '35,000 - 45,000 MMK', min: 35000, max: 45000 },
+    { label: 'Above 45,000 MMK', min: 45000, max: Infinity }
+  ])
+  const [showPriceDropdown, setShowPriceDropdown] = useState(false)
+  const [selectedAuthor, setSelectedAuthor] = useState('')
+  const [authors, setAuthors] = useState<string[]>([])
+  const [showAuthorDropdown, setShowAuthorDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const priceDropdownRef = useRef<HTMLDivElement>(null)
+  const priceButtonRef = useRef<HTMLButtonElement>(null)
+  const authorDropdownRef = useRef<HTMLDivElement>(null)
+  const authorButtonRef = useRef<HTMLButtonElement>(null)
 
   const fetchBooks = useCallback(async () => {
     try {
@@ -38,6 +53,11 @@ export default function BooksPage() {
       ) || []
       const uniqueCategories = [...new Set(allCategories)].sort()
       setCategories(uniqueCategories)
+
+      // Extract authors
+      const allAuthors = data?.map(book => book.author).filter(Boolean) || []
+      const uniqueAuthors = [...new Set(allAuthors)].sort()
+      setAuthors(uniqueAuthors)
     } catch (error) {
       console.error('Error fetching books:', error)
     } finally {
@@ -49,9 +69,10 @@ export default function BooksPage() {
     fetchBooks()
   }, [fetchBooks])
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close category dropdown
       if (
         showCategoryDropdown &&
         dropdownRef.current &&
@@ -61,27 +82,65 @@ export default function BooksPage() {
       ) {
         setShowCategoryDropdown(false)
       }
+
+      // Close price dropdown
+      if (
+        showPriceDropdown &&
+        priceDropdownRef.current &&
+        priceButtonRef.current &&
+        !priceDropdownRef.current.contains(event.target as Node) &&
+        !priceButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowPriceDropdown(false)
+      }
+
+      // Close author dropdown
+      if (
+        showAuthorDropdown &&
+        authorDropdownRef.current &&
+        authorButtonRef.current &&
+        !authorDropdownRef.current.contains(event.target as Node) &&
+        !authorButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowAuthorDropdown(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showCategoryDropdown])
+  }, [showCategoryDropdown, showPriceDropdown, showAuthorDropdown])
 
   const displayBooks = useMemo(() => {
-    if (hasActiveSearch && searchResults !== null) {
-      return searchResults
-    }
+    // Start with either search results or all books
+    let filteredBooks = hasActiveSearch && searchResults !== null ? searchResults : books
 
+    // Filter by category
     if (selectedCategory) {
-      return books.filter(book => {
+      filteredBooks = filteredBooks.filter(book => {
         if (!book.category) return false
         const bookCategories = book.category.split(',').map((cat: string) => cat.trim())
         return bookCategories.includes(selectedCategory)
       })
     }
 
-    return books
-  }, [hasActiveSearch, searchResults, selectedCategory, books])
+    // Filter by price range
+    if (selectedPriceRange) {
+      const selectedRange = priceRanges.find(range => range.label === selectedPriceRange)
+      if (selectedRange) {
+        filteredBooks = filteredBooks.filter(book => {
+          const price = book.price
+          return price >= selectedRange.min && price <= selectedRange.max
+        })
+      }
+    }
+
+    // Filter by author
+    if (selectedAuthor) {
+      filteredBooks = filteredBooks.filter(book => book.author === selectedAuthor)
+    }
+
+    return filteredBooks
+  }, [hasActiveSearch, searchResults, selectedCategory, selectedPriceRange, selectedAuthor, books, priceRanges])
 
   if (loading) {
     return (
@@ -109,9 +168,9 @@ export default function BooksPage() {
             </h1>
 
             {/* Search and Filter Section */}
-            <div className="flex flex-col md:flex-row items-center gap-4 max-w-4xl mx-auto">
+            <div className="flex flex-col items-center gap-4 max-w-6xl mx-auto">
               {/* Search Bar */}
-              <div className="relative group flex-1 w-full">
+              <div className="relative group flex-1 w-full max-w-4xl">
                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
                 <div className="relative bg-gray-900 rounded-2xl">
                   <SemanticSearch
@@ -123,24 +182,63 @@ export default function BooksPage() {
                 </div>
               </div>
 
-              {/* Category Filter Dropdown */}
-              {categories.length > 0 && (
+              {/* Filter Dropdowns */}
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {/* Category Filter Dropdown */}
+                {categories.length > 0 && (
+                  <div className="relative">
+                    <button
+                      ref={buttonRef}
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      className="group flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl text-gray-200 hover:from-gray-800/90 hover:to-gray-700/90 hover:border-gray-600/50 transition-all shadow-lg whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span className="font-medium">{selectedCategory || 'All Categories'}</span>
+                      <svg className={`w-4 h-4 transition-transform text-gray-400 ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+
+                {/* Price Filter Dropdown */}
                 <div className="relative">
                   <button
-                    ref={buttonRef}
-                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                    ref={priceButtonRef}
+                    onClick={() => setShowPriceDropdown(!showPriceDropdown)}
                     className="group flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl text-gray-200 hover:from-gray-800/90 hover:to-gray-700/90 hover:border-gray-600/50 transition-all shadow-lg whitespace-nowrap"
                   >
-                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                     </svg>
-                    <span className="font-medium">{selectedCategory || 'All Categories'}</span>
-                    <svg className={`w-4 h-4 transition-transform text-gray-400 ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span className="font-medium">{selectedPriceRange || 'All Prices'}</span>
+                    <svg className={`w-4 h-4 transition-transform text-gray-400 ${showPriceDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 </div>
-              )}
+
+                {/* Author Filter Dropdown */}
+                {authors.length > 0 && (
+                  <div className="relative">
+                    <button
+                      ref={authorButtonRef}
+                      onClick={() => setShowAuthorDropdown(!showAuthorDropdown)}
+                      className="group flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl text-gray-200 hover:from-gray-800/90 hover:to-gray-700/90 hover:border-gray-600/50 transition-all shadow-lg whitespace-nowrap"
+                    >
+                      <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="font-medium">{selectedAuthor || 'All Authors'}</span>
+                      <svg className={`w-4 h-4 transition-transform text-gray-400 ${showAuthorDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -295,6 +393,98 @@ export default function BooksPage() {
                 }`}
               >
                 {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Price Dropdown Portal */}
+      {showPriceDropdown && priceButtonRef.current && (
+        <div
+          ref={priceDropdownRef}
+          className="fixed w-64 bg-gradient-to-b from-gray-900 to-gray-950 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden"
+          style={{
+            zIndex: 99999,
+            top: priceButtonRef.current.getBoundingClientRect().bottom + 12,
+            right: window.innerWidth - priceButtonRef.current.getBoundingClientRect().right,
+          }}
+        >
+          <div className="max-h-96 overflow-y-auto">
+            <button
+              onClick={() => {
+                setSelectedPriceRange('')
+                setShowPriceDropdown(false)
+              }}
+              className={`w-full text-left px-5 py-3 text-sm font-medium transition-all ${
+                !selectedPriceRange
+                  ? 'bg-gradient-to-r from-green-600/30 to-emerald-600/30 text-white border-l-4 border-green-500'
+                  : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+              }`}
+            >
+              💰 All Prices
+            </button>
+            <div className="border-t border-gray-800/50"></div>
+            {priceRanges.map((range) => (
+              <button
+                key={range.label}
+                onClick={() => {
+                  setSelectedPriceRange(range.label)
+                  setShowPriceDropdown(false)
+                }}
+                className={`w-full text-left px-5 py-3 text-sm transition-all ${
+                  selectedPriceRange === range.label
+                    ? 'bg-gradient-to-r from-green-600/30 to-emerald-600/30 text-white border-l-4 border-green-500 font-medium'
+                    : 'text-gray-300 hover:bg-gray-800/50 hover:text-white hover:pl-6'
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Author Dropdown Portal */}
+      {showAuthorDropdown && authors.length > 0 && authorButtonRef.current && (
+        <div
+          ref={authorDropdownRef}
+          className="fixed w-64 bg-gradient-to-b from-gray-900 to-gray-950 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden"
+          style={{
+            zIndex: 99999,
+            top: authorButtonRef.current.getBoundingClientRect().bottom + 12,
+            right: window.innerWidth - authorButtonRef.current.getBoundingClientRect().right,
+          }}
+        >
+          <div className="max-h-96 overflow-y-auto">
+            <button
+              onClick={() => {
+                setSelectedAuthor('')
+                setShowAuthorDropdown(false)
+              }}
+              className={`w-full text-left px-5 py-3 text-sm font-medium transition-all ${
+                !selectedAuthor
+                  ? 'bg-gradient-to-r from-blue-600/30 to-indigo-600/30 text-white border-l-4 border-blue-500'
+                  : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+              }`}
+            >
+              👤 All Authors
+            </button>
+            <div className="border-t border-gray-800/50"></div>
+            {authors.map((author) => (
+              <button
+                key={author}
+                onClick={() => {
+                  setSelectedAuthor(author)
+                  setShowAuthorDropdown(false)
+                }}
+                className={`w-full text-left px-5 py-3 text-sm transition-all ${
+                  selectedAuthor === author
+                    ? 'bg-gradient-to-r from-blue-600/30 to-indigo-600/30 text-white border-l-4 border-blue-500 font-medium'
+                    : 'text-gray-300 hover:bg-gray-800/50 hover:text-white hover:pl-6'
+                }`}
+              >
+                {author}
               </button>
             ))}
           </div>
