@@ -7,6 +7,7 @@ import { ShoppingCartIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/hooks/useAuth'
 import { useCartStore } from '@/lib/store/cartStore'
 import CartDropdown from './CartDropdown'
+import { NewsletterDropdown } from './NewsletterDropdown'
 
 export default function Navbar() {
   const { user, profile, signOut } = useAuth()
@@ -113,6 +114,9 @@ export default function Navbar() {
 
           {/* Cart and Auth Section */}
           <div className="flex items-center space-x-4">
+            {/* Newsletter Dropdown */}
+            <NewsletterDropdown />
+
             {/* Cart Dropdown */}
             <div className="relative" ref={cartRef}>
               <button

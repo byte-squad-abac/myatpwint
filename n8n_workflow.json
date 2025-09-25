@@ -641,7 +641,7 @@
     {
       "parameters": {
         "fromEmail": "myatpwint25byte@gmail.com",
-        "toEmail": "luphonemaw2004@gmail.com",
+        "toEmail": "={{ $json.email }}",
         "subject": "={{ $('Merge3').item.json.output.gmail_subject }}",
         "html": "={{ $('Merge3').item.json.output.gmail_html }}\n<img src=\"{{$items('Make Public URL1').last().json.image_url}}\" alt=\"Generated Image\" style=\"max-width:100%;border-radius:12px;\">\n",
         "options": {}
@@ -649,7 +649,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1392,
+        1840,
         256
       ],
       "id": "56304b8d-0036-41bb-8500-d7fc6028f6e0",
@@ -1049,6 +1049,40 @@
       ],
       "id": "24e0814e-0e99-4402-9215-41ba40ea1a26",
       "name": "Poster Prompt"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "newsletter_subscribers",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        256
+      ],
+      "id": "6bcad314-7810-4ac8-971f-b5be81dc9357",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qzi8EUxl8vQgYgi7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1616,
+        256
+      ],
+      "id": "09cfac17-e736-46eb-a348-b85c1b4e1cc2",
+      "name": "Loop Over Items"
     }
   ],
   "connections": {
@@ -1078,11 +1112,6 @@
       "main": [
         [
           {
-            "node": "Send email",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Send a photo message1",
             "type": "main",
             "index": 0
@@ -1094,6 +1123,11 @@
           },
           {
             "node": "Facebook Graph API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many rows",
             "type": "main",
             "index": 0
           }
@@ -1389,6 +1423,35 @@
         [
           {
             "node": "Nano 🍌1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
