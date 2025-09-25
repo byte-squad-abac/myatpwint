@@ -18,19 +18,24 @@ export default function LoginPage() {
     setError('')
 
     try {
-      console.log('Attempting login for:', email)
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
 
       if (error) {
-        console.error('Auth error:', error)
-        throw error
+        // Handle specific error cases with user-friendly messages
+        if (error.message === 'Invalid login credentials') {
+          setError('Invalid email or password. Please check your credentials and try again.')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the confirmation link before signing in.')
+        } else if (error.message.includes('Too many requests')) {
+          setError('Too many login attempts. Please wait a few minutes and try again.')
+        } else {
+          setError('Unable to sign in. Please try again later.')
+        }
+        return
       }
-
-      console.log('Login successful:', data.user?.email)
 
       if (data.user) {
         // Get user profile to determine redirect
@@ -41,25 +46,21 @@ export default function LoginPage() {
           .single()
 
         if (profileError) {
-          console.error('Profile error:', profileError)
           // If no profile exists, redirect to a default page
           router.push('/books')
           return
         }
 
         const role = profile?.role || 'user'
-        console.log('User role:', role)
-        
-        const redirectPath = role === 'author' ? '/author' : 
-                            role === 'editor' ? '/editor' : 
+
+        const redirectPath = role === 'author' ? '/author' :
+                            role === 'editor' ? '/editor' :
                             role === 'publisher' ? '/publisher' : '/books'
-        
-        console.log('Redirecting to:', redirectPath)
+
         router.push(redirectPath)
       }
-    } catch (error: unknown) {
-      console.error('Login error:', error)
-      setError(error instanceof Error ? error.message : 'An error occurred during login')
+    } catch {
+      setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -113,8 +114,13 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-md">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              <div className="flex items-center">
+                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
             </div>
           )}
 

@@ -18,13 +18,7 @@ export default function BooksPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [categories, setCategories] = useState<string[]>([])
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
-  const [selectedPriceRange, setSelectedPriceRange] = useState('')
-  const [priceRanges] = useState([
-    { label: 'Under 25,000 MMK', min: 0, max: 25000 },
-    { label: '25,000 - 35,000 MMK', min: 25000, max: 35000 },
-    { label: '35,000 - 45,000 MMK', min: 35000, max: 45000 },
-    { label: 'Above 45,000 MMK', min: 45000, max: Infinity }
-  ])
+  const [priceRange, setPriceRange] = useState<[number, number]>([15000, 60000])
   const [showPriceDropdown, setShowPriceDropdown] = useState(false)
   const [selectedAuthor, setSelectedAuthor] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
@@ -124,15 +118,10 @@ export default function BooksPage() {
     }
 
     // Filter by price range
-    if (selectedPriceRange) {
-      const selectedRange = priceRanges.find(range => range.label === selectedPriceRange)
-      if (selectedRange) {
-        filteredBooks = filteredBooks.filter(book => {
-          const price = book.price
-          return price >= selectedRange.min && price <= selectedRange.max
-        })
-      }
-    }
+    filteredBooks = filteredBooks.filter(book => {
+      const price = book.price
+      return price >= priceRange[0] && price <= priceRange[1]
+    })
 
     // Filter by author
     if (selectedAuthor) {
@@ -140,7 +129,7 @@ export default function BooksPage() {
     }
 
     return filteredBooks
-  }, [hasActiveSearch, searchResults, selectedCategory, selectedPriceRange, selectedAuthor, books, priceRanges])
+  }, [hasActiveSearch, searchResults, selectedCategory, priceRange, selectedAuthor, books])
 
   if (loading) {
     return (
@@ -213,7 +202,11 @@ export default function BooksPage() {
                     <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                     </svg>
-                    <span className="font-medium">{selectedPriceRange || 'All Prices'}</span>
+                    <span className="font-medium">
+                      {priceRange[0] === 15000 && priceRange[1] === 60000
+                        ? 'All Prices'
+                        : `${formatMMK(priceRange[0])} - ${formatMMK(priceRange[1])}`}
+                    </span>
                     <svg className={`w-4 h-4 transition-transform text-gray-400 ${showPriceDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -403,44 +396,107 @@ export default function BooksPage() {
       {showPriceDropdown && priceButtonRef.current && (
         <div
           ref={priceDropdownRef}
-          className="fixed w-64 bg-gradient-to-b from-gray-900 to-gray-950 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden"
+          className="fixed w-72 bg-gradient-to-b from-gray-900 to-gray-950 backdrop-blur-xl border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden"
           style={{
             zIndex: 99999,
             top: priceButtonRef.current.getBoundingClientRect().bottom + 12,
             right: window.innerWidth - priceButtonRef.current.getBoundingClientRect().right,
           }}
         >
-          <div className="max-h-96 overflow-y-auto">
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <svg className="w-5 h-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+                Price Range
+              </h3>
+              <button
+                onClick={() => setShowPriceDropdown(false)}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Price Range Display */}
+            <div className="text-center mb-6">
+              <div className="text-xl font-bold text-white mb-1">
+                {formatMMK(priceRange[0])} - {formatMMK(priceRange[1])}
+              </div>
+              <div className="text-sm text-gray-400">
+                Drag handles to adjust range
+              </div>
+            </div>
+
+            {/* Range Slider */}
+            <div className="mb-8">
+              <div className="relative py-3">
+                {/* Track */}
+                <div className="absolute top-1/2 left-0 right-0 h-2 bg-gray-700 rounded-full transform -translate-y-1/2"></div>
+
+                {/* Active track */}
+                <div
+                  className="absolute top-1/2 h-2 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transform -translate-y-1/2"
+                  style={{
+                    left: `${((priceRange[0] - 15000) / (60000 - 15000)) * 100}%`,
+                    width: `${((priceRange[1] - priceRange[0]) / (60000 - 15000)) * 100}%`
+                  }}
+                ></div>
+
+                {/* Min slider */}
+                <input
+                  type="range"
+                  min={15000}
+                  max={60000}
+                  step={1000}
+                  value={priceRange[0]}
+                  onChange={(e) => {
+                    const newMin = parseInt(e.target.value)
+                    if (newMin < priceRange[1]) {
+                      setPriceRange([newMin, priceRange[1]])
+                    }
+                  }}
+                  className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-400 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:ring-2 [&::-webkit-slider-thumb]:ring-green-400/20"
+                />
+
+                {/* Max slider */}
+                <input
+                  type="range"
+                  min={15000}
+                  max={60000}
+                  step={1000}
+                  value={priceRange[1]}
+                  onChange={(e) => {
+                    const newMax = parseInt(e.target.value)
+                    if (newMax > priceRange[0]) {
+                      setPriceRange([priceRange[0], newMax])
+                    }
+                  }}
+                  className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-400 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:ring-2 [&::-webkit-slider-thumb]:ring-emerald-400/20"
+                />
+              </div>
+
+              {/* Min/Max labels */}
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>{formatMMK(15000)}</span>
+                <span>{formatMMK(60000)}</span>
+              </div>
+            </div>
+
+            {/* Reset button */}
             <button
               onClick={() => {
-                setSelectedPriceRange('')
+                setPriceRange([15000, 60000])
                 setShowPriceDropdown(false)
               }}
-              className={`w-full text-left px-5 py-3 text-sm font-medium transition-all ${
-                !selectedPriceRange
-                  ? 'bg-gradient-to-r from-green-600/30 to-emerald-600/30 text-white border-l-4 border-green-500'
-                  : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-              }`}
+              className="w-full py-2 text-gray-400 hover:text-white transition-colors text-sm"
             >
-              💰 All Prices
+              Reset to All Prices
             </button>
-            <div className="border-t border-gray-800/50"></div>
-            {priceRanges.map((range) => (
-              <button
-                key={range.label}
-                onClick={() => {
-                  setSelectedPriceRange(range.label)
-                  setShowPriceDropdown(false)
-                }}
-                className={`w-full text-left px-5 py-3 text-sm transition-all ${
-                  selectedPriceRange === range.label
-                    ? 'bg-gradient-to-r from-green-600/30 to-emerald-600/30 text-white border-l-4 border-green-500 font-medium'
-                    : 'text-gray-300 hover:bg-gray-800/50 hover:text-white hover:pl-6'
-                }`}
-              >
-                {range.label}
-              </button>
-            ))}
           </div>
         </div>
       )}
