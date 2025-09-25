@@ -257,7 +257,7 @@ function FirstManuscriptUploadContent() {
               <div><strong>Category:</strong> {application.book_category}</div>
               <div><strong>Tags:</strong> {application.book_tags.join(', ')}</div>
               {application.preferred_price && (
-                <div><strong>Suggested Price:</strong> ${application.preferred_price}</div>
+                <div><strong>Suggested Price:</strong> {application.preferred_price.toLocaleString()} MMK</div>
               )}
             </div>
           </div>
@@ -281,14 +281,14 @@ function FirstManuscriptUploadContent() {
 
               <FileUpload
                 label="Manuscript File *"
-                accept=".docx,.doc,.pdf"
+                accept=".docx"
                 maxSize={50 * 1024 * 1024} // 50MB
                 onFileSelect={(file) => handleFileUpload(file, 'manuscript')}
                 onFileRemove={() => handleFileRemove('manuscript')}
                 value={uploadData.manuscript_file}
                 disabled={uploadingFiles.manuscript}
                 error={errors.manuscript_file}
-                helperText="Upload your complete manuscript (DOCX, DOC, or PDF format, max 50MB)"
+                helperText="Upload your complete manuscript (DOCX format only, max 50MB)"
               />
             </div>
 
