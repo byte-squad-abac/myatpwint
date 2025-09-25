@@ -265,6 +265,10 @@ export default function ApplicationForm({
       newErrors.preferred_price = 'Price cannot be negative'
     }
 
+    if (formData.preferred_price && formData.preferred_price < 1000) {
+      newErrors.preferred_price = 'Price should be at least 1,000 MMK'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -682,14 +686,14 @@ export default function ApplicationForm({
               id="preferred_price"
               name="preferred_price"
               type="number"
-              step="0.01"
+              step="1000"
               min="0"
-              label="Preferred Price (USD)"
+              label="Preferred Price (MMK)"
               value={formData.preferred_price || ''}
               onChange={handleInputChange}
               error={errors.preferred_price}
-              placeholder="e.g., 9.99"
-              helperText="Optional: Your suggested selling price"
+              placeholder="e.g., 25000"
+              helperText="Optional: Your suggested selling price in Myanmar Kyat"
             />
           </div>
 
