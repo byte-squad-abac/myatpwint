@@ -47,7 +47,11 @@ async function checkAndSendLowStockAlert(bookId: string) {
       console.log(`📧 Low stock detected for "${book.name}": ${availableStock} <= ${threshold}`);
       
       // Call our email API
-      const response = await fetch('http://localhost:3000/api/send-low-stock-alert', {
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? (process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+        : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+
+      const response = await fetch(`${baseUrl}/api/send-low-stock-alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

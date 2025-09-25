@@ -188,7 +188,10 @@ export async function POST(request: NextRequest) {
       editorConfig: {
         mode: canEdit ? 'edit' : 'view',
         lang: 'en',
-        callbackUrl: `${process.env.ONLYOFFICE_CALLBACK_URL || 'http://host.docker.internal:3000'}/api/onlyoffice/callback`,
+        callbackUrl: `${process.env.NODE_ENV === 'production'
+          ? (process.env.ONLYOFFICE_PRODUCTION_CALLBACK_URL || process.env.ONLYOFFICE_CALLBACK_URL || 'http://host.docker.internal:3000')
+          : (process.env.ONLYOFFICE_CALLBACK_URL || 'http://host.docker.internal:3000')
+        }/api/onlyoffice/callback`,
         coEditing: {
           mode: 'fast',
           change: true

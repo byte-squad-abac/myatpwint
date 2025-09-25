@@ -65,7 +65,9 @@ export const stripeConfig = {
   currency: 'usd' as const,
   displayCurrency: 'MMK' as const,
   country: 'MM' as const,
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  appUrl: process.env.NODE_ENV === 'production'
+    ? (process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   mmkToUsdRate: 0.00048,
   apiVersion: '2025-08-27.basil' as const,
 } as const
@@ -74,7 +76,9 @@ export const stripeConfig = {
 export const appConfig = {
   name: 'MyatPwint V2',
   description: 'Myanmar Digital Publishing Platform',
-  url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  url: process.env.NODE_ENV === 'production'
+    ? (process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   version: process.env.npm_package_version || '1.0.0',
   environment: process.env.NODE_ENV || 'development',
   isDevelopment: process.env.NODE_ENV === 'development',
