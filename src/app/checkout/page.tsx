@@ -93,17 +93,68 @@ export default function CheckoutPage() {
     }
   }
 
+  const handleKBZPayCheckout = async () => {
+    if (!user) {
+      setError('Please sign in to continue with your purchase.')
+      return
+    }
+
+    setIsProcessing(true)
+    setError(null)
+
+    try {
+      // Convert cart items to KBZPay format
+      const bookIds = items.map(item => item.book.id)
+      const amounts = items.map(item => item.book.price * item.quantity)
+
+      // Create KBZPay order
+      const response = await fetch('/api/kbzpay/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookIds,
+          amounts
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create payment order')
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.paymentUrl) {
+        // Store order ID for later reference
+        sessionStorage.setItem('kbzpay_order_id', data.orderId)
+        sessionStorage.setItem('kbzpay_merchant_order_id', data.merchantOrderId)
+
+        // Redirect to KBZPay PWA payment page
+        window.location.href = data.paymentUrl
+      } else {
+        throw new Error(data.error || 'Failed to get payment URL')
+      }
+    } catch (err: unknown) {
+      console.error('KBZPay checkout error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to process checkout. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleDemoOrder = async () => {
     setIsProcessing(true)
     setError(null)
-    
+
     try {
       // Simulate order processing
       await new Promise(resolve => setTimeout(resolve, 2000))
-      
+
       // Clear cart (simulate successful order)
       clearCart()
-      
+
       // Show success message and redirect
       alert('Order placed successfully! (Demo mode - no payment processed)')
       router.push('/library')
@@ -191,6 +242,28 @@ export default function CheckoutPage() {
               )}
               
               <div className="space-y-3">
+                {/* KBZPay Payment Option */}
+                <button
+                  onClick={handleKBZPayCheckout}
+                  disabled={isProcessing}
+                  className="w-full p-4 border-2 border-orange-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="bg-orange-600 text-white p-2 rounded">
+                        <CreditCardIcon className="h-5 w-5" />
+                      </div>
+                      <div className="ml-3 text-left">
+                        <h3 className="font-semibold text-gray-900">Pay with KBZPay</h3>
+                        <p className="text-sm text-gray-600">Myanmar&apos;s leading mobile payment solution</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-orange-600 group-hover:text-orange-700">
+                      Local Payment
+                    </span>
+                  </div>
+                </button>
+
                 {/* Stripe Payment Option */}
                 <button
                   onClick={handleStripeCheckout}
@@ -208,11 +281,11 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     <span className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                      Recommended
+                      International
                     </span>
                   </div>
                 </button>
-                
+
                 {/* Demo Payment Option */}
                 <button
                   onClick={handleDemoOrder}
