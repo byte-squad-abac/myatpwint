@@ -150,6 +150,7 @@ export default function PublisherPage() {
   // Physical copies editing states
   const [editingCopies, setEditingCopies] = useState<string | null>(null)
   const [editCopiesValue, setEditCopiesValue] = useState('')
+  const [editCopiesOperation, setEditCopiesOperation] = useState<'add' | 'deduct'>('add')
   const [updatingCopies, setUpdatingCopies] = useState(false)
 
   // Available categories and authors for filters
@@ -891,26 +892,35 @@ MyatPwint Publishing Team`
     return bookData?.physical_copies_count || 0
   }
 
-  const startEditingCopies = (manuscriptId: string) => {
+  const startEditingCopies = (manuscriptId: string, operation: 'add' | 'deduct' = 'add') => {
     setEditingCopies(manuscriptId)
-    setEditCopiesValue('')  // Clear the field for adding copies
+    setEditCopiesValue('')
+    setEditCopiesOperation(operation)
   }
 
   const cancelEditingCopies = () => {
     setEditingCopies(null)
     setEditCopiesValue('')
+    setEditCopiesOperation('add')
   }
 
   const updatePhysicalCopies = async (manuscriptId: string) => {
-    const addedCopies = parseInt(editCopiesValue)
+    const copiesAmount = parseInt(editCopiesValue)
     const currentCount = getPhysicalCopiesCount(manuscriptId)
-    const newCount = currentCount + addedCopies
+    const newCount = editCopiesOperation === 'add'
+      ? currentCount + copiesAmount
+      : currentCount - copiesAmount
     const salesData = getSalesDataForManuscript(manuscriptId)
     const soldPhysical = salesData.physicalSales
 
     // Validation
-    if (isNaN(addedCopies) || addedCopies < 0) {
-      alert('Please enter a valid number of copies to add (0 or greater)')
+    if (isNaN(copiesAmount) || copiesAmount < 0) {
+      alert('Please enter a valid number of copies (0 or greater)')
+      return
+    }
+
+    if (copiesAmount === 0) {
+      alert('Please enter a number greater than 0')
       return
     }
 
@@ -919,11 +929,17 @@ MyatPwint Publishing Team`
       return
     }
 
+    if (newCount < 0) {
+      alert(`Cannot deduct ${copiesAmount} copies. Only ${currentCount} copies available.`)
+      return
+    }
+
     // Show confirmation with correct calculation
+    const operationText = editCopiesOperation === 'add' ? 'Add' : 'Deduct'
     const confirmed = confirm(
-      `Add ${addedCopies} physical copies?\n\n` +
+      `${operationText} ${copiesAmount} physical copies?\n\n` +
       `Current inventory: ${currentCount} copies\n` +
-      `Adding: ${addedCopies} copies\n` +
+      `${operationText === 'Add' ? 'Adding' : 'Deducting'}: ${copiesAmount} copies\n` +
       `New total: ${newCount} copies\n` +
       `Sold copies: ${soldPhysical}\n` +
       `New remaining: ${newCount - soldPhysical} copies`
@@ -932,30 +948,34 @@ MyatPwint Publishing Team`
 
     setUpdatingCopies(true)
     try {
-      console.log('Adding physical copies:', { manuscriptId, addedCopies, currentCount })
-      
+      console.log(`${operationText} physical copies:`, { manuscriptId, copiesAmount, currentCount, operation: editCopiesOperation })
+
       const response = await fetch('/api/books/update-physical-copies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manuscriptId, physicalCopiesCount: addedCopies })
+        body: JSON.stringify({
+          manuscriptId,
+          physicalCopiesCount: copiesAmount,
+          operation: editCopiesOperation
+        })
       })
 
       // Get the response data first
       const result = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update physical copies')
       }
 
       // Use the response data
       const actualNewCount = result.newPhysicalCopiesCount
-      
+
       console.log('Physical copies update successful:', result)
-      
+
       // Update local state with the actual new count from server
-      setPublishedBooks(prev => 
-        prev.map(book => 
-          book.manuscript_id === manuscriptId 
+      setPublishedBooks(prev =>
+        prev.map(book =>
+          book.manuscript_id === manuscriptId
             ? { ...book, physical_copies_count: actualNewCount }
             : book
         )
@@ -963,10 +983,12 @@ MyatPwint Publishing Team`
 
       setEditingCopies(null)
       setEditCopiesValue('')
-      
+      setEditCopiesOperation('add')
+
       // Show success message with more detail
+      const operationPastTense = result.operation === 'add' ? 'Added' : 'Deducted'
       alert(`Physical copies updated successfully!\n\n` +
-        `Added: ${result.addedCopies} copies\n` +
+        `${operationPastTense}: ${result.changedAmount} copies\n` +
         `Previous total: ${result.previousTotal}\n` +
         `New total: ${actualNewCount} copies\n` +
         `Available: ${result.remainingCopies} copies`)
@@ -1902,16 +1924,29 @@ MyatPwint Publishing Team`
                                           }`}>
                                             {remaining > 10 ? 'In Stock' : remaining > 0 ? 'Low Stock' : 'Out of Stock'}
                                           </div>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation() // Prevent opening detail modal
-                                              startEditingCopies(manuscript.id)
-                                            }}
-                                            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
-                                            title="Edit inventory count"
-                                          >
-                                            Edit
-                                          </button>
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                startEditingCopies(manuscript.id, 'add')
+                                              }}
+                                              className="px-2 py-0.5 text-xs font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                              title="Add inventory"
+                                            >
+                                              +
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                startEditingCopies(manuscript.id, 'deduct')
+                                              }}
+                                              className="px-2 py-0.5 text-xs font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                              title="Deduct inventory"
+                                              disabled={physicalCopies === 0}
+                                            >
+                                              -
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
@@ -2326,13 +2361,23 @@ MyatPwint Publishing Team`
                             ) : (
                               <>
                                 <span className="font-medium">{physicalCopies.toLocaleString()} copies</span>
-                                <button
-                                  onClick={() => startEditingCopies(selectedDetailManuscript.id)}
-                                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
-                                  title="Click to edit physical copies count"
-                                >
-                                  Edit
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => startEditingCopies(selectedDetailManuscript.id, 'add')}
+                                    className="px-2 py-0.5 text-xs font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                    title="Add inventory"
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    onClick={() => startEditingCopies(selectedDetailManuscript.id, 'deduct')}
+                                    className="px-2 py-0.5 text-xs font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Deduct inventory"
+                                    disabled={physicalCopies === 0}
+                                  >
+                                    -
+                                  </button>
+                                </div>
                               </>
                             )}
                           </div>
@@ -2500,7 +2545,7 @@ MyatPwint Publishing Team`
       <Modal
         isOpen={!!editingCopies && !showDetailModal}
         onClose={cancelEditingCopies}
-        title="Add Physical Copies"
+        title={editCopiesOperation === 'add' ? 'Add Physical Copies' : 'Deduct Physical Copies'}
         size="sm"
       >
         {editingCopies && (() => {
@@ -2508,8 +2553,10 @@ MyatPwint Publishing Team`
           const salesData = getSalesDataForManuscript(editingCopies)
           const currentCount = getPhysicalCopiesCount(editingCopies)
           const soldPhysical = salesData.physicalSales
-          const addedCopies = parseInt(editCopiesValue || '0')
-          const newTotal = currentCount + addedCopies
+          const copiesAmount = parseInt(editCopiesValue || '0')
+          const newTotal = editCopiesOperation === 'add'
+            ? currentCount + copiesAmount
+            : currentCount - copiesAmount
           const remaining = newTotal - soldPhysical
 
           return (
@@ -2518,28 +2565,32 @@ MyatPwint Publishing Team`
                 <p><strong>Book:</strong> {manuscript?.title}</p>
                 <p><strong>Current:</strong> {currentCount.toLocaleString()} copies</p>
                 <p><strong>Sold:</strong> {soldPhysical.toLocaleString()} copies</p>
+                <p><strong>Available:</strong> {(currentCount - soldPhysical).toLocaleString()} copies</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Add More Physical Copies *
+                  {editCopiesOperation === 'add' ? 'Add Physical Copies *' : 'Deduct Physical Copies *'}
                 </label>
                 <input
                   type="number"
                   value={editCopiesValue}
                   onChange={(e) => setEditCopiesValue(e.target.value)}
                   min="0"
-                  placeholder="Enter number of copies to add"
+                  max={editCopiesOperation === 'deduct' ? currentCount : undefined}
+                  placeholder={editCopiesOperation === 'add' ? 'Enter number of copies to add' : 'Enter number of copies to deduct'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   disabled={updatingCopies}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Enter the number of new copies to add to inventory (e.g., from reprinting)
+                  {editCopiesOperation === 'add'
+                    ? 'Enter the number of new copies to add to inventory (e.g., from reprinting)'
+                    : 'Enter the number of copies sold locally (outside of website)'}
                 </p>
               </div>
 
               {editCopiesValue && !isNaN(parseInt(editCopiesValue)) && (
-                <div className="bg-gray-50 rounded-lg p-3">
+                <div className={`${editCopiesOperation === 'add' ? 'bg-green-50' : 'bg-red-50'} rounded-lg p-3`}>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Impact Summary:</h4>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
@@ -2547,8 +2598,10 @@ MyatPwint Publishing Team`
                       <span>{currentCount.toLocaleString()} copies</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Adding:</span>
-                      <span className="font-medium text-green-600">+{addedCopies.toLocaleString()} copies</span>
+                      <span>{editCopiesOperation === 'add' ? 'Adding' : 'Deducting'}:</span>
+                      <span className={`font-medium ${editCopiesOperation === 'add' ? 'text-green-600' : 'text-red-600'}`}>
+                        {editCopiesOperation === 'add' ? '+' : '-'}{copiesAmount.toLocaleString()} copies
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>New total:</span>
@@ -2577,12 +2630,12 @@ MyatPwint Publishing Team`
                   Cancel
                 </Button>
                 <Button
-                  variant="success"
+                  variant={editCopiesOperation === 'add' ? 'success' : 'error'}
                   onClick={() => updatePhysicalCopies(editingCopies)}
-                  disabled={updatingCopies || !editCopiesValue || parseInt(editCopiesValue) < 0}
+                  disabled={updatingCopies || !editCopiesValue || parseInt(editCopiesValue) <= 0}
                   loading={updatingCopies}
                 >
-                  {updatingCopies ? 'Updating...' : 'Update Copies'}
+                  {updatingCopies ? 'Updating...' : editCopiesOperation === 'add' ? 'Add Copies' : 'Deduct Copies'}
                 </Button>
               </div>
             </div>

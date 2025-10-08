@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { manuscriptId, physicalCopiesCount } = await request.json();
+    const { manuscriptId, physicalCopiesCount, operation } = await request.json();
 
     if (!manuscriptId || physicalCopiesCount === undefined) {
       return NextResponse.json(
@@ -17,11 +17,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate input - this is now the number of copies to ADD
-    const copiesToAdd = parseInt(physicalCopiesCount);
-    if (isNaN(copiesToAdd) || copiesToAdd < 0) {
+    // Validate operation type
+    const operationType = operation || 'add'; // Default to 'add' for backward compatibility
+    if (!['add', 'deduct'].includes(operationType)) {
       return NextResponse.json(
-        { error: 'Physical copies to add must be a non-negative number' },
+        { error: 'Operation must be either "add" or "deduct"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate input - can be either add or deduct
+    const copiesAmount = parseInt(physicalCopiesCount);
+    if (isNaN(copiesAmount) || copiesAmount < 0) {
+      return NextResponse.json(
+        { error: 'Physical copies amount must be a non-negative number' },
         { status: 400 }
       );
     }
@@ -42,7 +51,11 @@ export async function POST(request: NextRequest) {
     }
 
     const currentCopies = book.physical_copies_count || 0;
-    const newTotalCopies = currentCopies + copiesToAdd;
+
+    // Calculate new total based on operation
+    const newTotalCopies = operationType === 'add'
+      ? currentCopies + copiesAmount
+      : currentCopies - copiesAmount;
 
     // Get current sales data to validate against sold copies
     const { data: purchases } = await supabase
@@ -54,13 +67,25 @@ export async function POST(request: NextRequest) {
 
     const soldPhysical = purchases?.reduce((sum, purchase) => sum + (purchase.quantity || 0), 0) || 0;
 
-    // Prevent reducing below sold copies (should not happen with additions, but safety check)
+    // Prevent reducing below sold copies
     if (newTotalCopies < soldPhysical) {
       return NextResponse.json(
-        { 
+        {
           error: `Cannot reduce physical copies below ${soldPhysical}. That many copies have already been sold.`,
           soldCopies: soldPhysical,
           requestedCount: newTotalCopies
+        },
+        { status: 400 }
+      );
+    }
+
+    // Prevent negative inventory
+    if (newTotalCopies < 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot deduct ${copiesAmount} copies. Only ${currentCopies} copies available.`,
+          currentCopies,
+          requestedDeduction: copiesAmount
         },
         { status: 400 }
       );
@@ -83,10 +108,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       manuscriptId,
+      operation: operationType,
       newPhysicalCopiesCount: newTotalCopies,
       soldCopies: soldPhysical,
       remainingCopies: newTotalCopies - soldPhysical,
-      addedCopies: copiesToAdd,
+      changedAmount: copiesAmount,
       previousTotal: currentCopies
     });
 
