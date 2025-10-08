@@ -144,16 +144,17 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 ### Important Integration Details
 
 **Supabase Integration:**
-- Project ID: `bsmbqekevilajlapldan` (myat-pwint_polish)
+- Project ID: `bsmbqekevilajlapldan` (myat-pwint_polish, Active)
 - PostgreSQL 17.4 with comprehensive RLS policies enabled for data security
 - Vector extension enabled for AI search capabilities (768-dimensional embeddings)
 - Realtime subscriptions enabled for chat system
 - Storage buckets:
   - `documents` (50MB, DOCX + images for applications/manuscripts)
-  - `manuscripts` (50MB, DOCX only) 
+  - `manuscripts` (50MB, DOCX only)
   - `covers` (10MB, images only)
 - Database trigger `handle_new_user()` creates profile with 'user' role automatically
-- 17 tables with proper foreign key relationships and constraints
+- 24 tables with proper foreign key relationships and constraints
+- MCP integration available for direct database operations via `mcp__supabase__*` tools
 
 **OnlyOffice Configuration:**
 - Server URL: `ONLYOFFICE_SERVER_URL` (localhost for development)
@@ -215,7 +216,13 @@ The application uses a comprehensive PostgreSQL schema with Row Level Security (
 - **File Upload Security**: Restricted manuscript uploads to DOCX only with magic number validation
 - **Database Optimization**: Implemented comprehensive RLS policies and foreign key constraints
 - **Communication Enhancement**: Added notification system with email preferences
-- **Physical Inventory**: Added physical book inventory management for publishers
+- **Payment Integration**: Added KBZPay support alongside Stripe for Myanmar market (MMK currency)
+
+### Known Issues & Technical Debt
+
+- **Auth Refresh Token Errors**: Console shows "Invalid Refresh Token: Refresh Token Not Found" errors in useAuth hook (src/hooks/useAuth.ts:98) - these are non-blocking but should be investigated
+- **No Test Framework**: This project does not have automated tests configured - all testing is manual
+- **N8N Integration**: Several N8N-related tables exist (n8n_marketing_analytics, n8n_chat_histories, etc.) for marketing automation - integration status unclear
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.

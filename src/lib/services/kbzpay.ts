@@ -16,8 +16,6 @@ export interface KBZPayPrecreateResponse {
   nonce_str: string
   sign_type: string
   sign: string
-  // QR Code field for QR payment
-  qrCode?: string
   // Additional fields for query response
   trade_status?: string
   total_amount?: string
@@ -166,84 +164,6 @@ class KBZPayService {
     } catch (error) {
       console.error('KBZPay API Error:', error)
       throw new Error(`Failed to create KBZPay order: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  /**
-   * Create KBZPay order for QR Code payment
-   */
-  async createQROrder(orderData: KBZPayOrder): Promise<KBZPayPrecreateResponse> {
-    const timestamp = this.generateTimestamp()
-    const nonceStr = this.generateNonceStr()
-
-    // Build biz_content with optional fields for QR payment
-    const bizContent: Record<string, string> = {
-      appid: this.appId,
-      merch_code: this.merchantCode,
-      merch_order_id: orderData.merch_order_id,
-      trade_type: 'PAY_BY_QRCODE',  // QR payment trade type
-      total_amount: orderData.total_amount.toString(),
-      trans_currency: 'MMK',
-      timeout_express: '120m'
-    }
-
-    // Add optional fields
-    if (orderData.title) {
-      bizContent.title = orderData.title
-    }
-    if (orderData.callback_info) {
-      bizContent.callback_info = encodeURIComponent(orderData.callback_info)
-    }
-
-    // Build request parameters according to KBZPay specification
-    const requestParams = {
-      timestamp: timestamp.toString(),
-      notify_url: this.notifyUrl,
-      method: 'kbz.payment.precreate',
-      nonce_str: nonceStr,
-      sign_type: 'SHA256',
-      version: '1.0',
-      biz_content: bizContent
-    }
-
-    // Flatten biz_content for signature generation
-    const flatParams: Record<string, unknown> = {
-      ...requestParams,
-      ...requestParams.biz_content
-    }
-    delete flatParams.biz_content
-
-    // Generate signature
-    const signature = this.generateSignature(flatParams)
-
-    // Build final request body
-    const requestBody = {
-      Request: {
-        ...requestParams,
-        sign: signature
-      }
-    }
-
-    // Make API request
-    try {
-      const response = await fetch(`${this.baseUrl}/precreate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      return data.Response as KBZPayPrecreateResponse
-    } catch (error) {
-      console.error('KBZPay QR API Error:', error)
-      throw new Error(`Failed to create KBZPay QR order: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

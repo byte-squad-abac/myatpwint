@@ -75,7 +75,7 @@ export default function BooksPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, priceRange])
 
   useEffect(() => {
     fetchBooks()

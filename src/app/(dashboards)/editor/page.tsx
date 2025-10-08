@@ -28,6 +28,7 @@ type Manuscript = {
   tags: string[]
   category: string
   suggested_price: number | null
+  wants_digital: boolean
   wants_physical: boolean
   status: 'submitted' | 'pending_review' | 'under_review' | 'approved' | 'rejected' | 'published'
   editor_feedback: string | null
@@ -1352,9 +1353,13 @@ export default function EditorPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Physical Edition:</span>
+                    <span className="text-gray-600">Publishing Format:</span>
                     <span className="font-medium">
-                      {selectedDetailManuscript.wants_physical ? 'Yes' : 'No'}
+                      {selectedDetailManuscript.wants_digital && selectedDetailManuscript.wants_physical
+                        ? 'Digital & Physical'
+                        : selectedDetailManuscript.wants_digital
+                        ? 'Digital Only'
+                        : 'Physical Only'}
                     </span>
                   </div>
                 </div>

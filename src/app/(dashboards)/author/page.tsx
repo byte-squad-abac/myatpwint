@@ -40,6 +40,7 @@ type Manuscript = {
   tags: string[]
   category: string
   suggested_price: number | null
+  wants_digital: boolean
   wants_physical: boolean
   status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'published'
   editor_feedback: string | null
@@ -69,6 +70,7 @@ export default function AuthorPage() {
     title: '',
     description: '',
     suggested_price: '',
+    wants_digital: true,
     wants_physical: false
   })
   const [manuscriptFile, setManuscriptFile] = useState<File | null>(null)
@@ -547,6 +549,7 @@ export default function AuthorPage() {
           tags: selectedTags,
           category: selectedCategories.join(', '),
           suggested_price: formData.suggested_price ? parseInt(formData.suggested_price) : null,
+          wants_digital: formData.wants_digital,
           wants_physical: formData.wants_physical,
           status: 'submitted'
         })
@@ -558,6 +561,7 @@ export default function AuthorPage() {
         title: '',
         description: '',
         suggested_price: '',
+        wants_digital: true,
         wants_physical: false
       })
       setManuscriptFile(null)
@@ -881,16 +885,43 @@ export default function AuthorPage() {
               </div>
             </div>
 
-            <div>
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  name="wants_physical"
-                  checked={formData.wants_physical}
-                  onChange={handleInputChange}
-                />
-                <span>I want a physical book version</span>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Publishing Options *
               </label>
+              <p className="text-sm text-gray-600 mb-3">
+                Choose how you want your book to be published. At least one option must be selected.
+              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    name="wants_digital"
+                    checked={formData.wants_digital}
+                    onChange={handleInputChange}
+                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="flex-1 cursor-pointer">
+                    <div className="font-medium text-gray-900 text-sm">Digital Edition</div>
+                    <div className="text-xs text-gray-600">Available for digital download</div>
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    name="wants_physical"
+                    checked={formData.wants_physical}
+                    onChange={handleInputChange}
+                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label className="flex-1 cursor-pointer">
+                    <div className="font-medium text-gray-900 text-sm">Physical Edition</div>
+                    <div className="text-xs text-gray-600">Printed and available for physical delivery</div>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-4">
@@ -1712,9 +1743,13 @@ export default function AuthorPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Physical Edition:</span>
+                    <span className="text-gray-600">Publishing Format:</span>
                     <span className="font-medium">
-                      {selectedDetailManuscript.wants_physical ? 'Yes' : 'No'}
+                      {selectedDetailManuscript.wants_digital && selectedDetailManuscript.wants_physical
+                        ? 'Digital & Physical'
+                        : selectedDetailManuscript.wants_digital
+                        ? 'Digital Only'
+                        : 'Physical Only'}
                     </span>
                   </div>
                 </div>
@@ -1896,6 +1931,7 @@ export default function AuthorPage() {
             tags: selectedMetadataManuscript.tags,
             cover_image_url: selectedMetadataManuscript.cover_image_url,
             suggested_price: selectedMetadataManuscript.suggested_price,
+            wants_digital: selectedMetadataManuscript.wants_digital,
             wants_physical: selectedMetadataManuscript.wants_physical
           }}
           onClose={() => {

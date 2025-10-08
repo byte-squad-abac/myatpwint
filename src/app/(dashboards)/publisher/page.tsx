@@ -56,6 +56,7 @@ type Manuscript = {
   tags: string[]
   category: string
   suggested_price: number | null
+  wants_digital: boolean
   wants_physical: boolean
   status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'published'
   editor_feedback: string | null
@@ -683,10 +684,19 @@ export default function PublisherPage() {
   }
 
   const generateEmailBody = (manuscript: Manuscript) => {
-    const suggestedPriceText = manuscript.suggested_price 
+    const suggestedPriceText = manuscript.suggested_price
       ? `Your suggested price: ${manuscript.suggested_price.toLocaleString()} MMK`
       : 'No suggested price provided'
-    
+
+    let publishingFormat = ''
+    if (manuscript.wants_digital && manuscript.wants_physical) {
+      publishingFormat = 'Digital and Physical editions'
+    } else if (manuscript.wants_digital) {
+      publishingFormat = 'Digital edition only'
+    } else if (manuscript.wants_physical) {
+      publishingFormat = 'Physical edition only'
+    }
+
     return `Dear ${manuscript.profiles?.name || 'Author'},
 
 Congratulations! Your manuscript "${manuscript.title}" has been approved by our editorial team.
@@ -695,7 +705,7 @@ Manuscript Details:
 - Title: ${manuscript.title}
 - Category: ${manuscript.category}
 - ${suggestedPriceText}
-- Physical book requested: ${manuscript.wants_physical ? 'Yes' : 'No'}
+- Publishing format: ${publishingFormat}
 
 We would like to discuss the final pricing and publishing terms for your book. Please reply to this email with your preferred price or any questions you may have.
 
@@ -1767,14 +1777,18 @@ MyatPwint Publishing Team`
                             <span className="font-medium">{manuscript.suggested_price.toLocaleString()} MMK</span>
                           </div>
                         )}
-                        {manuscript.wants_physical && (
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-purple-500 rounded flex items-center justify-center">
-                              <div className="w-2 h-3 bg-white rounded-sm"></div>
-                            </div>
-                            <span className="text-xs">Physical Edition</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center">
+                            <div className="w-2 h-3 bg-white rounded-sm"></div>
                           </div>
-                        )}
+                          <span className="text-xs">
+                            {manuscript.wants_digital && manuscript.wants_physical
+                              ? 'Digital & Physical'
+                              : manuscript.wants_digital
+                              ? 'Digital Only'
+                              : 'Physical Only'}
+                          </span>
+                        </div>
                         <div className="flex items-center space-x-2">
                           <div className="w-4 h-4 bg-gray-400 rounded-sm flex items-center justify-center">
                             <div className="w-2 h-2 bg-white rounded-sm"></div>
@@ -2265,9 +2279,13 @@ MyatPwint Publishing Team`
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Physical Edition:</span>
+                    <span className="text-gray-600">Publishing Format:</span>
                     <span className="font-medium">
-                      {selectedDetailManuscript.wants_physical ? 'Requested' : 'Digital only'}
+                      {selectedDetailManuscript.wants_digital && selectedDetailManuscript.wants_physical
+                        ? 'Digital & Physical'
+                        : selectedDetailManuscript.wants_digital
+                        ? 'Digital Only'
+                        : 'Physical Only'}
                     </span>
                   </div>
                   {selectedDetailManuscript.status === 'published' && selectedDetailManuscript.wants_physical && (() => {

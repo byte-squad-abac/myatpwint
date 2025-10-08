@@ -14,6 +14,7 @@ interface MetadataEditorProps {
     tags: string[] | null
     cover_image_url: string
     suggested_price: number | null
+    wants_digital: boolean | null
     wants_physical: boolean | null
   }
   onClose: () => void
@@ -26,6 +27,7 @@ export function MetadataEditor({ manuscript, onClose, onUpdate }: MetadataEditor
     title: manuscript.title,
     description: manuscript.description,
     suggested_price: manuscript.suggested_price || 0,
+    wants_digital: manuscript.wants_digital ?? true,
     wants_physical: manuscript.wants_physical || false
   })
   
@@ -149,6 +151,13 @@ export function MetadataEditor({ manuscript, onClose, onUpdate }: MetadataEditor
       return
     }
 
+    // Validate publishing options
+    if (!formData.wants_digital && !formData.wants_physical) {
+      setError('Please select at least one publishing option (Digital or Physical)')
+      setSaving(false)
+      return
+    }
+
     try {
       let coverImageUrl = manuscript.cover_image_url
 
@@ -185,6 +194,7 @@ export function MetadataEditor({ manuscript, onClose, onUpdate }: MetadataEditor
           tags: selectedTags.length > 0 ? selectedTags : null,
           cover_image_url: coverImageUrl,
           suggested_price: formData.suggested_price,
+          wants_digital: formData.wants_digital,
           wants_physical: formData.wants_physical,
           updated_at: new Date().toISOString()
         })
@@ -514,18 +524,44 @@ export function MetadataEditor({ manuscript, onClose, onUpdate }: MetadataEditor
             />
           </div>
 
-          {/* Physical Book Option */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="wants_physical"
-              checked={formData.wants_physical}
-              onChange={(e) => handleInputChange('wants_physical', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="wants_physical" className="text-sm font-medium text-gray-700">
-              I want this book to be available as a physical copy
+          {/* Publishing Options */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Publishing Options *
             </label>
+            <p className="text-sm text-gray-600 mb-3">
+              Choose how you want your book to be published. At least one option must be selected.
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                <input
+                  type="checkbox"
+                  id="wants_digital"
+                  checked={formData.wants_digital}
+                  onChange={(e) => handleInputChange('wants_digital', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="wants_digital" className="flex-1 cursor-pointer">
+                  <div className="font-medium text-gray-900 text-sm">Digital Edition</div>
+                  <div className="text-xs text-gray-600">Available for digital download</div>
+                </label>
+              </div>
+
+              <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                <input
+                  type="checkbox"
+                  id="wants_physical"
+                  checked={formData.wants_physical}
+                  onChange={(e) => handleInputChange('wants_physical', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="wants_physical" className="flex-1 cursor-pointer">
+                  <div className="font-medium text-gray-900 text-sm">Physical Edition</div>
+                  <div className="text-xs text-gray-600">Printed and available for physical delivery</div>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}

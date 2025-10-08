@@ -40,6 +40,7 @@ export interface Database {
           tags: string[]
           category: string
           suggested_price: number | null
+          wants_digital: boolean
           wants_physical: boolean
           status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'published'
           editor_feedback: string | null

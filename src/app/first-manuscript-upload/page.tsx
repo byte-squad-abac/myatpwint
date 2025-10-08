@@ -14,6 +14,8 @@ interface ManuscriptUploadData {
   cover_file: File | null
   manuscript_file: File | null
   additional_notes?: string
+  wants_digital: boolean
+  wants_physical: boolean
 }
 
 function FirstManuscriptUploadContent() {
@@ -28,7 +30,9 @@ function FirstManuscriptUploadContent() {
   const [uploadData, setUploadData] = useState<ManuscriptUploadData>({
     cover_file: null,
     manuscript_file: null,
-    additional_notes: ''
+    additional_notes: '',
+    wants_digital: true,
+    wants_physical: false
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [uploadingFiles, setUploadingFiles] = useState({
@@ -139,6 +143,10 @@ function FirstManuscriptUploadContent() {
       newErrors.manuscript_file = 'Manuscript file is required'
     }
 
+    if (!uploadData.wants_digital && !uploadData.wants_physical) {
+      newErrors.publishing_options = 'Please select at least one publishing option (Digital or Physical)'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -163,7 +171,8 @@ function FirstManuscriptUploadContent() {
           category: application.book_category,
           tags: application.book_tags,
           suggested_price: application.preferred_price,
-          wants_physical: false, // Default for first submission
+          wants_digital: uploadData.wants_digital,
+          wants_physical: uploadData.wants_physical,
           cover_image_url: uploadedUrls.cover_url,
           file_url: uploadedUrls.manuscript_url,
           status: 'submitted'
@@ -305,6 +314,51 @@ function FirstManuscriptUploadContent() {
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder="Any additional notes or changes since your original pitch..."
               />
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Publishing Options *
+              </h3>
+              <p className="text-sm text-gray-600">
+                Choose how you want your book to be published. You must select at least one option.
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    id="wants_digital"
+                    checked={uploadData.wants_digital}
+                    onChange={(e) => setUploadData(prev => ({ ...prev, wants_digital: e.target.checked }))}
+                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="wants_digital" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-gray-900">Digital Edition</div>
+                    <div className="text-sm text-gray-600">Your book will be available for digital download</div>
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    id="wants_physical"
+                    checked={uploadData.wants_physical}
+                    onChange={(e) => setUploadData(prev => ({ ...prev, wants_physical: e.target.checked }))}
+                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="wants_physical" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-gray-900">Physical Edition</div>
+                    <div className="text-sm text-gray-600">Your book will be printed and available for physical delivery</div>
+                  </label>
+                </div>
+              </div>
+
+              {errors.publishing_options && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+                  {errors.publishing_options}
+                </div>
+              )}
             </div>
 
             {errors.submit && (

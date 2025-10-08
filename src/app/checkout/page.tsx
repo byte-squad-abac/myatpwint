@@ -144,57 +144,6 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleKBZPayQRCheckout = async () => {
-    if (!user) {
-      setError('Please sign in to continue with your purchase.')
-      return
-    }
-
-    setIsProcessing(true)
-    setError(null)
-
-    try {
-      // Convert cart items to KBZPay format
-      const bookIds = items.map(item => item.book.id)
-      const amounts = items.map(item => item.book.price * item.quantity)
-
-      // Create KBZPay QR order
-      const response = await fetch('/api/kbzpay/create-qr-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookIds,
-          amounts
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create QR payment order')
-      }
-
-      const data = await response.json()
-
-      if (data.success && data.qrCode) {
-        // Store order ID and QR code for display
-        sessionStorage.setItem('kbzpay_qr_order_id', data.orderId)
-        sessionStorage.setItem('kbzpay_qr_merchant_order_id', data.merchantOrderId)
-        sessionStorage.setItem('kbzpay_qr_code', data.qrCode)
-
-        // Redirect to QR code display page
-        router.push('/checkout/qr-payment')
-      } else {
-        throw new Error(data.error || 'Failed to get QR code')
-      }
-    } catch (err: unknown) {
-      console.error('KBZPay QR checkout error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to process QR checkout. Please try again.')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
   const handleDemoOrder = async () => {
     setIsProcessing(true)
@@ -316,29 +265,6 @@ export default function CheckoutPage() {
                   </div>
                 </button>
 
-                {/* KBZPay QR Payment Option */}
-                <button
-                  onClick={handleKBZPayQRCheckout}
-                  disabled={isProcessing}
-                  className="w-full p-4 border-2 border-orange-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="bg-orange-600 text-white p-2 rounded">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12h2m-4 0v3m2-3h2m-2 0v.01m0 3.99h2m-2 0v-.01"/>
-                        </svg>
-                      </div>
-                      <div className="ml-3 text-left">
-                        <h3 className="font-semibold text-gray-900">Pay with KBZPay (QR Code)</h3>
-                        <p className="text-sm text-gray-600">Scan QR code with KBZPay mobile app</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-orange-600 group-hover:text-orange-700">
-                      QR Scan
-                    </span>
-                  </div>
-                </button>
 
                 {/* Stripe Payment Option */}
                 <button
