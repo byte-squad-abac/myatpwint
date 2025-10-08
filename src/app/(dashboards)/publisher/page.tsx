@@ -173,11 +173,11 @@ export default function PublisherPage() {
 
   // Analytics state
   const [sortBy, setSortBy] = useState<'default' | 'sales' | 'revenue' | 'author_revenue'>('default')
-  const [showTopPerformers, setShowTopPerformers] = useState(false)
+  const [showTopPerformers, setShowTopPerformers] = useState(true)
   
   // Toggle states for sections
-  const [showCurrentMonth, setShowCurrentMonth] = useState(false)
-  const [showMonthlyHistory, setShowMonthlyHistory] = useState(false)
+  const [showCurrentMonth, setShowCurrentMonth] = useState(true)
+  const [showMonthlyHistory, setShowMonthlyHistory] = useState(true)
 
   const fetchSalesData = useCallback(async () => {
     if (!user) return
@@ -1110,29 +1110,20 @@ MyatPwint Publishing Team`
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Sales & Revenue Overview</h2>
               <div className="flex items-center space-x-3">
-                {salesData.length > 0 && (
-                  <>
-                    <Button
-                      variant={showCurrentMonth ? 'primary' : 'secondary'}
-                      size="sm"
-                      onClick={() => setShowCurrentMonth(!showCurrentMonth)}
-                    >
-                      {showCurrentMonth ? 'Hide' : 'Show'} Current Month
-                    </Button>
-                    <Button
-                      variant={showMonthlyHistory ? 'primary' : 'secondary'}
-                      size="sm"
-                      onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
-                    >
-                      {showMonthlyHistory ? 'Hide' : 'Show'} History
-                    </Button>
-                  </>
-                )}
-                {salesData.length === 0 && (
-                  <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-lg">
-                    No sales data yet - publish books to see analytics
-                  </div>
-                )}
+                <Button
+                  variant={showCurrentMonth ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setShowCurrentMonth(!showCurrentMonth)}
+                >
+                  {showCurrentMonth ? 'Hide' : 'Show'} Current Month
+                </Button>
+                <Button
+                  variant={showMonthlyHistory ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
+                >
+                  {showMonthlyHistory ? 'Hide' : 'Show'} History
+                </Button>
               </div>
             </div>
             
@@ -1143,27 +1134,12 @@ MyatPwint Publishing Team`
             />
 
             {/* Current Month Performance */}
-            {showCurrentMonth && salesData.length > 0 && (
-              <CurrentMonthPerformance 
+            {showCurrentMonth && (
+              <CurrentMonthPerformance
                 currentMonth={stats.currentMonth}
                 isRefreshingSales={isRefreshingSales}
                 lastSalesUpdate={lastSalesUpdate}
               />
-            )}
-            
-            {/* No data state for current month */}
-            {showCurrentMonth && salesData.length === 0 && (
-              <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200">
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Current Month Data</h3>
-                  <p className="text-gray-600">Current month performance will appear here once you have sales.</p>
-                </div>
-              </Card>
             )}
           </div>
         )
@@ -1319,40 +1295,32 @@ MyatPwint Publishing Team`
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Performance Analytics</h2>
             <div className="flex items-center space-x-3">
-              {salesData.length > 0 ? (
-                <>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'default' | 'sales' | 'revenue' | 'author_revenue')}
-                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="default">Default Sort</option>
-                    <option value="sales">Sort by Sales Volume</option>
-                    <option value="revenue">Sort by Revenue</option>
-                  </select>
-                  <Button
-                    variant={showTopPerformers ? 'secondary' : 'primary'}
-                    size="sm"
-                    onClick={() => setShowTopPerformers(!showTopPerformers)}
-                  >
-                    {showTopPerformers ? 'Hide Analytics' : 'Show Top Performers'}
-                  </Button>
-                  {sortBy !== 'default' && (
-                    <div className="flex items-center space-x-1">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                      <span className="text-xs text-blue-600 font-medium">Sorted</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-lg">
-                  Performance analytics will appear here when you have sales
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'default' | 'sales' | 'revenue' | 'author_revenue')}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="default">Default Sort</option>
+                <option value="sales">Sort by Sales Volume</option>
+                <option value="revenue">Sort by Revenue</option>
+              </select>
+              <Button
+                variant={showTopPerformers ? 'secondary' : 'primary'}
+                size="sm"
+                onClick={() => setShowTopPerformers(!showTopPerformers)}
+              >
+                {showTopPerformers ? 'Hide Analytics' : 'Show Top Performers'}
+              </Button>
+              {sortBy !== 'default' && (
+                <div className="flex items-center space-x-1">
+                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <span className="text-xs text-blue-600 font-medium">Sorted</span>
                 </div>
               )}
             </div>
           </div>
 
-          {showTopPerformers && salesData.length > 0 && (
+          {showTopPerformers && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Top Performing Books */}
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
@@ -1840,14 +1808,14 @@ MyatPwint Publishing Team`
                           <div className="mt-4 pt-4 border-t border-white/40">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-gray-600">Sales Performance</span>
-                              {salesData.sales > 0 && (
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                  <span className="text-xs text-green-600 font-medium">Active</span>
-                                </div>
-                              )}
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-2 h-2 rounded-full animate-pulse ${salesData.sales > 0 ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                                <span className={`text-xs font-medium ${salesData.sales > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                  {salesData.sales > 0 ? 'Active' : 'No Sales Yet'}
+                                </span>
+                              </div>
                             </div>
-                            
+
                             <div className="mt-3 grid grid-cols-2 gap-4">
                               <div className="bg-white/60 rounded-lg p-3 border border-white/80">
                                 <div className="flex items-center space-x-2">
@@ -1859,16 +1827,14 @@ MyatPwint Publishing Team`
                                   <div>
                                     <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
                                     <p className="text-lg font-bold text-gray-900">{salesData.sales}</p>
-                                    {salesData.sales > 0 && (
-                                      <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                        <span>D: {salesData.digitalSales}</span>
-                                        <span>P: {salesData.physicalSales}</span>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                      <span>D: {salesData.digitalSales}</span>
+                                      <span>P: {salesData.physicalSales}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                              
+
                               <div className="bg-white/60 rounded-lg p-3 border border-white/80">
                                 <div className="flex items-center space-x-2">
                                   <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -1879,11 +1845,9 @@ MyatPwint Publishing Team`
                                   <div>
                                     <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Revenue</p>
                                     <p className="text-lg font-bold text-gray-900">{Number(salesData.revenue).toLocaleString()} <span className="text-sm font-normal text-gray-600">MMK</span></p>
-                                    {salesData.sales > 0 && (
-                                      <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                        <span>Avg: {Math.round(salesData.revenue / salesData.sales).toLocaleString()}</span>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                      <span>Avg: {salesData.sales > 0 ? Math.round(salesData.revenue / salesData.sales).toLocaleString() : '0'}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -2406,69 +2370,57 @@ MyatPwint Publishing Team`
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-800">Sales Performance</h3>
-                      {salesData.sales > 0 && (
-                        <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="text-xs text-green-600 font-medium">Active</span>
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-1">
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${salesData.sales > 0 ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                        <span className={`text-xs font-medium ${salesData.sales > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                          {salesData.sales > 0 ? 'Active' : 'No Sales Yet'}
+                        </span>
+                      </div>
                     </div>
-                    
-                    {salesData.sales > 0 ? (
-                      <div className="space-y-4">
-                        {/* Total Sales */}
-                        <div className="bg-white/80 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
-                                <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.sales}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-between text-sm text-gray-600 mt-2">
-                            <span>Digital: {salesData.digitalSales}</span>
-                            <span>Physical: {salesData.physicalSales}</span>
-                          </div>
-                        </div>
 
-                        {/* Total Revenue */}
-                        <div className="bg-white/80 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
-                                <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
-                                <p className="text-xs text-gray-500">MMK</p>
-                              </div>
+                    <div className="space-y-4">
+                      {/* Total Sales */}
+                      <div className="bg-white/80 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Copies Sold</p>
+                              <p className="text-2xl font-bold text-gray-900 mb-1">{salesData.sales}</p>
                             </div>
                           </div>
-                          <div className="flex justify-between text-sm text-gray-600 mt-2">
-                            <span>Avg per sale: {Math.round(salesData.revenue / salesData.sales).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-600 mt-2">
+                          <span>Digital: {salesData.digitalSales}</span>
+                          <span>Physical: {salesData.physicalSales}</span>
+                        </div>
+                      </div>
+
+                      {/* Total Revenue */}
+                      <div className="bg-white/80 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
+                              <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">MMK</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <div className="flex justify-between text-sm text-gray-600 mt-2">
+                          <span>Avg per sale: {salesData.sales > 0 ? Math.round(salesData.revenue / salesData.sales).toLocaleString() : '0'}</span>
                         </div>
-                        <p className="text-lg font-medium text-gray-600 mb-2">No sales recorded yet</p>
-                        <p className="text-sm text-gray-500">Your sales data will appear here once customers purchase your book</p>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )
               })()}

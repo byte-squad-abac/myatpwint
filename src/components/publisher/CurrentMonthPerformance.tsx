@@ -15,13 +15,11 @@ interface CurrentMonthPerformanceProps {
   lastSalesUpdate: Date | null
 }
 
-export default function CurrentMonthPerformance({ 
-  currentMonth, 
-  isRefreshingSales, 
-  lastSalesUpdate 
+export default function CurrentMonthPerformance({
+  currentMonth,
+  isRefreshingSales,
+  lastSalesUpdate
 }: CurrentMonthPerformanceProps) {
-  if (currentMonth.total_sales === 0) return null
-
   return (
     <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 mb-6">
       <div className="flex items-center justify-between mb-4">
