@@ -28,6 +28,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   const [isOwned, setIsOwned] = useState(false)
   const [physicalCopiesAvailable, setPhysicalCopiesAvailable] = useState(0)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [quantityError, setQuantityError] = useState(false)
 
   const { addItem, isInCart, removeItem } = useCartStore()
 
@@ -348,11 +349,16 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                         value={quantity}
                         onChange={(e) => {
                           const val = parseInt(e.target.value) || 1
+                          if (val > physicalCopiesAvailable) {
+                            setQuantityError(true)
+                          } else {
+                            setQuantityError(false)
+                          }
                           setQuantity(Math.min(Math.max(1, val), physicalCopiesAvailable))
                         }}
                         min="1"
                         max={physicalCopiesAvailable}
-                        className="px-6 py-3 text-xl font-bold text-white min-w-24 text-center bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                        className="px-6 py-3 text-xl font-bold text-white min-w-24 text-center bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button
                         onClick={() => setQuantity(Math.min(physicalCopiesAvailable, quantity + 1))}
@@ -373,6 +379,15 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                       Max {physicalCopiesAvailable} available
                     </p>
                   </div>
+                </div>
+              )}
+
+              {/* Quantity Error Message */}
+              {quantityError && deliveryType === 'physical' && (
+                <div className="mb-4 p-4 bg-red-600/20 border border-red-600/50 rounded-xl">
+                  <p className="text-sm text-red-300 text-center">
+                    ⚠️ Only {physicalCopiesAvailable} copies available. Quantity has been adjusted.
+                  </p>
                 </div>
               )}
 
