@@ -82,6 +82,18 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       throw new Error('No user_id in session metadata');
     }
 
+    // Check if this session has already been processed
+    const { data: existingPurchases } = await supabaseServiceRole
+      .from('purchases')
+      .select('id')
+      .eq('stripe_payment_intent_id', session.payment_intent as string)
+      .limit(1);
+
+    if (existingPurchases && existingPurchases.length > 0) {
+      console.log(`⚠️ Session ${session.id} already processed, skipping duplicate`);
+      return;
+    }
+
     // Retrieve the session with line items
     const sessionWithLineItems = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ['line_items', 'line_items.data.price.product'],
