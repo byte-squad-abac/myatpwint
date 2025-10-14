@@ -188,11 +188,6 @@ function CheckoutSuccessContent() {
             <p className="text-blue-700 text-sm">
               You will receive an email confirmation shortly with your receipt and order details.
             </p>
-            {sessionId && (
-              <p className="text-blue-600 text-xs mt-2 font-mono">
-                Session ID: {sessionId}
-              </p>
-            )}
           </div>
         ) : (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -210,31 +205,6 @@ function CheckoutSuccessContent() {
             )}
           </div>
         )}
-
-        {/* Next Steps */}
-        <div className="mb-6">
-          <h3 className="font-semibold text-gray-900 mb-3">What happens next?</h3>
-          <div className="text-left space-y-2 text-sm text-gray-600">
-            <div className="flex items-start">
-              <div className="bg-blue-100 rounded-full p-1 mr-3 mt-0.5">
-                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-              </div>
-              <span>You&apos;ll receive an email confirmation with your order details</span>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-blue-100 rounded-full p-1 mr-3 mt-0.5">
-                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-              </div>
-              <span>Digital books will be available in your library immediately</span>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-blue-100 rounded-full p-1 mr-3 mt-0.5">
-                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-              </div>
-              <span>Physical books will be shipped to your provided address</span>
-            </div>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="space-y-3">
