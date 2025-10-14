@@ -343,7 +343,17 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                       >
                         −
                       </button>
-                      <span className="px-6 py-3 text-xl font-bold text-white min-w-16 text-center">{quantity}</span>
+                      <input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1
+                          setQuantity(Math.min(Math.max(1, val), physicalCopiesAvailable))
+                        }}
+                        min="1"
+                        max={physicalCopiesAvailable}
+                        className="px-6 py-3 text-xl font-bold text-white min-w-24 text-center bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                      />
                       <button
                         onClick={() => setQuantity(Math.min(physicalCopiesAvailable, quantity + 1))}
                         disabled={quantity >= physicalCopiesAvailable}
