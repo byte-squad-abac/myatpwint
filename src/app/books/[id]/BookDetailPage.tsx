@@ -345,20 +345,37 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                         −
                       </button>
                       <input
-                        type="number"
-                        value={quantity}
+                        type="text"
+                        inputMode="numeric"
+                        value={quantity === 0 ? '' : quantity}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value) || 1
-                          if (val > physicalCopiesAvailable) {
+                          const inputValue = e.target.value
+                          // Allow empty input temporarily
+                          if (inputValue === '') {
+                            setQuantity(0)
+                            setQuantityError(false)
+                            return
+                          }
+
+                          const val = parseInt(inputValue)
+                          if (isNaN(val) || val < 1) {
+                            setQuantity(0)
+                            setQuantityError(false)
+                          } else if (val > physicalCopiesAvailable) {
                             setQuantityError(true)
+                            setQuantity(physicalCopiesAvailable)
                           } else {
                             setQuantityError(false)
+                            setQuantity(val)
                           }
-                          setQuantity(Math.min(Math.max(1, val), physicalCopiesAvailable))
                         }}
-                        min="1"
-                        max={physicalCopiesAvailable}
-                        className="px-6 py-3 text-xl font-bold text-white min-w-24 text-center bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onBlur={() => {
+                          // On blur, if empty or 0, set to 1
+                          if (quantity === 0 || quantity < 1) {
+                            setQuantity(1)
+                          }
+                        }}
+                        className="px-6 py-3 text-xl font-bold text-white min-w-24 text-center bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
                       />
                       <button
                         onClick={() => setQuantity(Math.min(physicalCopiesAvailable, quantity + 1))}
