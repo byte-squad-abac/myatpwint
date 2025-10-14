@@ -29,13 +29,13 @@ export default function RegisterPage() {
 
     try {
       // First check if email already exists in profiles table
-      const { data: existingProfile } = await supabase
+      const { data: existingProfiles } = await supabase
         .from('profiles')
         .select('email, id')
         .eq('email', formData.email)
-        .single()
+        .limit(1)
 
-      if (existingProfile) {
+      if (existingProfiles && existingProfiles.length > 0) {
         throw new Error('This email address is already registered. Please use the login page instead.')
       }
 
