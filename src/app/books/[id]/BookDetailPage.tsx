@@ -292,16 +292,15 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               </div>
 
               {/* Delivery Options */}
-              <div className="mb-8">
-                {(wantsDigital && wantsPhysical) && (
+              {(wantsDigital && wantsPhysical) && (
+                <div className="mb-8">
                   <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {wantsDigital && (
-                    <button
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {wantsDigital && (
+                      <button
                         onClick={() => {
                           setDeliveryType('digital')
-                          setQuantity(1) // Reset quantity for digital books
+                          setQuantity(1)
                         }}
                         className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
                           deliveryType === 'digital'
@@ -348,7 +347,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                     )}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Quantity Selector - Only for Physical Books */}
               {deliveryType === 'physical' && (
