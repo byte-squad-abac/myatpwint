@@ -139,7 +139,7 @@ export default function LibraryPage() {
       }
     })
 
-    // Remove duplicate digital books only (physical books can have duplicates)
+    // Deduplicate and consolidate quantities
     const uniqueBooks = new Map<string, Purchase>()
     const result: Purchase[] = []
 
@@ -152,8 +152,16 @@ export default function LibraryPage() {
           result.push(purchase)
         }
       } else {
-        // For physical books, allow duplicates
-        result.push(purchase)
+        // For physical books, consolidate quantities into single entry
+        const key = purchase.book_id
+        const existing = uniqueBooks.get(key)
+        if (existing) {
+          // Sum up the quantities
+          existing.quantity += purchase.quantity
+        } else {
+          uniqueBooks.set(key, { ...purchase })
+          result.push(uniqueBooks.get(key)!)
+        }
       }
     })
 
