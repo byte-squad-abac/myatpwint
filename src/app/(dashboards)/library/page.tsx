@@ -139,16 +139,25 @@ export default function LibraryPage() {
       }
     })
 
-    // Remove duplicate digital books (keep only the first purchase)
+    // Remove duplicate digital books only (physical books can have duplicates)
     const uniqueBooks = new Map<string, Purchase>()
+    const result: Purchase[] = []
+
     filtered.forEach(purchase => {
-      const key = `${purchase.book_id}-${purchase.delivery_type}`
-      if (!uniqueBooks.has(key)) {
-        uniqueBooks.set(key, purchase)
+      if (purchase.delivery_type === 'digital') {
+        // For digital books, only keep first purchase (no duplicates)
+        const key = purchase.book_id
+        if (!uniqueBooks.has(key)) {
+          uniqueBooks.set(key, purchase)
+          result.push(purchase)
+        }
+      } else {
+        // For physical books, allow duplicates
+        result.push(purchase)
       }
     })
 
-    return Array.from(uniqueBooks.values())
+    return result
   }
 
   if (authLoading || loading) {
