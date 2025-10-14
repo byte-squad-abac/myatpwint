@@ -275,9 +275,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                     <p className="text-gray-400 text-sm">
                       {deliveryType === 'digital' ? 'Digital Copy' : 'Physical Copy'}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {deliveryType === 'digital' ? 'Instant Download' : 'Ships in 2-3 days'}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -303,7 +300,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                       </div>
                       <div className="text-left">
                         <div className="font-bold text-lg text-white">Digital Edition</div>
-                        <div className="text-sm text-gray-400">Read instantly on any device</div>
                         <div className="text-xs text-green-400 font-medium">✓ Available now</div>
                       </div>
                     </div>
@@ -326,7 +322,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                       </div>
                       <div className="text-left">
                         <div className="font-bold text-lg text-white">Physical Book</div>
-                        <div className="text-sm text-gray-400">Premium paperback edition</div>
                         <div className={`text-xs font-medium ${physicalCopiesAvailable === 0 ? 'text-red-400' : 'text-orange-400'}`}>
                           {physicalCopiesAvailable === 0 ? '✗ Out of stock' : `✓ ${physicalCopiesAvailable} copies left`}
                         </div>
@@ -377,7 +372,6 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                   <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                     {formatMMK(book.price)}
                   </p>
-                  <p className="text-sm text-gray-400 mt-1">Digital Copy - Instant Download</p>
                 </div>
               )}
 
