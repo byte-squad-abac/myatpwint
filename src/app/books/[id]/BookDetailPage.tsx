@@ -292,9 +292,11 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               </div>
 
               {/* Delivery Options */}
-              {(wantsDigital && wantsPhysical) && (
+              {(wantsDigital || wantsPhysical) && (
                 <div className="mb-8">
-                  <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
+                  {(wantsDigital && wantsPhysical) && (
+                    <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {wantsDigital && (
                       <button

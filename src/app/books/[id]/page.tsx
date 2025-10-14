@@ -26,27 +26,34 @@ export default function BookPage() {
 
     const fetchBook = async () => {
       try {
-        const { data, error } = await supabase
+        // First get the book
+        const { data: bookData, error: bookError } = await supabase
           .from('books')
-          .select(`
-            *,
-            manuscripts(wants_digital, wants_physical)
-          `)
+          .select('*')
           .eq('id', params.id)
           .single()
 
-        if (error) {
-          console.error('Error fetching book:', error)
-          setError(error.message)
+        if (bookError || !bookData) {
+          console.error('Error fetching book:', bookError)
+          setError(bookError?.message || 'Book not found')
           return
         }
 
-        if (!data) {
-          setError('Book not found')
-          return
+        // Then get the manuscript data if manuscript_id exists
+        if (bookData.manuscript_id) {
+          const { data: manuscriptData } = await supabase
+            .from('manuscripts')
+            .select('wants_digital, wants_physical')
+            .eq('id', bookData.manuscript_id)
+            .limit(1)
+
+          // Add manuscripts as an array to match the type
+          if (manuscriptData && manuscriptData.length > 0) {
+            bookData.manuscripts = manuscriptData
+          }
         }
 
-        setBook(data as Book)
+        setBook(bookData as Book)
       } catch (err) {
         console.error('Error fetching book:', err)
         setError('Failed to load book')
