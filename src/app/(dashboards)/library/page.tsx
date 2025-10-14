@@ -139,7 +139,16 @@ export default function LibraryPage() {
       }
     })
 
-    return filtered
+    // Remove duplicate digital books (keep only the first purchase)
+    const uniqueBooks = new Map<string, Purchase>()
+    filtered.forEach(purchase => {
+      const key = `${purchase.book_id}-${purchase.delivery_type}`
+      if (!uniqueBooks.has(key)) {
+        uniqueBooks.set(key, purchase)
+      }
+    })
+
+    return Array.from(uniqueBooks.values())
   }
 
   if (authLoading || loading) {
