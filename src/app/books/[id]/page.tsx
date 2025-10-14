@@ -28,7 +28,10 @@ export default function BookPage() {
       try {
         const { data, error } = await supabase
           .from('books')
-          .select('*')
+          .select(`
+            *,
+            manuscripts!inner(wants_digital, wants_physical)
+          `)
           .eq('id', params.id)
           .single()
 

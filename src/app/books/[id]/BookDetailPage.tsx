@@ -14,7 +14,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { formatMMK } from '@/lib/utils/currency'
 
 interface BookDetailPageProps {
-  book: Book
+  book: Book & {
+    manuscripts?: {
+      wants_digital: boolean
+      wants_physical: boolean
+    }[]
+  }
 }
 
 export default function BookDetailPage({ book }: BookDetailPageProps) {
@@ -22,9 +27,15 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   const { user } = useAuth()
   const supabase = createClient()
 
+  // Get availability from manuscript data
+  const wantsDigital = book.manuscripts?.[0]?.wants_digital ?? true
+  const wantsPhysical = book.manuscripts?.[0]?.wants_physical ?? true
+
   const [mounted, setMounted] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('digital')
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(
+    wantsDigital ? 'digital' : 'physical'
+  )
   const [isOwned, setIsOwned] = useState(false)
   const [physicalCopiesAvailable, setPhysicalCopiesAvailable] = useState(0)
   const [showFullDescription, setShowFullDescription] = useState(false)
@@ -281,56 +292,62 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
               </div>
 
               {/* Delivery Options */}
-              <div className="mb-8">
-                <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => {
-                      setDeliveryType('digital')
-                      setQuantity(1) // Reset quantity for digital books
-                    }}
-                    className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
-                      deliveryType === 'digital'
-                        ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
-                        : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full ${deliveryType === 'digital' ? 'bg-purple-500' : 'bg-gray-700'} transition-colors`}>
-                        <PlayIcon className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-bold text-lg text-white">Digital Edition</div>
-                        <div className="text-xs text-green-400 font-medium">✓ Available now</div>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setDeliveryType('physical')}
-                    disabled={physicalCopiesAvailable === 0}
-                    className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
-                      deliveryType === 'physical'
-                        ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
-                        : physicalCopiesAvailable === 0
-                        ? 'border-gray-700 bg-gray-800/30 opacity-50 cursor-not-allowed'
-                        : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full ${deliveryType === 'physical' ? 'bg-purple-500' : physicalCopiesAvailable === 0 ? 'bg-gray-700' : 'bg-gray-700'} transition-colors`}>
-                        <BookOpenIcon className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-bold text-lg text-white">Physical Book</div>
-                        <div className={`text-xs font-medium ${physicalCopiesAvailable === 0 ? 'text-red-400' : 'text-orange-400'}`}>
-                          {physicalCopiesAvailable === 0 ? '✗ Out of stock' : `✓ ${physicalCopiesAvailable} copies left`}
+              {(wantsDigital || wantsPhysical) && (wantsDigital && wantsPhysical) && (
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-white mb-4">Choose Your Format</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {wantsDigital && (
+                      <button
+                        onClick={() => {
+                          setDeliveryType('digital')
+                          setQuantity(1) // Reset quantity for digital books
+                        }}
+                        className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          deliveryType === 'digital'
+                            ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
+                            : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-full ${deliveryType === 'digital' ? 'bg-purple-500' : 'bg-gray-700'} transition-colors`}>
+                            <PlayIcon className="w-6 h-6 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-lg text-white">Digital Edition</div>
+                            <div className="text-xs text-green-400 font-medium">✓ Available now</div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </button>
+                      </button>
+                    )}
+
+                    {wantsPhysical && (
+                      <button
+                        onClick={() => setDeliveryType('physical')}
+                        disabled={physicalCopiesAvailable === 0}
+                        className={`group relative overflow-hidden p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          deliveryType === 'physical'
+                            ? 'border-purple-500 bg-gradient-to-br from-purple-500/20 to-pink-500/20'
+                            : physicalCopiesAvailable === 0
+                            ? 'border-gray-700 bg-gray-800/30 opacity-50 cursor-not-allowed'
+                            : 'border-gray-600 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-full ${deliveryType === 'physical' ? 'bg-purple-500' : physicalCopiesAvailable === 0 ? 'bg-gray-700' : 'bg-gray-700'} transition-colors`}>
+                            <BookOpenIcon className="w-6 h-6 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-lg text-white">Physical Book</div>
+                            <div className={`text-xs font-medium ${physicalCopiesAvailable === 0 ? 'text-red-400' : 'text-orange-400'}`}>
+                              {physicalCopiesAvailable === 0 ? '✗ Out of stock' : `✓ ${physicalCopiesAvailable} copies left`}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Quantity Selector - Only for Physical Books */}
               {deliveryType === 'physical' && (
