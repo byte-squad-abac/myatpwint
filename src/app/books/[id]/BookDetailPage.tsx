@@ -61,7 +61,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
     }
   }, [book.id, mounted, supabase])
 
-  // Check if user owns this book
+  // Check if user owns the DIGITAL version of this book
   useEffect(() => {
     const checkOwnership = async () => {
       if (!user) return
@@ -72,6 +72,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
           .select('id')
           .eq('user_id', user.id)
           .eq('book_id', book.id)
+          .eq('delivery_type', 'digital')
           .eq('status', 'completed')
           .limit(1)
 
