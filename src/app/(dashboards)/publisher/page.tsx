@@ -2403,21 +2403,21 @@ MyatPwint Publishing Team`
                       {/* Total Revenue */}
                       <div className="bg-white/80 rounded-lg p-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                          <div className="flex items-center space-x-2 min-w-0 flex-1">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
                               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                               </svg>
                             </div>
-                            <div>
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
-                              <p className="text-2xl font-bold text-gray-900 mb-1">{Number(salesData.revenue).toLocaleString()}</p>
+                              <p className="text-2xl font-bold text-gray-900 mb-1 break-words">{Number(salesData.revenue).toLocaleString()}</p>
                               <p className="text-xs text-gray-500">MMK</p>
                             </div>
                           </div>
                         </div>
                         <div className="flex justify-between text-sm text-gray-600 mt-2">
-                          <span>Avg per sale: {salesData.sales > 0 ? Math.round(salesData.revenue / salesData.sales).toLocaleString() : '0'}</span>
+                          <span className="break-words">Avg per sale: {salesData.sales > 0 ? Math.round(salesData.revenue / salesData.sales).toLocaleString() : '0'}</span>
                         </div>
                       </div>
                     </div>
