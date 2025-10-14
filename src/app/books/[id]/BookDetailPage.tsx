@@ -349,8 +349,9 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                       </button>
                       <span className="px-6 py-3 text-xl font-bold text-white min-w-16 text-center">{quantity}</span>
                       <button
-                        onClick={() => setQuantity(quantity + 1)}
-                        className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors text-white font-bold"
+                        onClick={() => setQuantity(Math.min(physicalCopiesAvailable, quantity + 1))}
+                        disabled={quantity >= physicalCopiesAvailable}
+                        className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         +
                       </button>
@@ -361,6 +362,9 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                     <p className="text-sm text-gray-400">Total:</p>
                     <p className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                       {formatMMK(book.price * quantity)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Max {physicalCopiesAvailable} available
                     </p>
                   </div>
                 </div>
@@ -378,7 +382,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
 
               {/* Action Buttons */}
               <div className="space-y-4">
-                {isOwned ? (
+                {isOwned && deliveryType === 'digital' ? (
                   <div className="flex items-center justify-center gap-3 py-6 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-2xl">
                     <CheckIcon className="w-6 h-6 text-green-400" />
                     <span className="text-lg font-semibold text-green-400">You Already Own This Book</span>
@@ -387,34 +391,45 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inCart ? (
-                      <button
-                        onClick={handleRemoveFromCart}
-                        className="py-4 px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all text-lg shadow-lg hover:shadow-xl"
-                      >
-                        Remove from Cart
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleAddToCart}
-                        className="py-4 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg"
-                      >
-                        <ShoppingCartIcon className="w-6 h-6" />
-                        Add to Cart
-                      </button>
+                  <>
+                    {isOwned && deliveryType === 'physical' && (
+                      <div className="mb-4 p-4 bg-blue-600/20 border border-blue-600/30 rounded-xl">
+                        <p className="text-sm text-blue-300 text-center">
+                          ℹ️ You already own the digital version. Want a physical copy too?
+                        </p>
+                      </div>
                     )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {inCart ? (
+                        <button
+                          onClick={handleRemoveFromCart}
+                          className="py-4 px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all text-lg shadow-lg hover:shadow-xl"
+                        >
+                          Remove from Cart
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleAddToCart}
+                          disabled={deliveryType === 'physical' && physicalCopiesAvailable === 0}
+                          className="py-4 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ShoppingCartIcon className="w-6 h-6" />
+                          Add to Cart
+                        </button>
+                      )}
 
-                    <button
-                      onClick={() => {
-                        handleAddToCart()
-                        router.push('/checkout')
-                      }}
-                      className="py-4 px-8 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl text-lg"
-                    >
-                      Buy Now
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => {
+                          handleAddToCart()
+                          router.push('/checkout')
+                        }}
+                        disabled={deliveryType === 'physical' && physicalCopiesAvailable === 0}
+                        className="py-4 px-8 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Buy Now
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
 
