@@ -140,20 +140,21 @@ export default function LibraryPage() {
     })
 
     // Deduplicate and consolidate quantities
+    // Use delivery_type in key to keep digital and physical separate
     const uniqueBooks = new Map<string, Purchase>()
     const result: Purchase[] = []
 
     filtered.forEach(purchase => {
       if (purchase.delivery_type === 'digital') {
         // For digital books, only keep first purchase (no duplicates)
-        const key = purchase.book_id
+        const key = `${purchase.book_id}-digital`
         if (!uniqueBooks.has(key)) {
           uniqueBooks.set(key, purchase)
           result.push(purchase)
         }
       } else {
         // For physical books, consolidate quantities into single entry
-        const key = purchase.book_id
+        const key = `${purchase.book_id}-physical`
         const existing = uniqueBooks.get(key)
         if (existing) {
           // Sum up the quantities
