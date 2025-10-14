@@ -109,12 +109,12 @@ export default function SemanticSearch({
       if (currentPlaceholder.length < currentExample.length) {
         timeout = setTimeout(() => {
           setCurrentPlaceholder(currentExample.slice(0, currentPlaceholder.length + 1));
-        }, 2);
+        }, 100);
       } else {
         // Finished typing, wait then start erasing
         timeout = setTimeout(() => {
           setIsTyping(false);
-        }, 2);
+        }, 2000);
       }
     } else {
       // Erasing effect

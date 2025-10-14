@@ -302,17 +302,6 @@ export default function BooksPage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Quick Action Button */}
-                  <div className={`absolute top-4 right-4 transition-all duration-300 ${
-                    hoveredBook === book.id ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-                  }`}>
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg">
-                      <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Minimal Book Info */}
