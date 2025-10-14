@@ -131,7 +131,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const originalPrice = bookData?.price || 0;
       const quantity = item.quantity || 1;
 
-      // Create purchase record
+      // Create purchase record with session ID for deduplication
       const purchaseData = {
         user_id: userId,
         book_id: bookId,
@@ -142,6 +142,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         purchase_price: originalPrice * quantity, // Store original MMK price
         status: 'completed',
         stripe_payment_intent_id: session.payment_intent as string,
+        stripe_session_id: session.id, // Add session ID to prevent duplicates
       };
 
       purchases.push(purchaseData);
@@ -154,6 +155,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         .insert(purchases);
 
       if (error) {
+        // If error is due to unique constraint violation (duplicate webhook), ignore it
+        if (error.code === '23505') {
+          console.log(`⚠️ Duplicate webhook detected for session ${session.id}, ignoring`);
+          return;
+        }
         console.error('❌ Failed to save purchases:', error);
         throw new Error(`Failed to save purchases: ${error.message}`);
       }
