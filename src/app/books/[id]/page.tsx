@@ -30,7 +30,7 @@ export default function BookPage() {
           .from('books')
           .select(`
             *,
-            manuscripts!inner(wants_digital, wants_physical)
+            manuscripts(wants_digital, wants_physical)
           `)
           .eq('id', params.id)
           .single()
