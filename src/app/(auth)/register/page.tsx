@@ -39,18 +39,19 @@ export default function RegisterPage() {
         throw new Error('This email address is already registered. Please use the login page instead.')
       }
 
-      // If no existing profile found, proceed with signup
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') ||
+        (typeof window !== 'undefined' ? window.location.origin : undefined);
+
       const { data, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          data: {
-            name: formData.name,
-            role: 'user'
-          },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL}/login`
+          emailRedirectTo: base ? `${base}/login` : undefined,
+          data: { name: formData.name }
         }
-      })
+      });
+
 
       if (authError) throw authError
 

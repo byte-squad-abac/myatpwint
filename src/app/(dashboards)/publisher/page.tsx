@@ -62,6 +62,7 @@ type Manuscript = {
   editor_feedback: string | null
   submitted_at: string
   reviewed_at: string | null
+  custom_author_name?: string | null
   author_id: string
   editor_id: string | null
   submission_count: number
@@ -112,6 +113,22 @@ const sortByDateDesc = (a: { month: string }, b: { month: string }) =>
 
 const sortByMonthDesc = (a: { month: string }, b: { month: string }) => 
   b.month.localeCompare(a.month)
+
+const explain = (err: unknown) => {
+  // Supabase/PostgREST errors usually have these fields
+  const any = err as any
+  return [
+    any?.message,
+    any?.error?.message,
+    any?.data?.message,
+    any?.code && `code=${any.code}`,
+    any?.details && `details=${any.details}`,
+    any?.hint && `hint=${any.hint}`,
+    typeof err === 'object' ? JSON.stringify(err) : String(err),
+  ].filter(Boolean).join(' | ')
+}
+
+
 
 export default function PublisherPage() {
   const { user, profile, loading: authLoading } = useAuthContext()
@@ -178,6 +195,180 @@ export default function PublisherPage() {
   // Toggle states for sections
   const [showCurrentMonth, setShowCurrentMonth] = useState(true)
   const [showMonthlyHistory, setShowMonthlyHistory] = useState(true)
+
+  const [showForceUploadModal, setShowForceUploadModal] = useState(false)
+
+  const [forceForm, setForceForm] = useState({
+    title: '',
+    customAuthorName: '',
+    description: '',
+    category: '',
+    tagsCSV: '',
+    suggestedPrice: '',
+    wantsDigital: true,
+    wantsPhysical: false,
+    finalPrice: '',
+    edition: 'First Edition',
+    physicalCopiesCount: '',
+    lowStockThreshold: '10'
+  })
+
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [forceUploading, setForceUploading] = useState(false)
+
+  const uploadToBucket = async (bucket: string, file: File, pathPrefix: string) => {
+  const path = `${pathPrefix}/${Date.now()}-${file.name}`
+  const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+  if (upErr) throw upErr
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+  return data.publicUrl
+}
+
+  const fetchWithTimeout = (url: string, opts: RequestInit = {}, timeoutMs = 8000) => {
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), timeoutMs)
+    return fetch(url, { ...opts, signal: controller.signal })
+      .finally(() => clearTimeout(t))
+  }
+
+
+  const handleForceUpload = async () => {
+  if (!user) return
+  if (!forceForm.title || !forceForm.customAuthorName || !forceForm.finalPrice) {
+    alert('Title, Custom Author Name and Final Price are required.')
+    return
+  }
+  if (!docFile) {
+    alert('Please select a manuscript file to upload.')
+    return
+  }
+
+  setForceUploading(true)
+  setPublishingProgress('Uploading files...')
+
+  try {
+    // 1) Upload manuscript
+    let manuscriptUrl = ''
+    try {
+      manuscriptUrl = await uploadToBucket('manuscripts', docFile, `publisher/${user.id}`)
+      console.log('[OK] upload manuscript →', manuscriptUrl)
+    } catch (e) {
+      console.error('[FAIL] storage upload(manuscripts):', e)
+      throw new Error('Storage upload (manuscripts) failed: ' + explain(e))
+    }
+
+    // 1.1) Upload cover (optional)
+    let coverUrl = ''
+    if (coverFile) {
+      try {
+        coverUrl = await uploadToBucket('book-covers', coverFile, `publisher/${user.id}`)
+        console.log('[OK] upload cover →', coverUrl)
+      } catch (e) {
+        console.error('[FAIL] storage upload(book-covers):', e)
+        throw new Error('Storage upload (book-covers) failed: ' + explain(e))
+      }
+    }
+
+    // 2) Create manuscript
+    setPublishingProgress('Creating manuscript...')
+    const tags = forceForm.tagsCSV
+      ? forceForm.tagsCSV.split(',').map(t => t.trim()).filter(Boolean)
+      : []
+
+    let m: any = null
+    try {
+      const { data, error } = await supabase
+        .from('manuscripts')
+        .insert({
+          title: forceForm.title,
+          description: forceForm.description,
+          file_url: manuscriptUrl,
+          cover_image_url: coverUrl,
+          tags,
+          category: forceForm.category,
+          suggested_price: forceForm.suggestedPrice ? parseInt(forceForm.suggestedPrice) : null,
+          wants_digital: !!forceForm.wantsDigital,
+          wants_physical: !!forceForm.wantsPhysical,
+          status: 'published',
+          // reviewed_at: new Date().toISOString(),           // remove if column doesn't exist
+          // editor_feedback: null,                            // remove if column doesn't exist
+          // submission_count: 1,                              // remove if column doesn't exist
+          // feedback_history: [],                             // <-- REMOVE (this triggered the error)
+          // last_resubmitted_at: null,                        // remove if column doesn't exist
+          published_at: new Date().toISOString(),
+          publisher_id: user.id,
+          custom_author_name: forceForm.customAuthorName
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('[FAIL] insert(manuscripts):', error)
+        throw new Error('DB insert (manuscripts) failed: ' + explain(error))
+      }
+      m = data
+      console.log('[OK] insert manuscript →', m?.id)
+    } catch (e) {
+      throw e
+    }
+
+    // 3) Create book
+    setPublishingProgress('Creating book...')
+    try {
+      const bookInsert = {
+        manuscript_id: m.id,
+        name: m.title,
+        author: forceForm.customAuthorName,
+        description: m.description,
+        category: m.category,
+        tags: m.tags,
+        price: parseInt(forceForm.finalPrice),
+        edition: forceForm.edition,
+        image_url: m.cover_image_url,
+        published_date: new Date().toISOString(),
+        physical_copies_count: forceForm.physicalCopiesCount ? parseInt(forceForm.physicalCopiesCount) : 0,
+        low_stock_threshold: forceForm.lowStockThreshold ? parseInt(forceForm.lowStockThreshold) : 10
+      }
+
+      const { error: bookErr, data: bookRow } = await supabase
+        .from('books')
+        .insert(bookInsert)
+        .select()
+        .single()
+
+      if (bookErr) {
+        console.error('[FAIL] insert(books):', bookErr)
+        throw new Error('DB insert (books) failed: ' + explain(bookErr))
+      }
+      console.log('[OK] insert book →', bookRow?.id)
+    } catch (e) {
+      throw e
+    }
+
+    // 4) Done
+    setPublishingProgress('Complete!')
+    setShowForceUploadModal(false)
+    setForceForm({
+      title: '', customAuthorName: '', description: '', category: '', tagsCSV: '',
+      suggestedPrice: '', wantsDigital: true, wantsPhysical: false,
+      finalPrice: '', edition: 'First Edition', physicalCopiesCount: '', lowStockThreshold: '10'
+    })
+    setCoverFile(null)
+    setDocFile(null)
+    fetchManuscripts()
+    fetchSalesData()
+    alert('New book uploaded and published successfully!')
+  } catch (err) {
+    console.error('[ForceUpload] ERROR:', err)
+    alert(explain(err)) // show exact reason
+  } finally {
+    setForceUploading(false)
+    setPublishingProgress('')
+  }
+}
+
+
 
   const fetchSalesData = useCallback(async () => {
     if (!user) return
@@ -623,7 +814,9 @@ export default function PublisherPage() {
       filtered = filtered.filter(manuscript =>
         manuscript.title.toLowerCase().includes(searchLower) ||
         manuscript.description.toLowerCase().includes(searchLower) ||
-        manuscript.profiles?.name?.toLowerCase().includes(searchLower) ||
+        (manuscript.custom_author_name || manuscript.profiles?.name || '')
+        .toLowerCase()
+        .includes(searchLower) ||
         manuscript.tags.some(tag => tag.toLowerCase().includes(searchLower))
       )
     }
@@ -736,7 +929,7 @@ MyatPwint Publishing Team`
       const bookData = {
         manuscript_id: selectedManuscript.id,
         name: selectedManuscript.title,
-        author: selectedManuscript.profiles?.name || 'Unknown Author',
+        author: selectedManuscript.custom_author_name || selectedManuscript.profiles?.name || 'Unknown Author',
         description: selectedManuscript.description,
         category: selectedManuscript.category,
         tags: selectedManuscript.tags,
@@ -1107,6 +1300,18 @@ MyatPwint Publishing Team`
         const stats = getTotalSalesStats()
         return (
           <div className="mb-8">
+
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Book Management</h2>
+              <div className="flex items-center ">
+                <Button size="sm" onClick={() => setShowForceUploadModal(true)}>
+                  Force Upload New Book
+                </Button>
+
+              </div>
+            </div>
+
+
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Sales & Revenue Overview</h2>
               <div className="flex items-center space-x-3">
@@ -1695,7 +1900,10 @@ MyatPwint Publishing Team`
                           {manuscript.title}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span className="font-medium">{manuscript.profiles?.name || 'Unknown Author'}</span>
+                          <span className="font-medium">
+                            {manuscript.custom_author_name || manuscript.profiles?.name || 'Unknown Author'}
+                          </span>
+
                         </div>
                         {manuscript.reviewed_at && (
                           <div className="mt-1 text-xs text-gray-500">
@@ -2032,6 +2240,146 @@ MyatPwint Publishing Team`
         )}
       </div>
 
+
+      <Modal
+        isOpen={showForceUploadModal}
+        onClose={() => { if (!forceUploading) setShowForceUploadModal(false) }}
+        title="Force Upload New Book"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Title *"
+              value={forceForm.title}
+              onChange={(e) => setForceForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Book title"
+            />
+            <Input
+              label="Custom Author Name *"
+              value={forceForm.customAuthorName}
+              onChange={(e) => setForceForm(f => ({ ...f, customAuthorName: e.target.value }))}
+              placeholder="e.g., John Doe"
+            />
+            <Input
+              label="Category"
+              value={forceForm.category}
+              onChange={(e) => setForceForm(f => ({ ...f, category: e.target.value }))}
+              placeholder="Fiction, Romance"
+            />
+            <Input
+              label="Tags (comma separated)"
+              value={forceForm.tagsCSV}
+              onChange={(e) => setForceForm(f => ({ ...f, tagsCSV: e.target.value }))}
+              placeholder="novel, drama, series"
+            />
+            <Input
+              label="Suggested Price (optional)"
+              type="number"
+              value={forceForm.suggestedPrice}
+              onChange={(e) => setForceForm(f => ({ ...f, suggestedPrice: e.target.value }))}
+              placeholder="e.g., 5000"
+            />
+            <Input
+              label="Final Price (MMK) *"
+              type="number"
+              value={forceForm.finalPrice}
+              onChange={(e) => setForceForm(f => ({ ...f, finalPrice: e.target.value }))}
+              placeholder="e.g., 6000"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              rows={4}
+              value={forceForm.description}
+              onChange={(e) => setForceForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Short description of the book"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
+              <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />
+              <p className="text-xs text-gray-500 mt-1">Optional, PNG/JPG</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Manuscript File *</label>
+              <input type="file" accept=".doc,.docx,.pdf" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+              <p className="text-xs text-gray-500 mt-1">DOCX/PDF</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Edition</label>
+              <select
+                value={forceForm.edition}
+                onChange={(e) => setForceForm(f => ({ ...f, edition: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
+              >
+                <option value="First Edition">First Edition</option>
+                <option value="Second Edition">Second Edition</option>
+                <option value="Revised Edition">Revised Edition</option>
+                <option value="Special Edition">Special Edition</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-6 pt-6">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={forceForm.wantsDigital}
+                  onChange={(e) => setForceForm(f => ({ ...f, wantsDigital: e.target.checked }))}
+                />
+                <span className="text-sm">Digital</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={forceForm.wantsPhysical}
+                  onChange={(e) => setForceForm(f => ({ ...f, wantsPhysical: e.target.checked }))}
+                />
+                <span className="text-sm">Physical</span>
+              </label>
+            </div>
+          </div>
+
+          {forceForm.wantsPhysical && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Physical Copies Count"
+                type="number"
+                value={forceForm.physicalCopiesCount}
+                onChange={(e) => setForceForm(f => ({ ...f, physicalCopiesCount: e.target.value }))}
+                placeholder="e.g., 100"
+              />
+              <Input
+                label="Low Stock Threshold"
+                type="number"
+                value={forceForm.lowStockThreshold}
+                onChange={(e) => setForceForm(f => ({ ...f, lowStockThreshold: e.target.value }))}
+                placeholder="10"
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setShowForceUploadModal(false)} disabled={forceUploading}>
+              Cancel
+            </Button>
+            <Button variant="success" onClick={handleForceUpload} loading={forceUploading} disabled={forceUploading}>
+              {forceUploading ? 'Uploading...' : 'Create & Publish'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+
       {/* Publish Modal */}
       <Modal
         isOpen={!!selectedManuscript}
@@ -2190,8 +2538,10 @@ MyatPwint Publishing Team`
 
                 <div>
                   <h4 className="font-medium text-gray-800 mb-2">Author</h4>
-                  <p className="text-gray-700">{selectedDetailManuscript.profiles?.name || 'Unknown Author'}</p>
-                </div>
+                  <p className="text-gray-700">
+                    {selectedDetailManuscript.custom_author_name || selectedDetailManuscript.profiles?.name || 'Unknown Author'}
+                  </p>
+                  </div>
 
                 <div className="prose prose-sm text-gray-700">
                   <h4 className="font-medium text-gray-800 mb-2">Description</h4>
