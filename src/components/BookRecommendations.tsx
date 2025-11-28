@@ -40,7 +40,11 @@ export default function BookRecommendations({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to fetch recommendations')
+        console.warn('Recommendations API returned non-OK status:', response.status)
+        // Don't throw error, just set empty recommendations
+        setRecommendations([])
+        setLoading(false)
+        return
       }
 
       const data = await response.json()
@@ -48,7 +52,9 @@ export default function BookRecommendations({
 
     } catch (err) {
       console.error('Error fetching recommendations:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch recommendations')
+      // Don't show error to user, just set empty recommendations
+      setRecommendations([])
+      setError(null)
     } finally {
       setLoading(false)
     }
@@ -72,21 +78,13 @@ export default function BookRecommendations({
   }
 
   if (error) {
-    return (
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold text-white mb-6">{title}</h2>
-        <div className="text-center py-12">
-          <p className="text-gray-300 mb-4">Unable to load recommendations</p>
-          <Button
-            onClick={fetchRecommendations}
-            variant="outline"
-            size="sm"
-          >
-            Try Again
-          </Button>
-        </div>
-      </div>
-    )
+    // Silently skip showing error, just don't show recommendations section
+    return null
+  }
+
+  if (recommendations.length === 0 && !loading) {
+    // Don't show anything if there are no recommendations
+    return null
   }
 
   if (recommendations.length === 0) {

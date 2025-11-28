@@ -270,14 +270,20 @@ export default function BooksPage() {
                 <div className="relative overflow-hidden rounded-lg">
                   {/* Book Cover */}
                   <div className="aspect-[3/4] bg-gradient-to-br from-gray-900 to-gray-800 relative">
-                    {book.image_url && (
-                      <Image
+                    {book.image_url ? (
+                      <img
                         src={book.image_url}
                         alt={book.name}
-                        width={300}
-                        height={400}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        No Image
+                      </div>
                     )}
 
                     {/* Overlay on Hover */}

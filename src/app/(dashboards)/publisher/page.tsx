@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useAuthContext } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
@@ -326,9 +325,7 @@ export default function PublisherPage() {
         price: parseInt(forceForm.finalPrice),
         edition: forceForm.edition,
         image_url: m.cover_image_url,
-        published_date: new Date().toISOString(),
-        physical_copies_count: forceForm.physicalCopiesCount ? parseInt(forceForm.physicalCopiesCount) : 0,
-        low_stock_threshold: forceForm.lowStockThreshold ? parseInt(forceForm.lowStockThreshold) : 10
+        published_date: new Date().toISOString()
       }
 
       const { error: bookErr, data: bookRow } = await supabase
@@ -925,6 +922,42 @@ MyatPwint Publishing Team`
     setPublishingProgress('Preparing book data...')
 
     try {
+      // Check if this manuscript has already been published
+      setPublishingProgress('Checking for existing publications...')
+      const { data: existingBooks, error: checkError } = await supabase
+        .from('books')
+        .select('id, edition')
+        .eq('manuscript_id', selectedManuscript.id)
+
+      if (checkError) {
+        console.error('Error checking existing books:', checkError)
+        throw new Error('Failed to check for existing publications')
+      }
+
+      // Check if the same edition already exists
+      if (existingBooks && existingBooks.length > 0) {
+        const sameEditionExists = existingBooks.some(
+          book => book.edition.toLowerCase() === publishData.edition.toLowerCase()
+        )
+        
+        if (sameEditionExists) {
+          alert(`This manuscript has already been published as "${publishData.edition}". Please choose a different edition name or edit the existing publication.`)
+          setPublishing(false)
+          setPublishingProgress('')
+          return
+        }
+
+        // If different edition, confirm with user
+        const confirm = window.confirm(
+          `This manuscript already has ${existingBooks.length} published edition(s). Do you want to publish a new edition "${publishData.edition}"?`
+        )
+        if (!confirm) {
+          setPublishing(false)
+          setPublishingProgress('')
+          return
+        }
+      }
+
       // Prepare book data for publishing
       const bookData = {
         manuscript_id: selectedManuscript.id,
@@ -936,9 +969,7 @@ MyatPwint Publishing Team`
         price: parseInt(publishData.finalPrice),
         edition: publishData.edition,
         image_url: selectedManuscript.cover_image_url,
-        published_date: new Date().toISOString(),
-        physical_copies_count: publishData.physicalCopiesCount ? parseInt(publishData.physicalCopiesCount) : 0,
-        low_stock_threshold: publishData.lowStockThreshold ? parseInt(publishData.lowStockThreshold) : 10
+        published_date: new Date().toISOString()
       }
 
       setPublishingProgress('Creating book record...')
@@ -954,17 +985,19 @@ MyatPwint Publishing Team`
       
       setPublishingProgress('Updating manuscript status...')
       
-      // Update manuscript status to published
-      const { error: updateError } = await supabase
-        .from('manuscripts')
-        .update({
-          status: 'published',
-          published_at: new Date().toISOString(),
-          publisher_id: user.id
-        })
-        .eq('id', selectedManuscript.id)
+      // Update manuscript status to published (only if not already published)
+      if (selectedManuscript.status !== 'published') {
+        const { error: updateError } = await supabase
+          .from('manuscripts')
+          .update({
+            status: 'published',
+            published_at: new Date().toISOString(),
+            publisher_id: user.id
+          })
+          .eq('id', selectedManuscript.id)
 
-      if (updateError) throw updateError
+        if (updateError) throw updateError
+      }
 
       // Generate AI embedding for the new book
       setPublishingProgress('Generating AI embeddings...')
@@ -1286,12 +1319,12 @@ MyatPwint Publishing Team`
             <h1 className="text-3xl font-bold text-gray-900">Publisher Dashboard</h1>
             <p className="text-gray-600 mt-2">Manage approved manuscripts and publish books</p>
           </div>
-          <Button
+          {/* <Button
             onClick={() => router.push('/publisher/authors')}
             variant="outline"
           >
             Author Management
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -1301,56 +1334,20 @@ MyatPwint Publishing Team`
         return (
           <div className="mb-8">
 
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Book Management</h2>
-              <div className="flex items-center ">
-                <Button size="sm" onClick={() => setShowForceUploadModal(true)}>
-                  Force Upload New Book
-                </Button>
-
-              </div>
-            </div>
-
-
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Sales & Revenue Overview</h2>
-              <div className="flex items-center space-x-3">
-                <Button
-                  variant={showCurrentMonth ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setShowCurrentMonth(!showCurrentMonth)}
-                >
-                  {showCurrentMonth ? 'Hide' : 'Show'} Current Month
-                </Button>
-                <Button
-                  variant={showMonthlyHistory ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setShowMonthlyHistory(!showMonthlyHistory)}
-                >
-                  {showMonthlyHistory ? 'Hide' : 'Show'} History
-                </Button>
-              </div>
-            </div>
-            
-            <SalesOverviewCards 
-              stats={stats}
-              showOnlyBooksWithSales={showOnlyBooksWithSales}
-              onToggleFilter={() => setShowOnlyBooksWithSales(!showOnlyBooksWithSales)}
-            />
-
-            {/* Current Month Performance */}
-            {showCurrentMonth && (
-              <CurrentMonthPerformance
-                currentMonth={stats.currentMonth}
-                isRefreshingSales={isRefreshingSales}
-                lastSalesUpdate={lastSalesUpdate}
-              />
-            )}
-          </div>
-        )
-      })()}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Book Management</h2>
+        <div className="flex items-center ">
+          <Button size="sm" onClick={() => setShowForceUploadModal(true)}>
+            Force Upload New Book
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+})()}
 
       {/* Historical Monthly Records */}
+      {/* 
       {showMonthlyHistory && (
         <div className="mb-8">
           <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-2 border-purple-200">
@@ -1493,8 +1490,9 @@ MyatPwint Publishing Team`
           </Card>
         </div>
       )}
-
+*/}
       {/* Analytics Section */}
+      {/* 
       {(
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -1526,8 +1524,10 @@ MyatPwint Publishing Team`
           </div>
 
           {showTopPerformers && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">*/}
               {/* Top Performing Books */}
+
+              {/* 
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Top Books by Revenue</h3>
@@ -1558,8 +1558,10 @@ MyatPwint Publishing Team`
                   )}
                 </div>
               </Card>
-
+*/}
               {/* Top Authors */}
+
+              {/* 
               <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200">
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Top Authors by Revenue</h3>
@@ -1592,8 +1594,10 @@ MyatPwint Publishing Team`
               </Card>
             </div>
           )}
-          
+          */}
+
           {/* No data state for top performers */}
+          {/* 
           {showTopPerformers && salesData.length === 0 && (
             <div className="text-center py-12">
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1615,8 +1619,8 @@ MyatPwint Publishing Team`
               </div>
             </div>
           )}
-        </div>
-      )}
+        </div> 
+      )} */}
 
       {/* Filter Toggle Button */}
       <div className="mb-6">
@@ -1884,14 +1888,22 @@ MyatPwint Publishing Team`
                     {/* Book Cover and Title Section */}
                     <div className="flex gap-4 mb-4">
                       <div className="flex-shrink-0">
-                        <div className="w-16 h-20 bg-white rounded-lg shadow-md border-2 border-white overflow-hidden">
-                          <Image
-                            src={manuscript.cover_image_url || '/book-placeholder.png'}
-                            alt={manuscript.title}
-                            width={64}
-                            height={80}
-                            className="w-full h-full object-cover"
-                          />
+                        <div className="w-16 h-20 bg-gray-200 rounded-lg shadow-md border-2 border-white overflow-hidden">
+                          {manuscript.cover_image_url ? (
+                            <img
+                              src={manuscript.cover_image_url}
+                              alt={manuscript.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/book-placeholder.png';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                              No Cover
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -2502,13 +2514,21 @@ MyatPwint Publishing Team`
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Cover Image */}
               <div className="flex-shrink-0">
-                <Image
-                  src={selectedDetailManuscript.cover_image_url || '/book-placeholder.png'}
-                  alt={selectedDetailManuscript.title}
-                  width={200}
-                  height={280}
-                  className="w-48 h-64 object-cover rounded-lg shadow-lg border-4 border-white"
-                />
+                {selectedDetailManuscript.cover_image_url ? (
+                  <img
+                    src={selectedDetailManuscript.cover_image_url}
+                    alt={selectedDetailManuscript.title}
+                    className="w-48 h-64 object-cover rounded-lg shadow-lg border-4 border-white"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/book-placeholder.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-48 h-64 bg-gray-200 rounded-lg shadow-lg border-4 border-white flex items-center justify-center">
+                    <span className="text-gray-400 text-sm">No Cover</span>
+                  </div>
+                )}
               </div>
               
               {/* Basic Details */}

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { ArrowLeftIcon, ShoppingCartIcon, PlayIcon, BookOpenIcon } from '@heroicons/react/24/outline'
 import { CheckIcon, SparklesIcon } from '@heroicons/react/24/solid'
 
@@ -51,15 +50,17 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
   useEffect(() => {
     const checkPhysicalAvailability = async () => {
       try {
-        const { data, error } = await supabase
-          .rpc('get_available_physical_copies', { book_id_param: book.id })
+        // Temporarily disabled due to database schema mismatch
+        // const { data, error } = await supabase
+        //   .rpc('get_available_physical_copies', { book_id_param: book.id })
 
-        if (error) throw error
+        // if (error) throw error
 
-        const availableCopies = data || 0
+        // const availableCopies = data || 0
+        const availableCopies = 0 // Default to 0 until schema is fixed
         setPhysicalCopiesAvailable(availableCopies)
 
-        if (availableCopies === 0) {
+        if (availableCopies === 0 && wantsPhysical) {
           setDeliveryType('digital')
         }
       } catch (error) {
@@ -71,7 +72,7 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
     if (mounted && book.id) {
       checkPhysicalAvailability()
     }
-  }, [book.id, mounted, supabase])
+  }, [book.id, mounted, supabase, wantsPhysical])
 
   // Check if user owns the DIGITAL version of this book
   useEffect(() => {
@@ -138,11 +139,14 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
         {/* Background Image with Blur */}
         {book.image_url && (
           <div className="absolute inset-0 z-0">
-            <Image
+            <img
               src={book.image_url}
               alt={book.name}
-              fill
-              className="object-cover opacity-10 blur-lg scale-110"
+              className="absolute inset-0 w-full h-full object-cover opacity-10 blur-lg scale-110"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black"></div>
           </div>
@@ -173,12 +177,14 @@ export default function BookDetailPage({ book }: BookDetailPageProps) {
                 <div className="relative">
                   <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/30 shadow-2xl">
                     {book.image_url ? (
-                      <Image
+                      <img
                         src={book.image_url}
                         alt={book.name}
-                        width={800}
-                        height={1200}
                         className="w-full h-auto rounded-xl shadow-2xl"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
                     ) : (
                       <div className="aspect-[2/3] bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center w-full">
