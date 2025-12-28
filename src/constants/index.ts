@@ -61,12 +61,6 @@ export const MYANMAR_CONFIG = {
   NORMALIZATION_FORM: 'NFC' as const,
 } as const
 
-// Stripe Configuration (business constants only, config moved to config/index.ts)
-export const STRIPE_CONFIG = {
-  SHIPPING_FEE_MMK: 5000,
-  MIN_AMOUNT_CENTS: 50, // Stripe minimum
-} as const
-
 // API Routes
 export const API_ROUTES = {
   AI: {
@@ -79,18 +73,12 @@ export const API_ROUTES = {
     CONFIG: '/api/onlyoffice/config',
     CALLBACK: '/api/onlyoffice/callback',
   },
-  STRIPE: {
-    CREATE_CHECKOUT: '/api/stripe/create-checkout-session',
-    WEBHOOKS: '/api/stripe/webhooks',
-    SYNC_PRODUCTS: '/api/stripe/sync-products',
-  },
 } as const
 
 // External URLs
 export const EXTERNAL_URLS = {
   SUPABASE: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   HUGGING_FACE: 'https://huggingface.co',
-  STRIPE: 'https://stripe.com',
 } as const
 
 // Default Values

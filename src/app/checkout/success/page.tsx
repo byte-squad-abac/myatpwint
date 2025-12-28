@@ -18,12 +18,10 @@ function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const { clearCart } = useCartStore()
 
-  const sessionId = searchParams.get('session_id')
   const transactionId = searchParams.get('transaction')
   const prepayId = searchParams.get('prepay_id')
   const merchOrderId = searchParams.get('merch_order_id')
 
-  const isStripePayment = !!sessionId
   const isKBZPayReturn = !!(prepayId && merchOrderId)
   const [paymentStatus, setPaymentStatus] = React.useState<{
     status?: string
@@ -111,7 +109,7 @@ function CheckoutSuccessContent() {
             paymentStatus.status === 'expired' ? 'Payment Expired' :
             paymentStatus.error ? 'Payment Verification Failed' :
             'Payment Processing'
-          ) : isStripePayment ? 'Payment Successful!' : 'Order Placed Successfully!'}
+          ) : 'Order Placed Successfully!'}
         </h1>
 
         <p className="text-lg text-gray-600 mb-6">
@@ -177,19 +175,7 @@ function CheckoutSuccessContent() {
               </p>
             )}
           </div>
-        ) : isStripePayment ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-center mb-2">
-              <svg className="h-5 w-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              <span className="text-blue-800 font-medium">Payment processed by Stripe</span>
-            </div>
-            <p className="text-blue-700 text-sm">
-              You will receive an email confirmation shortly with your receipt and order details.
-            </p>
-          </div>
-        ) : (
+            ) : (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-center mb-2">
               <ShoppingBagIcon className="h-5 w-5 text-yellow-600 mr-2" />

@@ -16,7 +16,6 @@ import { Button, Card, Input } from '@/components/ui'
 
 // Services
 import { useCartStore } from '@/lib/store/cartStore'
-import { redirectToCheckout } from '@/lib/stripe/client'
 
 // Hooks
 import { useAuth } from '@/hooks/useAuth'
@@ -64,33 +63,6 @@ export default function CheckoutPage() {
         </Card>
       </div>
     )
-  }
-
-  const handleStripeCheckout = async () => {
-    if (!user) {
-      setError('Please sign in to continue with your purchase.')
-      return
-    }
-
-    setIsProcessing(true)
-    setError(null)
-
-    try {
-      // Convert cart items to checkout format
-      const checkoutItems = items.map(item => ({
-        bookId: item.book.id,
-        quantity: item.quantity,
-        deliveryType: item.deliveryType,
-      }))
-
-      // Redirect to Stripe Checkout
-      await redirectToCheckout(checkoutItems)
-    } catch (err: unknown) {
-      console.error('Stripe checkout error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to process checkout. Please try again.')
-    } finally {
-      setIsProcessing(false)
-    }
   }
 
   const handleKBZPayCheckout = async () => {
@@ -265,29 +237,6 @@ export default function CheckoutPage() {
                   </div>
                 </button>
 
-
-                {/* Stripe Payment Option */}
-                <button
-                  onClick={handleStripeCheckout}
-                  disabled={isProcessing}
-                  className="w-full p-4 border-2 border-blue-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="bg-blue-600 text-white p-2 rounded">
-                        <CreditCardIcon className="h-5 w-5" />
-                      </div>
-                      <div className="ml-3 text-left">
-                        <h3 className="font-semibold text-gray-900">Secure Payment with Stripe</h3>
-                        <p className="text-sm text-gray-600">Pay with card, digital wallets, and more</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                      International
-                    </span>
-                  </div>
-                </button>
-
                 {/* Demo Payment Option */}
                 <button
                   onClick={handleDemoOrder}
@@ -354,7 +303,7 @@ export default function CheckoutPage() {
               </div>
               
               <div className="mt-6 text-xs text-gray-500">
-                <p>🔒 Secure checkout powered by Stripe</p>
+                <p>🔒 Secure checkout</p>
                 <p className="mt-1">Your information is safe and secure.</p>
               </div>
             </Card>

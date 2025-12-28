@@ -78,18 +78,8 @@ export interface Database {
           user_id: string
           book_id: string
           amount: number
-          stripe_payment_intent_id: string
           status: string
           purchased_at: string
-        }
-      }
-      stripe_products: {
-        Row: {
-          id: string
-          book_id: string
-          stripe_product_id: string
-          stripe_price_id: string
-          created_at: string
         }
       }
       book_embeddings: {
