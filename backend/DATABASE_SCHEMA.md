@@ -78,7 +78,6 @@ WHERE payment_method = 'kbzpay' AND status = 'completed';
 
 **Payment Method Values:**
 - `kbzpay` - KBZPay payment
-- `stripe` - Stripe payment
 - `mpu` - MPU payment
 
 **Delivery Type Values:**

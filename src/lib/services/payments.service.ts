@@ -3,7 +3,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { stripe } from '../stripe/config';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +21,6 @@ export interface PaymentRecord {
   total_price: number;
   purchase_price: number;
   status: 'completed' | 'pending' | 'cancelled';
-  stripe_payment_intent_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -50,37 +48,6 @@ export async function getUserPaymentHistory(userId: string): Promise<PaymentReco
   }
 
   return data || [];
-}
-
-/**
- * Get payment status by Stripe session ID
- */
-export async function getPaymentByStripeSession(sessionId: string): Promise<PaymentRecord | null> {
-  try {
-    // Get session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    
-    if (!session.payment_intent) {
-      return null;
-    }
-
-    // Find payment in database
-    const { data, error } = await supabase
-      .from('purchases')
-      .select('*')
-      .eq('stripe_payment_intent_id', session.payment_intent)
-      .single();
-
-    if (error) {
-      console.error('Error fetching payment by session:', error);
-      return null;
-    }
-
-    return data as PaymentRecord;
-  } catch (error) {
-    console.error('Error getting payment by Stripe session:', error);
-    return null;
-  }
 }
 
 /**

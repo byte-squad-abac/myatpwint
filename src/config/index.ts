@@ -57,21 +57,6 @@ export const onlyOfficeConfig = {
   callbackTimeout: 30000, // 30 seconds
 } as const
 
-// Stripe Configuration (consolidated from lib/stripe/config.ts)
-export const stripeConfig = {
-  publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-  secretKey: process.env.STRIPE_SECRET_KEY!,
-  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-  currency: 'usd' as const,
-  displayCurrency: 'MMK' as const,
-  country: 'MM' as const,
-  appUrl: process.env.NODE_ENV === 'production'
-    ? (process.env.NEXT_PUBLIC_PRODUCTION_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-  mmkToUsdRate: 0.00048,
-  apiVersion: '2025-08-27.basil' as const,
-} as const
-
 // App Configuration
 export const appConfig = {
   name: 'MyatPwint V2',
@@ -90,7 +75,6 @@ export const featureFlags = {
   aiSearch: true,
   bookRecommendations: true,
   onlyOfficeEditor: true,
-  stripePayments: true,
 } as const
 
 // Export all configs as a single object for convenience
@@ -99,7 +83,6 @@ export const config = {
   database: databaseConfig,
   ai: aiConfig,
   onlyOffice: onlyOfficeConfig,
-  stripe: stripeConfig,
   features: featureFlags,
 } as const
 
