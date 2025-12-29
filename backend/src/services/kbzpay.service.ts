@@ -162,8 +162,8 @@ export class KBZPayService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.Response as KBZPayPrecreateResponse;
+      const data = (await response.json()) as { Response: KBZPayPrecreateResponse };
+      return data.Response;
     } catch (error) {
       console.error('KBZPay API Error:', error);
       throw new Error(
@@ -265,7 +265,7 @@ export class KBZPayService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { Response: KBZPayPrecreateResponse };
       return data.Response;
     } catch (error) {
       console.error('KBZPay Query Error:', error);
