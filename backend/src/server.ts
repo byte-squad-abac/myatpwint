@@ -5,8 +5,9 @@ import dotenv from 'dotenv';
 import { createPaymentRouter } from './routes/payment.routes';
 import { errorHandler } from './middleware/errorHandler';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from .env file (if it exists)
+// In production, environment variables should be set as system environment variables
+dotenv.config({ path: '.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3001;

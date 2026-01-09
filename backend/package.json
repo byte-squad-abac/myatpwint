@@ -9,15 +9,20 @@
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts"
   },
-  "keywords": ["kbzpay", "payment", "express", "supabase"],
+  "keywords": [
+    "kbzpay",
+    "payment",
+    "express",
+    "supabase"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "helmet": "^7.1.0"
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "helmet": "^7.2.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -30,4 +35,3 @@
     "typescript": "^5.5.3"
   }
 }
-

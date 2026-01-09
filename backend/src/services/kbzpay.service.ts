@@ -42,8 +42,17 @@ export class KBZPayService {
       : process.env.KBZPAY_PWA_UAT_URL!;
 
     // Validate required environment variables
-    if (!this.appId || !this.merchantCode || !this.appKey || !this.baseUrl || !this.notifyUrl) {
-      throw new Error('Missing required KBZPay configuration. Please check your environment variables.');
+    const missingVars: string[] = [];
+    if (!this.appId) missingVars.push('KBZPAY_APP_ID');
+    if (!this.merchantCode) missingVars.push('KBZPAY_MERCHANT_CODE');
+    if (!this.appKey) missingVars.push('KBZPAY_APP_KEY');
+    if (!this.baseUrl) missingVars.push('KBZPAY_BASE_URL');
+    if (!this.notifyUrl) missingVars.push('KBZPAY_NOTIFY_URL');
+    
+    if (missingVars.length > 0) {
+      throw new Error(
+        `Missing required KBZPay configuration. Please set the following environment variables: ${missingVars.join(', ')}`
+      );
     }
   }
 
