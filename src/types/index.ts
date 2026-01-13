@@ -164,17 +164,7 @@ export type ManuscriptStatus = typeof MANUSCRIPT_STATUSES[keyof typeof MANUSCRIP
 export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES]
 export type DeliveryType = typeof DELIVERY_TYPES[keyof typeof DELIVERY_TYPES]
 
-// Stripe and Payment types
-export interface StripeProduct {
-  id: string
-  book_id: string
-  stripe_product_id: string
-  digital_price_id?: string
-  physical_price_id?: string
-  created_at: string
-  updated_at: string
-}
-
+// Payment types
 export interface PaymentRecord {
   id: string
   user_id: string
@@ -185,7 +175,6 @@ export interface PaymentRecord {
   total_price: number
   purchase_price: number
   status: 'completed' | 'pending' | 'cancelled'
-  stripe_payment_intent_id?: string
   created_at: string
   updated_at: string
 }
