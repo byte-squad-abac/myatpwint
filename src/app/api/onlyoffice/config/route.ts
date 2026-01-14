@@ -2,14 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateJWTToken, generateDocumentKey } from '@/lib/onlyoffice-jwt';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Check if service role key exists, otherwise fall back to anon key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+if (!supabaseUrl) {
+  console.error('NEXT_PUBLIC_SUPABASE_URL is not defined');
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('SUPABASE_SERVICE_ROLE_KEY is not defined, using ANON_KEY (limited permissions)');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: NextRequest) {
   try {
     const { manuscriptId, userId, userRole } = await request.json();
+
+    console.log('OnlyOffice config request:', { manuscriptId, userId, userRole });
 
     if (!manuscriptId || !userId || !userRole) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -234,6 +245,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('OnlyOffice config error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    console.error('Error details:', errorMessage);
+    return NextResponse.json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    }, { status: 500 });
   }
 }

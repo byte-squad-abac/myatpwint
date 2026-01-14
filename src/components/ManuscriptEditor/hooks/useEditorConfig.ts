@@ -51,7 +51,9 @@ export function useEditorConfig() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load editor configuration');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Editor config API error:', response.status, errorData);
+        throw new Error(errorData.error || `Failed to load editor configuration (${response.status})`);
       }
 
       const config = await response.json();
