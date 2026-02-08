@@ -1,39 +1,34 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/components/AuthProvider";
-import Navbar from "@/components/Navbar";
-import { SearchProvider } from "@/components/SearchProvider";
-import { CartAuthSync } from "@/components/CartAuthSync";
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { AuthProvider } from '@/components/AuthProvider'
+import Navbar from '@/components/Navbar'
 
 const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
 
 export const metadata: Metadata = {
-  title: "MyatPwint - Myanmar Digital Publishing Platform",
-  description: "Discover and publish Myanmar literature on the leading digital publishing platform",
-};
+  title: 'MyatPwint - Myanmar Digital Publishing',
+  description: 'Discover Myanmar literature',
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
-          <SearchProvider>
-            <CartAuthSync />
-            <div className="min-h-screen bg-gray-50">
-              <Navbar />
-              <main>{children}</main>
-            </div>
-          </SearchProvider>
+          <div className="min-h-screen bg-black">
+            <Navbar />
+            <main>{children}</main>
+          </div>
         </AuthProvider>
       </body>
     </html>
-  );
+  )
 }

@@ -3,8 +3,6 @@
 // React and Next.js
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-
 // External libraries
 import { CreditCardIcon, TruckIcon, DocumentTextIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 
@@ -18,17 +16,17 @@ import { Button, Card, Input } from '@/components/ui'
 import { useCartStore } from '@/lib/store/cartStore'
 
 // Hooks
-import { useAuth } from '@/hooks/useAuth'
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user } = useFirebaseAuth()
   const { items, getTotal, clearCart } = useCartStore()
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const total = getTotal()
-  const hasPhysicalItems = items.some(item => item.deliveryType === 'physical')
+  const hasPhysicalItems = false
 
   // Redirect if cart is empty
   if (items.length === 0) {
@@ -156,20 +154,22 @@ export default function CheckoutPage() {
               
               <div className="space-y-4">
                 {items.map((item: CartItem) => (
-                  <div key={`${item.book.id}-${item.deliveryType}`} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <Image
-                      src={item.book.image_url}
-                      alt={item.book.name}
-                      width={64}
-                      height={80}
-                      className="w-16 h-20 object-cover rounded"
-                    />
+                  <div key={item.book.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                    {item.book.image ? (
+                      <img
+                        src={item.book.image}
+                        alt={item.book.name}
+                        className="w-16 h-20 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-16 h-20 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
+                    )}
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{item.book.name}</h3>
-                      <p className="text-sm text-gray-600">{item.book.author}</p>
+                      <p className="text-sm text-gray-600">{item.book.author_name}</p>
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm text-gray-500 capitalize">
-                          {item.deliveryType} • Qty: {item.quantity}
+                        <span className="text-sm text-gray-500">
+                          Qty: {item.quantity}
                         </span>
                         <span className="font-semibold text-green-600">
                           {(item.book.price * item.quantity).toLocaleString()} MMK

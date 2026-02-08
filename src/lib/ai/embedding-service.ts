@@ -34,7 +34,7 @@ class EmbeddingService {
   static buildBookSearchText(book: Book): string {
     const parts = [
       book.name || '',
-      book.author || '',
+      book.author_name || '',
       book.description || '',
       book.category || '',
       (book.tags || []).join(' ')
