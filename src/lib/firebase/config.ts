@@ -20,10 +20,10 @@ let db: Firestore
 try {
   db = initializeFirestore(app, {
     localCache: persistentLocalCache({
-      tabManager: persistentSingleTabManager(),
+      tabManager: persistentSingleTabManager({}),
     }),
   })
-} catch (e) {
+} catch {
   // Already initialized (e.g. hot reload or multi-tab)
   const { getFirestore } = require('firebase/firestore')
   db = getFirestore(app)

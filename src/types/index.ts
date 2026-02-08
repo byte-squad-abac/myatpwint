@@ -2,11 +2,10 @@
  * Centralized type definitions for the application
  */
 
-// Book type (Firebase Firestore)
-export type { Book } from './book'
+import type { Book } from './book'
+import type { User } from 'firebase/auth'
 
-// Re-export for backward compatibility
-export type { User } from 'firebase/auth'
+export type { Book, User }
 
 // AI-related types
 export interface EmbeddingResult {
