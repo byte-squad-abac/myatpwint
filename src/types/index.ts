@@ -2,13 +2,11 @@
  * Centralized type definitions for the application
  */
 
-// Import Supabase types
-import type { Database, Book, Profile, Manuscript } from '@/lib/supabase/types'
-import type { User } from '@supabase/supabase-js'
+// Book type (Firebase Firestore)
+export type { Book } from './book'
 
-// Re-export Supabase types
-export type { Database, Book, Profile, Manuscript }
-export type { User }
+// Re-export for backward compatibility
+export type { User } from 'firebase/auth'
 
 // AI-related types
 export interface EmbeddingResult {
@@ -84,6 +82,14 @@ export interface SearchContextType {
   hasActiveSearch: boolean
   setSearchResults: (results: BookWithSearchMetadata[], isActive: boolean) => void
   clearSearch: () => void
+}
+
+// Auth / Profile (Firebase)
+export interface Profile {
+  id: string
+  email: string
+  name: string
+  role: 'user' | 'publisher'
 }
 
 // Auth types

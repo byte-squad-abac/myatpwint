@@ -1,16 +1,10 @@
 'use client'
 
-import { useContext } from 'react'
-import { useAuth, AuthContext } from '@/hooks/useAuth'
+import { FirebaseAuthProvider, useFirebaseAuth } from '@/hooks/useFirebaseAuth'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuth()
-
-  return (
-    <AuthContext.Provider value={auth}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <FirebaseAuthProvider>{children}</FirebaseAuthProvider>
 }
 
-export const useAuthContext = () => useContext(AuthContext)
+// Re-export for backward compatibility
+export const useAuthContext = useFirebaseAuth
