@@ -1,74 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getAdminAuth, getAdminFirestore } from '@/lib/firebase/admin'
 import { kbzPayService } from '@/lib/services/kbzpay'
+
+const BOOKS_COLLECTION = 'books'
+const ORDERS_COLLECTION = 'orders'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Get Firebase Auth token from header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const token = authHeader.substring(7)
+    const adminAuth = getAdminAuth()
+    const decodedToken = await adminAuth.verifyIdToken(token)
+    const userId = decodedToken.uid
+
     const body = await request.json()
-    const { bookIds, amounts } = body
+    const { items } = body as { items: Array<{ bookId: string; quantity: number }> }
 
-    if (!bookIds || !Array.isArray(bookIds) || bookIds.length === 0) {
-      return NextResponse.json({ error: 'Book IDs are required' }, { status: 400 })
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Items are required' }, { status: 400 })
     }
 
-    if (!amounts || !Array.isArray(amounts) || amounts.length !== bookIds.length) {
-      return NextResponse.json({ error: 'Amounts array must match book IDs' }, { status: 400 })
+    const db = getAdminFirestore()
+
+    // Get books data using Admin SDK (bypasses security rules)
+    const books: Array<{ id: string; name: string; price: number }> = []
+    for (const item of items) {
+      const snap = await db.collection(BOOKS_COLLECTION).doc(item.bookId).get()
+      if (!snap.exists) {
+        return NextResponse.json({ error: 'Some books not found' }, { status: 404 })
+      }
+      const d = snap.data()!
+      books.push({
+        id: snap.id,
+        name: d.name || '',
+        price: Number(d.price) || 0,
+      })
     }
 
-    // Get books data for order details
-    const { data: books, error: booksError } = await supabase
-      .from('books')
-      .select('id, name, price')
-      .in('id', bookIds)
-
-    if (booksError || !books) {
-      console.error('Error fetching books:', booksError)
-      return NextResponse.json({ error: 'Failed to fetch books' }, { status: 500 })
-    }
-
-    // Calculate total amount in MMK
-    const totalAmount = amounts.reduce((sum: number, amount: number) => sum + amount, 0)
+    // Calculate total and build order items
+    let totalAmount = 0
+    const orderItems = items.map((item, i) => {
+      const book = books[i]!
+      const itemTotal = book.price * item.quantity
+      totalAmount += itemTotal
+      return {
+        bookId: book.id,
+        name: book.name,
+        price: book.price,
+        quantity: item.quantity,
+      }
+    })
 
     if (totalAmount <= 0) {
       return NextResponse.json({ error: 'Invalid total amount' }, { status: 400 })
     }
 
     // Create unique merchant order ID
-    const merchantOrderId = `ORDER_${Date.now()}_${user.id.slice(0, 8)}`
+    const merchantOrderId = `ORDER_${Date.now()}_${userId.slice(0, 8)}`
 
-    // Create order title from book names
-    const orderTitle = books.length === 1
-      ? books[0].name
-      : `${books[0].name} and ${books.length - 1} more`
+    // Create order title
+    const orderTitle = books.length === 1 ? books[0]!.name : `${books[0]!.name} and ${books.length - 1} more`
 
-    // Store order in database for tracking
-    const { data: order, error: orderError } = await supabase
-      .from('kbzpay_orders')
-      .insert({
-        merchant_order_id: merchantOrderId,
-        user_id: user.id,
-        book_ids: bookIds,
-        amounts: amounts,
-        total_amount: totalAmount,
-        currency: 'MMK',
-        status: 'pending',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single()
-
-    if (orderError) {
-      console.error('Error creating order record:', orderError)
-      return NextResponse.json({ error: 'Failed to create order record' }, { status: 500 })
+    // Create order in Firestore using Admin SDK (bypasses security rules)
+    const orderData = {
+      userId,
+      merchantOrderId,
+      bookIds: items.map((i) => i.bookId),
+      items: orderItems,
+      totalAmount,
+      currency: 'MMK',
+      status: 'pending',
+      paymentMethod: 'kbzpay',
+      createdAt: new Date().toISOString(),
     }
+    const orderRef = await db.collection(ORDERS_COLLECTION).add(orderData)
+    const orderId = orderRef.id
 
     // Create KBZPay order
     const kbzPayOrder = {
@@ -76,10 +87,10 @@ export async function POST(request: NextRequest) {
       total_amount: totalAmount,
       title: orderTitle,
       callback_info: JSON.stringify({
-        orderId: order.id,
-        userId: user.id,
-        bookIds: bookIds
-      })
+        orderId,
+        userId,
+        bookIds: items.map((i) => i.bookId),
+      }),
     }
 
     try {
@@ -88,65 +99,63 @@ export async function POST(request: NextRequest) {
       if (kbzPayResponse.result !== 'SUCCESS') {
         console.error('KBZPay order creation failed:', kbzPayResponse)
 
-        // Update order status to failed
-        await supabase
-          .from('kbzpay_orders')
-          .update({
-            status: 'failed',
-            error_code: kbzPayResponse.code,
-            error_message: kbzPayResponse.msg
-          })
-          .eq('id', order.id)
+        await db.collection(ORDERS_COLLECTION).doc(orderId).update({
+          status: 'failed',
+          updatedAt: new Date().toISOString(),
+        })
 
-        return NextResponse.json({
-          error: 'Failed to create payment order',
-          details: kbzPayResponse.msg
-        }, { status: 400 })
+        return NextResponse.json(
+          {
+            error: 'Failed to create payment order',
+            details: kbzPayResponse.msg,
+          },
+          { status: 400 }
+        )
       }
 
-      // Update order with KBZPay response
-      await supabase
-        .from('kbzpay_orders')
-        .update({
-          prepay_id: kbzPayResponse.prepay_id,
-          kbzpay_response: kbzPayResponse
-        })
-        .eq('id', order.id)
+      // Update order with prepay_id
+      await db.collection(ORDERS_COLLECTION).doc(orderId).update({
+        prepayId: kbzPayResponse.prepay_id,
+        updatedAt: new Date().toISOString(),
+      })
 
       // Generate PWA payment URL
       const paymentUrl = kbzPayService.generatePWAPaymentUrl(kbzPayResponse.prepay_id!)
 
       return NextResponse.json({
         success: true,
-        orderId: order.id,
-        merchantOrderId: merchantOrderId,
+        orderId,
+        merchantOrderId,
         prepayId: kbzPayResponse.prepay_id,
-        paymentUrl: paymentUrl,
-        totalAmount: totalAmount,
-        currency: 'MMK'
+        paymentUrl,
+        totalAmount,
+        currency: 'MMK',
       })
-
     } catch (kbzPayError) {
       console.error('KBZPay API Error:', kbzPayError)
 
-      // Update order status to failed
-      await supabase
-        .from('kbzpay_orders')
-        .update({
-          status: 'failed',
-          error_message: kbzPayError instanceof Error ? kbzPayError.message : 'Unknown error'
-        })
-        .eq('id', order.id)
+      await db.collection(ORDERS_COLLECTION).doc(orderId).update({
+        status: 'failed',
+        updatedAt: new Date().toISOString(),
+      })
 
-      return NextResponse.json({
-        error: 'Payment service unavailable. Please try again later.'
-      }, { status: 503 })
+      return NextResponse.json(
+        {
+          error: 'Payment service unavailable. Please try again later.',
+        },
+        { status: 503 }
+      )
     }
-
   } catch (error) {
-    console.error('Create order error:', error)
-    return NextResponse.json({
-      error: 'Internal server error'
-    }, { status: 500 })
+    const err = error instanceof Error ? error : new Error(String(error))
+    console.error('Create order error:', err.message, err.stack)
+    const isDev = process.env.NODE_ENV === 'development'
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        ...(isDev && { details: err.message }),
+      },
+      { status: 500 }
+    )
   }
 }
