@@ -46,20 +46,20 @@ export default function BookDetailContent({ book }: { book: Book }) {
         )}
 
         <div className="relative z-10 bg-black/30 backdrop-blur-sm border-b border-gray-800/30">
-          <div className="container mx-auto px-6 py-4">
+          <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
             <button
               onClick={() => router.back()}
-              className="group flex items-center gap-3 text-gray-400 hover:text-white transition-all"
+              className="group flex items-center gap-2 sm:gap-3 text-gray-400 hover:text-white transition-all touch-manipulation"
             >
               <div className="p-2 rounded-full bg-gray-900/50 group-hover:bg-gray-800/50 transition-colors">
                 <ArrowLeftIcon className="w-4 h-4" />
               </div>
-              <span className="font-medium">Back to Books</span>
+              <span className="font-medium text-sm sm:text-base">Back to Books</span>
             </button>
           </div>
         </div>
 
-        <div className="relative z-10 container mx-auto px-6 py-16">
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 py-8 sm:py-16">
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
             <div className="xl:col-span-6 flex justify-center xl:justify-start">
               <div className="relative w-full max-w-lg">
@@ -147,19 +147,20 @@ export default function BookDetailContent({ book }: { book: Book }) {
 
       {/* Purchase Section */}
       <div className="bg-gradient-to-b from-gray-900/50 to-black border-t border-gray-800/50">
-        <div className="container mx-auto px-6 py-16">
+        <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-16">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-3xl p-8 border border-gray-700/50">
-              <div className="flex items-center justify-between mb-8">
-                <span className="text-5xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-gray-700/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6 sm:mb-8">
+                <span className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                   {formatMMK(book.price)}
                 </span>
-                <div className="flex items-center gap-4">
-                  <label className="text-gray-300">Quantity:</label>
-                  <div className="flex items-center bg-gray-800 rounded-xl border border-gray-700">
+                <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                  <label className="text-gray-300 text-sm sm:text-base">Quantity:</label>
+                  <div className="flex items-center bg-gray-800 rounded-xl border border-gray-700 w-full sm:w-auto min-w-0">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="p-3 hover:bg-gray-700 rounded-l-xl transition-colors"
+                      className="p-3 sm:p-3 hover:bg-gray-700 rounded-l-xl transition-colors touch-manipulation flex-shrink-0"
+                      aria-label="Decrease quantity"
                     >
                       −
                     </button>
@@ -168,11 +169,12 @@ export default function BookDetailContent({ book }: { book: Book }) {
                       min={1}
                       value={quantity}
                       onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 py-2 text-center bg-transparent border-0 text-white focus:outline-none"
+                      className="w-14 sm:w-16 py-2.5 sm:py-2 text-center bg-transparent border-0 text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       onClick={() => setQuantity(quantity + 1)}
-                      className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors"
+                      className="p-3 sm:p-3 hover:bg-gray-700 rounded-r-xl transition-colors touch-manipulation flex-shrink-0"
+                      aria-label="Increase quantity"
                     >
                       +
                     </button>
@@ -180,28 +182,28 @@ export default function BookDetailContent({ book }: { book: Book }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {inCart ? (
                   <button
                     onClick={handleRemoveFromCart}
-                    className="py-4 px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all"
+                    className="py-3.5 sm:py-4 px-6 sm:px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all touch-manipulation w-full"
                   >
                     Remove from Cart
                   </button>
                 ) : (
                   <button
                     onClick={handleAddToCart}
-                    className="py-4 px-8 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-3"
+                    className="py-3.5 sm:py-4 px-6 sm:px-8 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all flex items-center justify-center gap-2 sm:gap-3 w-full touch-manipulation"
                   >
-                    <ShoppingCartIcon className="w-6 h-6" />
+                    <ShoppingCartIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                     Add to Cart
                   </button>
                 )}
                 <button
                   onClick={handleBuyNow}
-                  className="py-4 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-2xl transition-all"
+                  className="py-3.5 sm:py-4 px-6 sm:px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all touch-manipulation w-full sm:col-span-2 sm:col-span-1"
                 >
-                  Buy Now (Demo - no payment)
+                  Buy Now
                 </button>
               </div>
             </div>

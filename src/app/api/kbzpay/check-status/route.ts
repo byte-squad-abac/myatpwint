@@ -1,16 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getAdminAuth, getAdminFirestore } from '@/lib/firebase/admin'
 import { kbzPayService } from '@/lib/services/kbzpay'
+
+const ORDERS_COLLECTION = 'orders'
+
+function docToOrder(
+  id: string,
+  data: { userId?: string; merchantOrderId?: string; status?: string; totalAmount?: number; paidAmount?: number; paidAt?: string; kbzOrderId?: string }
+) {
+  return {
+    id,
+    userId: data.userId || '',
+    merchantOrderId: data.merchantOrderId || '',
+    status: data.status || 'pending',
+    totalAmount: Number(data.totalAmount) || 0,
+    paidAmount: data.paidAmount,
+    paidAt: data.paidAt,
+    kbzOrderId: data.kbzOrderId,
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Get Firebase Auth token from header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const token = authHeader.substring(7)
+    const adminAuth = getAdminAuth()
+    const decodedToken = await adminAuth.verifyIdToken(token)
+    const userId = decodedToken.uid
 
     const { searchParams } = new URL(request.url)
     const merchantOrderId = searchParams.get('merchantOrderId')
@@ -19,15 +40,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Merchant order ID is required' }, { status: 400 })
     }
 
-    // Get order from database
-    const { data: order, error: orderError } = await supabase
-      .from('kbzpay_orders')
-      .select('*')
-      .eq('merchant_order_id', merchantOrderId)
-      .eq('user_id', user.id)
-      .single()
+    const db = getAdminFirestore()
+    const orderSnap = await db.collection(ORDERS_COLLECTION).where('merchantOrderId', '==', merchantOrderId).limit(1).get()
+    if (orderSnap.empty) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+    const orderDoc = orderSnap.docs[0]
+    const order = docToOrder(orderDoc.id, orderDoc.data())
 
-    if (orderError || !order) {
+    if (order.userId !== userId) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
@@ -36,8 +57,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         status: 'paid',
-        paidAt: order.paid_at,
-        orderId: order.id
+        paidAt: order.paidAt,
+        orderId: order.id,
       })
     }
 
@@ -46,53 +67,25 @@ export async function GET(request: NextRequest) {
       const kbzPayResponse = await kbzPayService.queryOrder(merchantOrderId)
 
       if (kbzPayResponse.result === 'SUCCESS' && kbzPayResponse.trade_status === 'PAY_SUCCESS') {
-        // Update order status in database
+        // Update order status in Firestore (Admin SDK)
         const paidAt = kbzPayResponse.pay_success_time
           ? new Date(parseInt(kbzPayResponse.pay_success_time) * 1000).toISOString()
           : new Date().toISOString()
 
-        const { error: updateError } = await supabase
-          .from('kbzpay_orders')
-          .update({
-            status: 'completed',
-            kbz_order_id: kbzPayResponse.mm_order_id,
-            paid_amount: parseFloat(kbzPayResponse.total_amount || '0'),
-            paid_at: paidAt,
-            kbzpay_response: kbzPayResponse,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', order.id)
-
-        if (updateError) {
-          console.error('Error updating order status:', updateError)
-        }
-
-        // Create purchase records if payment was successful
-        try {
-          const purchasePromises = order.book_ids.map(async (bookId: string, index: number) => {
-            return supabase.from('purchases').insert({
-              user_id: order.user_id,
-              book_id: bookId,
-              amount: order.amounts[index],
-              currency: 'MMK',
-              payment_method: 'kbzpay',
-              payment_id: kbzPayResponse.mm_order_id,
-              status: 'completed',
-              purchased_at: paidAt
-            })
-          })
-
-          await Promise.all(purchasePromises)
-        } catch (error) {
-          console.error('Error creating purchases:', error)
-        }
+        await db.collection(ORDERS_COLLECTION).doc(order.id).update({
+          status: 'completed',
+          kbzOrderId: kbzPayResponse.mm_order_id,
+          paidAmount: parseFloat(kbzPayResponse.total_amount || '0'),
+          paidAt: paidAt,
+          updatedAt: new Date().toISOString(),
+        })
 
         return NextResponse.json({
           success: true,
           status: 'paid',
           paidAt: paidAt,
           orderId: order.id,
-          kbzOrderId: kbzPayResponse.mm_order_id
+          kbzOrderId: kbzPayResponse.mm_order_id,
         })
       }
 
@@ -100,9 +93,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         status: 'pending',
-        orderId: order.id
+        orderId: order.id,
       })
-
     } catch (kbzPayError) {
       console.error('KBZPay status check error:', kbzPayError)
 
@@ -110,95 +102,112 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         status: order.status,
-        orderId: order.id
+        orderId: order.id,
       })
     }
-
   } catch (error) {
     console.error('Check status error:', error)
-    return NextResponse.json({
-      error: 'Internal server error'
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Get Firebase Auth token from header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const token = authHeader.substring(7)
+    const adminAuth = getAdminAuth()
+    const decodedToken = await adminAuth.verifyIdToken(token)
+    const userId = decodedToken.uid
 
     const body = await request.json()
     const { merchantOrderId, orderId } = body
 
     if (!merchantOrderId && !orderId) {
-      return NextResponse.json({
-        error: 'Either merchantOrderId or orderId is required'
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: 'Either merchantOrderId or orderId is required',
+        },
+        { status: 400 }
+      )
     }
 
-    // Get order from database
-    let query = supabase.from('kbzpay_orders').select('*')
-
+    const db = getAdminFirestore()
+    let order: ReturnType<typeof docToOrder> | null = null
     if (orderId) {
-      query = query.eq('id', orderId)
+      const snap = await db.collection(ORDERS_COLLECTION).doc(orderId).get()
+      if (snap.exists) order = docToOrder(snap.id, snap.data()!)
     } else {
-      query = query.eq('merchant_order_id', merchantOrderId)
+      const snap = await db.collection(ORDERS_COLLECTION).where('merchantOrderId', '==', merchantOrderId).limit(1).get()
+      if (!snap.empty) {
+        const d = snap.docs[0]
+        order = docToOrder(d.id, d.data())
+      }
     }
 
-    const { data: order, error: orderError } = await query
-      .eq('user_id', user.id)
-      .single()
-
-    if (orderError || !order) {
-      return NextResponse.json({
-        error: 'Order not found'
-      }, { status: 404 })
+    if (!order || order.userId !== userId) {
+      return NextResponse.json(
+        {
+          error: 'Order not found',
+        },
+        { status: 404 }
+      )
     }
 
-    // If order is already completed or failed, return current status
-    if (order.status === 'completed' || order.status === 'failed' || order.status === 'expired' || order.status === 'cancelled') {
+    // If order is already terminal, return current status
+    if (
+      order.status === 'completed' ||
+      order.status === 'failed' ||
+      order.status === 'expired' ||
+      order.status === 'cancelled'
+    ) {
       return NextResponse.json({
         orderId: order.id,
-        merchantOrderId: order.merchant_order_id,
+        merchantOrderId: order.merchantOrderId,
         status: order.status,
-        totalAmount: order.total_amount,
-        paidAmount: order.paid_amount,
-        paidAt: order.paid_at,
-        kbzOrderId: order.kbz_order_id
+        totalAmount: order.totalAmount,
+        paidAmount: order.paidAmount,
+        paidAt: order.paidAt,
+        kbzOrderId: order.kbzOrderId,
       })
     }
 
     try {
       // Query KBZPay for current status
-      const kbzPayResponse = await kbzPayService.queryOrder(order.merchant_order_id)
+      const kbzPayResponse = await kbzPayService.queryOrder(order.merchantOrderId)
 
       if (kbzPayResponse.result !== 'SUCCESS') {
         console.error('KBZPay status query failed:', kbzPayResponse)
         return NextResponse.json({
           orderId: order.id,
-          merchantOrderId: order.merchant_order_id,
+          merchantOrderId: order.merchantOrderId,
           status: order.status,
-          error: 'Failed to check payment status'
+          error: 'Failed to check payment status',
         })
       }
 
       const { trade_status, total_amount, mm_order_id, pay_success_time } = kbzPayResponse
 
       // Map KBZPay status to our status
-      let orderStatus = order.status
-      let shouldUpdatePurchases = false
-      let paidAt = order.paid_at
+      type OrderStatus = 'pending' | 'completed' | 'failed' | 'expired' | 'cancelled'
+      let orderStatus: OrderStatus = order.status
+      let paidAt = order.paidAt
 
       switch (trade_status) {
         case 'PAY_SUCCESS':
           orderStatus = 'completed'
-          shouldUpdatePurchases = true
-          paidAt = pay_success_time ? new Date(parseInt(pay_success_time) * 1000).toISOString() : new Date().toISOString()
+          paidAt = pay_success_time
+            ? new Date(parseInt(pay_success_time) * 1000).toISOString()
+            : new Date().toISOString()
           break
         case 'PAY_FAILED':
           orderStatus = 'failed'
@@ -217,79 +226,49 @@ export async function POST(request: NextRequest) {
           console.log('Unknown trade status:', trade_status)
       }
 
-      // Update order in database if status changed
+      // Update order in Firestore if status changed (Admin SDK)
       if (orderStatus !== order.status) {
-        const { error: updateError } = await supabase
-          .from('kbzpay_orders')
-          .update({
-            status: orderStatus,
-            kbz_order_id: mm_order_id,
-            paid_amount: total_amount ? parseFloat(total_amount) : order.total_amount,
-            paid_at: paidAt,
-            kbzpay_response: kbzPayResponse,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', order.id)
-
-        if (updateError) {
-          console.error('Failed to update order status:', updateError)
-        }
-
-        // Create purchase records if payment was successful and not already created
-        if (shouldUpdatePurchases && orderStatus === 'completed' && order.status !== 'completed') {
-          try {
-            const purchasePromises = order.book_ids.map(async (bookId: string, index: number) => {
-              return supabase.from('purchases').insert({
-                user_id: order.user_id,
-                book_id: bookId,
-                amount: order.amounts[index],
-                currency: 'MMK',
-                payment_method: 'kbzpay',
-                payment_id: mm_order_id,
-                status: 'completed',
-                purchased_at: paidAt
-              })
-            })
-
-            await Promise.all(purchasePromises)
-            console.log(`Created purchases for completed order ${order.merchant_order_id}`)
-          } catch (error) {
-            console.error('Error creating purchases during status check:', error)
-          }
-        }
+        await db.collection(ORDERS_COLLECTION).doc(order.id).update({
+          status: orderStatus,
+          kbzOrderId: mm_order_id,
+          paidAmount: total_amount ? parseFloat(total_amount) : order.totalAmount,
+          paidAt: paidAt,
+          updatedAt: new Date().toISOString(),
+        })
       }
 
       return NextResponse.json({
         orderId: order.id,
-        merchantOrderId: order.merchant_order_id,
+        merchantOrderId: order.merchantOrderId,
         status: orderStatus,
-        totalAmount: order.total_amount,
-        paidAmount: total_amount ? parseFloat(total_amount) : order.paid_amount,
+        totalAmount: order.totalAmount,
+        paidAmount: total_amount ? parseFloat(total_amount) : order.paidAmount,
         paidAt: paidAt,
         kbzOrderId: mm_order_id,
-        tradeStatus: trade_status
+        tradeStatus: trade_status,
       })
-
     } catch (kbzPayError) {
       console.error('KBZPay status check error:', kbzPayError)
 
-      // Return current order status from database
+      // Return current order status from Firestore
       return NextResponse.json({
         orderId: order.id,
-        merchantOrderId: order.merchant_order_id,
+        merchantOrderId: order.merchantOrderId,
         status: order.status,
-        totalAmount: order.total_amount,
-        paidAmount: order.paid_amount,
-        paidAt: order.paid_at,
-        kbzOrderId: order.kbz_order_id,
-        error: 'Unable to check payment status with KBZPay'
+        totalAmount: order.totalAmount,
+        paidAmount: order.paidAmount,
+        paidAt: order.paidAt,
+        kbzOrderId: order.kbzOrderId,
+        error: 'Unable to check payment status with KBZPay',
       })
     }
-
   } catch (error) {
     console.error('Status check error:', error)
-    return NextResponse.json({
-      error: 'Internal server error'
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    )
   }
 }
