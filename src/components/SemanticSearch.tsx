@@ -400,7 +400,7 @@ export default function SemanticSearch({
                 {/* Book Cover */}
                 <div style={{ position: 'relative', minWidth: '48px' }}>
                   <Image
-                    src={book.image_url}
+                    src={book.image}
                     alt={book.name}
                     width={48}
                     height={72}
@@ -447,7 +447,7 @@ export default function SemanticSearch({
                     color: '#666',
                     marginBottom: '4px'
                   }}>
-                    👤 {book.author}
+                    👤 {book.author_name}
                   </div>
                   <div style={{
                     display: 'flex',

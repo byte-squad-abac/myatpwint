@@ -1,90 +1,52 @@
 'use client'
 
-// React and Next.js
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-
-// Types
-import type { Book } from '@/types'
-
-// Components
-import BookDetailPage from './BookDetailPage'
-
-// Services
-import { createClient } from '@/lib/supabase/client'
+import { getBookById } from '@/lib/firebase/books'
+import type { Book } from '@/types/book'
+import BookDetailContent from './BookDetailContent'
 
 export default function BookPage() {
   const params = useParams()
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     if (!params.id) return
 
-    const fetchBook = async () => {
+    const load = async () => {
       try {
-        // First get the book
-        const { data: bookData, error: bookError } = await supabase
-          .from('books')
-          .select('*')
-          .eq('id', params.id)
-          .single()
-
-        if (bookError || !bookData) {
-          console.error('Error fetching book:', bookError)
-          setError(bookError?.message || 'Book not found')
-          return
-        }
-
-        // Then get the manuscript data if manuscript_id exists
-        if (bookData.manuscript_id) {
-          const { data: manuscriptData } = await supabase
-            .from('manuscripts')
-            .select('wants_digital, wants_physical')
-            .eq('id', bookData.manuscript_id)
-            .limit(1)
-
-          // Add manuscripts as an array to match the type
-          if (manuscriptData && manuscriptData.length > 0) {
-            bookData.manuscripts = manuscriptData
-          }
-        }
-
-        setBook(bookData as Book)
+        const data = await getBookById(params.id as string)
+        setBook(data)
+        if (!data) setError('Book not found')
       } catch (err) {
-        console.error('Error fetching book:', err)
         setError('Failed to load book')
       } finally {
         setLoading(false)
       }
     }
-
-    fetchBook()
-  }, [params.id, supabase])
+    load()
+  }, [params.id])
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading book...</p>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (error || !book) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Book Not Found</h1>
-          <p className="text-gray-600 mb-6">{error || 'The book you are looking for does not exist.'}</p>
-          <Link 
-            href="/books" 
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          <h1 className="text-2xl font-bold text-white mb-4">Book Not Found</h1>
+          <p className="text-gray-400 mb-6">{error || 'The book you are looking for does not exist.'}</p>
+          <Link
+            href="/books"
+            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
           >
             Browse Books
           </Link>
@@ -93,5 +55,5 @@ export default function BookPage() {
     )
   }
 
-  return <BookDetailPage book={book} />
+  return <BookDetailContent book={book} />
 }
