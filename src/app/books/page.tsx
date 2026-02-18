@@ -41,9 +41,9 @@ export default function BooksPage() {
     <div className="min-h-screen bg-black text-white">
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-transparent to-transparent" />
-        <div className="container mx-auto px-6 py-20 relative">
+        <div className="container mx-auto px-4 sm:px-6 py-12 sm:py-20 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-6xl md:text-7xl font-bold tracking-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
                 Myat Pwint Books
               </span>
@@ -52,9 +52,9 @@ export default function BooksPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 pb-20">
+      <div className="container mx-auto px-4 sm:px-6 pb-12 sm:pb-20">
         {books.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
             {books.map((book) => (
               <div
                 key={book.id}
