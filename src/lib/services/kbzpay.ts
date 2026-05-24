@@ -38,6 +38,7 @@ class KBZPayService {
   private readonly appKey: string
   private readonly baseUrl: string
   private readonly notifyUrl: string
+  private readonly pwaBaseUrl: string
 
   constructor() {
     this.appId = process.env.KBZPAY_APP_ID!
@@ -45,6 +46,12 @@ class KBZPayService {
     this.appKey = process.env.KBZPAY_APP_KEY!
     this.baseUrl = process.env.KBZPAY_BASE_URL!
     this.notifyUrl = process.env.KBZPAY_NOTIFY_URL!
+
+    // Pick production or UAT PWA URL based on NODE_ENV
+    this.pwaBaseUrl =
+      process.env.NODE_ENV === 'production'
+        ? (process.env.KBZPAY_PWA_PROD_URL ?? 'https://static.kbzpay.com/pgw/pwa/#/')
+        : (process.env.KBZPAY_PWA_UAT_URL ?? 'https://static.kbzpay.com/pgw/uat/pwa/#/')
 
     if (!this.appId || !this.merchantCode || !this.appKey || !this.baseUrl || !this.notifyUrl) {
       throw new Error('Missing KBZPay configuration')
@@ -193,10 +200,7 @@ class KBZPayService {
       sign: signature
     })
 
-    // Use UAT URL as per environment configuration
-    const pwaBaseUrl = 'https://static.kbzpay.com/pgw/uat/pwa/#/'
-
-    return `${pwaBaseUrl}?${params.toString()}`
+    return `${this.pwaBaseUrl}?${params.toString()}`
   }
 
   /**

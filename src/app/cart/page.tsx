@@ -79,6 +79,10 @@ export default function CartPage() {
         throw new Error(data.error || t(ui.common.payError))
       }
 
+      // Store order IDs so /checkout/success can verify payment after KBZPay redirect
+      sessionStorage.setItem('kbzpay_order_id', data.orderId)
+      sessionStorage.setItem('kbzpay_merchant_order_id', data.merchantOrderId)
+
       clearCart()
       window.location.href = data.paymentUrl
     } catch (err) {
