@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth'
+import { usePreferences } from '@/components/PreferencesProvider'
+import { pick, ui } from '@/lib/ui/bilingualLabels'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,6 +14,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
   const { signIn, user, profile, loading: authLoading } = useFirebaseAuth()
+  const { locale } = usePreferences()
+  const t = (e: { en: string; my: string }) => pick(e, locale)
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -37,18 +41,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4">
+    <div className="flex w-full flex-1 flex-col items-center justify-center px-4 py-12">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold text-white">Sign in to MyatPwint</h2>
-          <p className="mt-2 text-center text-sm text-gray-400">Myanmar Digital Publishing</p>
+          <h2 className="mt-6 text-center text-3xl font-bold text-app">{t(ui.auth.loginTitle)}</h2>
+          <p className="mt-2 text-center text-sm text-app-muted">{t(ui.auth.loginSubtitle)}</p>
+          <p className="mt-4 text-center text-sm text-app-muted leading-relaxed">{t(ui.auth.loginHelp)}</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email
+              <label htmlFor="email" className="block text-sm font-medium text-app mb-1">
+                {t(ui.auth.email)}
               </label>
               <input
                 id="email"
@@ -57,14 +62,15 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                placeholder="Enter your email"
+                className="mt-1 block w-full px-3 py-3 rounded-lg input-app focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                placeholder={t(ui.auth.emailPh)}
+                autoComplete="email"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                Password
+              <label htmlFor="password" className="block text-sm font-medium text-app mb-1">
+                {t(ui.auth.password)}
               </label>
               <input
                 id="password"
@@ -73,14 +79,15 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                placeholder="Enter your password"
+                className="mt-1 block w-full px-3 py-3 rounded-lg input-app focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                placeholder={t(ui.auth.passwordPh)}
+                autoComplete="current-password"
               />
             </div>
           </div>
 
           {error && (
-            <div className="bg-red-900/30 border border-red-700 text-red-300 px-4 py-3 rounded-md text-sm">
+            <div className="bg-[var(--app-danger-bg)] border border-[var(--app-danger)]/40 text-[var(--app-danger)] px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -89,15 +96,18 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              className="w-full bg-[var(--app-accent)] text-white px-4 py-3 rounded-lg font-semibold hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] disabled:opacity-50 touch-manipulation"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t(ui.auth.signingIn) : t(ui.auth.signInCta)}
             </button>
           </div>
 
           <div className="text-center">
-            <Link href="/register" className="text-purple-400 hover:text-purple-300 text-sm font-medium">
-              Don&apos;t have an account? Sign up
+            <Link
+              href="/register"
+              className="text-[var(--app-accent)] hover:underline text-sm font-medium"
+            >
+              {t(ui.auth.noAccount)}
             </Link>
           </div>
         </form>

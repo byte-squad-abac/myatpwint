@@ -9,10 +9,10 @@ export default function Home() {
     router.replace('/books')
   }, [router])
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="flex flex-1 items-center justify-center bg-app">
       <div className="relative">
-        <div className="w-24 h-24 border-4 border-white/10 rounded-full" />
-        <div className="absolute inset-0 w-24 h-24 border-4 border-t-purple-500 rounded-full animate-spin" />
+        <div className="w-16 h-16 sm:w-24 sm:h-24 border-4 border-app rounded-full" />
+        <div className="absolute inset-0 w-16 h-16 sm:w-24 sm:h-24 border-4 border-t-[var(--app-accent)] rounded-full animate-spin" />
       </div>
     </div>
   )

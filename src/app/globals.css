@@ -1,10 +1,94 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 * {
   box-sizing: border-box;
+}
+
+:root {
+  --app-bg: color-mix(in srgb, #ffffff 92%, transparent);
+  --app-fg: #0f172a;
+  --app-muted: #64748b;
+  --app-card: #ffffff;
+  --app-card-elevated: #f8fafc;
+  --app-border: #e2e8f0;
+  --app-nav: color-mix(in srgb, #ffffff 92%, transparent);
+  --app-nav-border: #e2e8f0;
+  --app-input-bg: #ffffff;
+  --app-input-border: #cbd5e1;
+  --app-accent: #7c3aed;
+  --app-accent-muted: rgba(124, 58, 237, 0.12);
+  --app-danger: #dc2626;
+  --app-danger-bg: rgba(220, 38, 38, 0.08);
+  --app-overlay: rgba(15, 23, 42, 0.45);
+  --app-hero-tint: rgba(124, 58, 237, 0.08);
+  --app-chip-bg: #f1f5f9;
+  --app-chip-fg: #334155;
+  --app-price: #15803d;
+  --app-gradient-from: #7c3aed;
+  --app-gradient-to: #db2777;
+}
+
+.dark {
+  --app-bg: #030712;
+  --app-fg: #f8fafc;
+  --app-muted: #94a3b8;
+  --app-card: #111827;
+  --app-card-elevated: #1f2937;
+  --app-border: #1f2937;
+  --app-nav: color-mix(in srgb, #030712 92%, transparent);
+  --app-nav-border: #1f2937;
+  --app-input-bg: #111827;
+  --app-input-border: #374151;
+  --app-accent: #7c3aed;
+  --app-accent-muted: rgba(124, 58, 237, 0.12);
+  --app-danger: #f87171;
+  --app-danger-bg: rgba(248, 113, 113, 0.12);
+  --app-overlay: rgba(0, 0, 0, 0.65);
+  --app-hero-tint: rgba(124, 58, 237, 0.08);
+  --app-chip-bg: rgba(31, 41, 55, 0.85);
+  --app-chip-fg: #e2e8f0;
+  --app-price: #4ade80;
+  --app-gradient-from: #7c3aed;
+  --app-gradient-to: #db2777;
 }
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.6;
+  background-color: var(--app-bg);
+  color: var(--app-fg);
+}
+
+.bg-app {
+  background-color: var(--app-bg);
+}
+.text-app {
+  color: var(--app-fg);
+}
+.text-app-muted {
+  color: var(--app-muted);
+}
+.border-app {
+  border-color: var(--app-border);
+}
+.bg-app-card {
+  background-color: var(--app-card);
+}
+.bg-app-card-elevated {
+  background-color: var(--app-card-elevated);
+}
+.bg-app-nav {
+  background-color: var(--app-nav);
+}
+
+.input-app {
+  background-color: var(--app-input-bg);
+  border: 1px solid var(--app-input-border);
+  color: var(--app-fg);
+}
+
+.input-app::placeholder {
+  color: var(--app-muted);
 }

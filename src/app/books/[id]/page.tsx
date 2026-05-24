@@ -6,12 +6,18 @@ import Link from 'next/link'
 import { getBookById } from '@/lib/firebase/books'
 import type { Book } from '@/types/book'
 import BookDetailContent from './BookDetailContent'
+import { usePreferences } from '@/components/PreferencesProvider'
+import { pick, ui } from '@/lib/ui/bilingualLabels'
+
+type LoadError = 'not_found' | 'failed' | null
 
 export default function BookPage() {
   const params = useParams()
+  const { locale } = usePreferences()
+  const t = (e: { en: string; my: string }) => pick(e, locale)
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<LoadError>(null)
 
   useEffect(() => {
     if (!params.id) return
@@ -20,9 +26,9 @@ export default function BookPage() {
       try {
         const data = await getBookById(params.id as string)
         setBook(data)
-        if (!data) setError('Book not found')
-      } catch (err) {
-        setError('Failed to load book')
+        if (!data) setLoadError('not_found')
+      } catch {
+        setLoadError('failed')
       } finally {
         setLoading(false)
       }
@@ -32,23 +38,24 @@ export default function BookPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-1 items-center justify-center bg-app">
+        <div className="w-12 h-12 border-4 border-[var(--app-accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
-  if (error || !book) {
+  if (loadError || !book) {
+    const heading =
+      loadError === 'failed' ? t(ui.bookLoad.failed) : t(ui.bookLoad.notFound)
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Book Not Found</h1>
-          <p className="text-gray-400 mb-6">{error || 'The book you are looking for does not exist.'}</p>
+      <div className="flex flex-1 items-center justify-center bg-app px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-app mb-6">{heading}</h1>
           <Link
             href="/books"
-            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            className="inline-flex items-center px-5 py-3 bg-[var(--app-accent)] hover:opacity-95 text-white rounded-xl font-semibold touch-manipulation"
           >
-            Browse Books
+            {t(ui.nav.books)}
           </Link>
         </div>
       </div>

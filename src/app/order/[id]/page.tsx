@@ -9,15 +9,32 @@ import { getBookById } from '@/lib/firebase/books'
 import { formatMMK } from '@/lib/utils/currency'
 import type { Order } from '@/lib/firebase/orders'
 import type { Book } from '@/types/book'
+import { usePreferences } from '@/components/PreferencesProvider'
+import { orderStatusLabel, pick, ui } from '@/lib/ui/bilingualLabels'
+
+const statusColors: Record<Order['status'], string> = {
+  pending:
+    'text-amber-800 bg-amber-100 border-amber-200 dark:text-yellow-300 dark:bg-yellow-400/10 dark:border-yellow-400/25',
+  completed:
+    'text-emerald-800 bg-emerald-100 border-emerald-200 dark:text-green-300 dark:bg-green-400/10 dark:border-green-400/25',
+  failed:
+    'text-red-800 bg-red-100 border-red-200 dark:text-red-300 dark:bg-red-400/10 dark:border-red-400/25',
+  expired:
+    'text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-400/10 dark:border-slate-500/25',
+  cancelled:
+    'text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-400/10 dark:border-slate-500/25',
+}
 
 export default function OrderPage() {
   const params = useParams()
   const router = useRouter()
   const { user, loading: authLoading } = useFirebaseAuth()
+  const { locale } = usePreferences()
+  const t = (e: { en: string; my: string }) => pick(e, locale)
   const [order, setOrder] = useState<Order | null>(null)
   const [books, setBooks] = useState<(Book | null)[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<'not_found' | 'unauthorized' | 'failed' | null>(null)
   const [polling, setPolling] = useState(false)
 
   const orderId = params.id as string
@@ -30,31 +47,31 @@ export default function OrderPage() {
     }
 
     loadOrder()
-  }, [authLoading, user, orderId])
+  }, [authLoading, user, orderId, router])
 
   const loadOrder = async () => {
     try {
       setLoading(true)
       const orderData = await getOrderById(orderId)
       if (!orderData) {
-        setError('Order not found')
+        setErrorKey('not_found')
         return
       }
 
       if (orderData.userId !== user?.uid) {
-        setError('Unauthorized')
+        setErrorKey('unauthorized')
         return
       }
 
       setOrder(orderData)
+      setErrorKey(null)
 
-      // Load books
       const booksPromises = orderData.bookIds.map((bookId) => getBookById(bookId))
       const booksData = await Promise.all(booksPromises)
       setBooks(booksData)
     } catch (err) {
       console.error('Error loading order:', err)
-      setError('Failed to load order')
+      setErrorKey('failed')
     } finally {
       setLoading(false)
     }
@@ -78,7 +95,6 @@ export default function OrderPage() {
       const data = await response.json()
 
       if (response.ok && data.status) {
-        // Reload order to get updated status
         await loadOrder()
       }
     } catch (err) {
@@ -90,107 +106,102 @@ export default function OrderPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-1 items-center justify-center bg-app">
+        <div className="w-12 h-12 border-4 border-[var(--app-accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
-  if (error || !order) {
+  if (errorKey || !order) {
+    const msg =
+      errorKey === 'unauthorized'
+        ? t(ui.orders.unauthorized)
+        : errorKey === 'failed'
+          ? t(ui.orders.loadError)
+          : t(ui.orders.notFound)
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">{error || 'Order not found'}</h1>
+      <div className="flex flex-1 items-center justify-center bg-app px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-app mb-6">{msg}</h1>
           <Link
             href="/orders"
-            className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-white font-semibold rounded-xl"
           >
-            View All Orders
+            {t(ui.orders.allOrders)}
           </Link>
         </div>
       </div>
     )
   }
 
-  const statusColors = {
-    pending: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
-    completed: 'text-green-400 bg-green-400/10 border-green-400/30',
-    failed: 'text-red-400 bg-red-400/10 border-red-400/30',
-    expired: 'text-gray-400 bg-gray-400/10 border-gray-400/30',
-    cancelled: 'text-gray-400 bg-gray-400/10 border-gray-400/30',
+  const dateFmt: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }
+  const dateLocale = locale === 'my' ? 'my' : 'en-US'
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-6">
+    <div className="flex min-h-0 flex-1 flex-col w-full bg-app text-app py-12 px-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Order Receipt</h1>
-            <p className="text-gray-400">Order ID: {order.merchantOrderId}</p>
+            <h1 className="text-3xl font-bold mb-2">{t(ui.orders.receiptTitle)}</h1>
+            <p className="text-app-muted">
+              {t(ui.orders.orderId)}: {order.merchantOrderId}
+            </p>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <span
-              className={`inline-block px-4 py-2 rounded-lg border font-semibold uppercase text-sm ${
-                statusColors[order.status]
-              }`}
+              className={`inline-block px-4 py-2 rounded-lg border font-semibold text-sm ${statusColors[order.status]}`}
             >
-              {order.status}
+              {orderStatusLabel(order.status, locale)}
             </span>
           </div>
         </div>
 
-        {/* Order Info Card */}
-        <div className="bg-gray-900/60 rounded-xl border border-gray-800 p-6 mb-6">
+        <div className="bg-app-card rounded-xl border border-app p-6 mb-6 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Order Date</p>
-              <p className="text-white font-medium">
-                {new Date(order.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+              <p className="text-app-muted text-sm mb-1">{t(ui.orders.orderDate)}</p>
+              <p className="text-app font-medium">
+                {new Date(order.createdAt).toLocaleDateString(dateLocale, dateFmt)}
               </p>
             </div>
             {order.paidAt && (
               <div>
-                <p className="text-gray-400 text-sm mb-1">Payment Date</p>
-                <p className="text-white font-medium">
-                  {new Date(order.paidAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <p className="text-app-muted text-sm mb-1">{t(ui.orders.paymentDate)}</p>
+                <p className="text-app font-medium">
+                  {new Date(order.paidAt).toLocaleDateString(dateLocale, dateFmt)}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-gray-400 text-sm mb-1">Payment Method</p>
-              <p className="text-white font-medium uppercase">{order.paymentMethod}</p>
+              <p className="text-app-muted text-sm mb-1">{t(ui.orders.paymentMethod)}</p>
+              <p className="text-app font-medium uppercase">{order.paymentMethod}</p>
             </div>
             {order.kbzOrderId && (
               <div>
-                <p className="text-gray-400 text-sm mb-1">Transaction ID</p>
-                <p className="text-white font-medium font-mono text-sm">{order.kbzOrderId}</p>
+                <p className="text-app-muted text-sm mb-1">{t(ui.orders.transactionId)}</p>
+                <p className="text-app font-medium font-mono text-sm break-all">{order.kbzOrderId}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Items */}
-        <div className="bg-gray-900/60 rounded-xl border border-gray-800 p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Items</h2>
+        <div className="bg-app-card rounded-xl border border-app p-6 mb-6 shadow-sm">
+          <h2 className="text-xl font-bold mb-4">{t(ui.orders.itemsLabel)}</h2>
           <div className="space-y-4">
             {order.items.map((item, index) => {
               const book = books[index]
               return (
-                <div key={item.bookId} className="flex gap-4 pb-4 border-b border-gray-800 last:border-b-0">
-                  <div className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                <div
+                  key={item.bookId}
+                  className="flex gap-4 pb-4 border-b border-app last:border-b-0 last:pb-0"
+                >
+                  <div className="w-16 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-app-card-elevated border border-app">
                     {book?.image ? (
                       <img
                         src={book.image}
@@ -201,22 +212,26 @@ export default function OrderPage() {
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">
-                        No img
+                      <div className="w-full h-full flex items-center justify-center text-app-muted text-xs">
+                        —
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white">{item.name}</h3>
-                    {book && <p className="text-gray-400 text-sm">{book.author_name}</p>}
-                    <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="text-gray-400">Qty: {item.quantity}</span>
-                      <span className="text-gray-400">×</span>
-                      <span className="text-gray-400">{formatMMK(item.price)}</span>
+                    <h3 className="font-semibold text-app">{item.name}</h3>
+                    {book && <p className="text-app-muted text-sm">{book.author_name}</p>}
+                    <div className="flex items-center gap-4 mt-2 text-sm text-app-muted flex-wrap">
+                      <span>
+                        {t(ui.orders.qty)}: {item.quantity}
+                      </span>
+                      <span>×</span>
+                      <span className="tabular-nums">{formatMMK(item.price)}</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-green-400 font-bold">{formatMMK(item.price * item.quantity)}</p>
+                  <div className="text-right self-start">
+                    <p className="text-[var(--app-price)] font-bold tabular-nums">
+                      {formatMMK(item.price * item.quantity)}
+                    </p>
                   </div>
                 </div>
               )
@@ -224,42 +239,41 @@ export default function OrderPage() {
           </div>
         </div>
 
-        {/* Total */}
-        <div className="bg-gray-900/60 rounded-xl border border-gray-800 p-6 mb-6">
-          <div className="flex justify-between items-center text-2xl font-bold">
-            <span>Total</span>
-            <span className="text-green-400">{formatMMK(order.totalAmount)}</span>
+        <div className="bg-app-card rounded-xl border border-app p-6 mb-6 shadow-sm">
+          <div className="flex justify-between items-center text-2xl font-bold gap-4">
+            <span>{t(ui.common.total)}</span>
+            <span className="text-[var(--app-price)] tabular-nums">{formatMMK(order.totalAmount)}</span>
           </div>
           {order.paidAmount && order.paidAmount !== order.totalAmount && (
-            <div className="flex justify-between items-center text-lg text-gray-400 mt-2">
-              <span>Paid Amount</span>
-              <span>{formatMMK(order.paidAmount)}</span>
+            <div className="flex justify-between items-center text-lg text-app-muted mt-2">
+              <span>{t(ui.orders.paidAmount)}</span>
+              <span className="tabular-nums">{formatMMK(order.paidAmount)}</span>
             </div>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-4 justify-end">
+        <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
           <Link
             href="/orders"
-            className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+            className="px-6 py-3 bg-app-card-elevated border border-app text-app font-semibold rounded-xl text-center hover:bg-app-card transition-colors"
           >
-            View All Orders
+            {t(ui.orders.allOrders)}
           </Link>
           {order.status === 'pending' && (
             <button
+              type="button"
               onClick={checkPaymentStatus}
               disabled={polling}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] disabled:opacity-60 text-white font-semibold rounded-xl touch-manipulation"
             >
-              {polling ? 'Checking...' : 'Check Payment Status'}
+              {polling ? t(ui.orders.checking) : t(ui.orders.checkPayment)}
             </button>
           )}
           <Link
             href="/books"
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-white font-semibold rounded-xl text-center hover:opacity-95"
           >
-            Continue Shopping
+            {t(ui.common.continueShopping)}
           </Link>
         </div>
       </div>

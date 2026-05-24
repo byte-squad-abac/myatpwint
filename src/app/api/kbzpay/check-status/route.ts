@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
 
       // Map KBZPay status to our status
       type OrderStatus = 'pending' | 'completed' | 'failed' | 'expired' | 'cancelled'
-      let orderStatus: OrderStatus = order.status
+      let orderStatus: OrderStatus = order.status as OrderStatus
       let paidAt = order.paidAt
 
       switch (trade_status) {
